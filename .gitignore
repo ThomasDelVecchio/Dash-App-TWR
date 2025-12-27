@@ -1,0 +1,22 @@
+# --- BLOCKED FOLDERS (EXPLICIT) ---
+Validation/
+Archive/
+Output/
+__pycache__/
+.vscode/
+
+# --- SECRETS ---
+.env
+
+# --- DATA FILES ---
+*.csv
+*.xlsx
+*.xls
+*.json
+
+# --- IMAGES & REPORTS ---
+*.docx
+*.pdf
+*.png
+*.jpg
+*.jpeg

@@ -1,0 +1,158 @@
+:root {
+    --bg-color: #f8f9fa;
+    --card-bg: #ffffff;
+    --text-color: #212529;
+    --sidebar-bg: #343a40;
+    --sidebar-text: #ffffff;
+}
+
+[data-theme="dark"] {
+    --bg-color: #222222;
+    --card-bg: #333333;
+    --text-color: #f8f9fa;
+    --sidebar-bg: #1a1a1a;
+    --sidebar-text: #e0e0e0;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    padding: 2rem 1rem;
+    width: 18rem;
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    transition: background-color 0.3s, transform 0.3s ease-in-out;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.sidebar.hidden {
+    transform: translateX(-100%);
+}
+
+.content {
+    margin-left: 18rem;
+    padding: 2rem;
+    transition: margin-left 0.3s ease-in-out;
+}
+
+.content.expanded {
+    margin-left: 0 !important;
+}
+
+.kpi-card {
+    text-align: center;
+    padding: 1.5rem;
+    background-color: var(--card-bg);
+    border: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    color: var(--text-color);
+}
+
+.kpi-label {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    margin-bottom: 0.5rem;
+}
+
+.kpi-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.card {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.nav-link {
+    color: rgba(255,255,255,0.7);
+}
+.nav-link:hover, .nav-link.active {
+    color: #fff;
+    background-color: rgba(255,255,255,0.1);
+}
+
+/* Plotly overrides */
+[data-theme="dark"] .js-plotly-plot .plotly .modebar {
+    background-color: transparent !important;
+}
+
+/* Table overrides for dark mode */
+[data-theme="dark"] .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner th {
+    background-color: #333 !important;
+    color: #fff !important;
+}
+[data-theme="dark"] .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td {
+    background-color: #333 !important;
+    color: #fff !important;
+}
+
+/* MathJax Display Styling */
+mjx-container {
+    display: inline-block !important;
+    margin: 0.25rem 0.25rem !important;
+    font-size: 1.05em !important;
+    overflow: visible !important;
+}
+
+mjx-container[display="true"] {
+    display: block !important;
+    margin: 0.75rem 0 0.75rem 1.5rem !important;
+    font-size: 1.1em !important;
+    overflow: visible !important;
+    max-width: 100% !important;
+}
+
+/* MathJax Dark Mode Support */
+[data-theme="dark"] mjx-container {
+    color: #f8f9fa !important;
+}
+
+[data-theme="dark"] mjx-container svg {
+    color: #f8f9fa !important;
+    fill: #f8f9fa !important;
+}
+
+/* Light Mode MathJax */
+[data-theme="light"] mjx-container {
+    color: #212529 !important;
+}
+
+[data-theme="light"] mjx-container svg {
+    color: #212529 !important;
+    fill: #212529 !important;
+}
+
+/* Remove scroll bars from formulas */
+.text-body mjx-container {
+    overflow: visible !important;
+}
+
+mjx-container > svg {
+    overflow: visible !important;
+}
+
+/* Audit Trail Logic - Disable Context Menu */
+.audit-target {
+    -webkit-touch-callout: none !important;
+    user-select: none !important; /* Optional: Prevent text selection during long press */
+}
+
+.footnote {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 1rem;
+}
