@@ -3,6 +3,7 @@ from dash import dcc, html, callback, Input, Output, State, ALL, MATCH
 import dash_bootstrap_components as dbc
 import dash_wrappers as dw
 import plotly.graph_objects as go
+from components.data_source_badge import create_data_source_badge
 from config import TARGET_MONTHLY_CONTRIBUTION, GLOBAL_PALETTE
 from components.monte_carlo import calculate_portfolio_sigma
 import pandas as pd
@@ -128,9 +129,12 @@ layout = html.Div([
     # DISCLOSURE FOOTER
     html.Hr(),
     html.Div([
-        html.P("Data Sources & Methodology:", className="fw-bold mb-1"),
+        html.Div([
+            html.P("Data Sources & Methodology:", className="fw-bold mb-1", style={"display": "inline-block"}),
+            html.Div(id="risk-data-source-container", style={"display": "inline-block"})
+        ]),
         html.Ul([
-            html.Li("Sector Classifications: Sourced from Financial Modeling Prep (FMP)."),
+            html.Li(id="risk-sector-source-desc"),
             html.Li("Price Data: Sourced from Yahoo Finance."),
             html.Li("Risk Metrics: Based on realized historical performance (Trailing 12-Month Return, 10-Year Volatility). Past performance is not indicative of future results.")
         ], className="small text-muted")
@@ -143,7 +147,9 @@ layout = html.Div([
     [Output({'type': 'filter-chart', 'index': 'risk-chart'}, 'figure'),
      Output('correlation-heatmap', 'figure'),
      Output('drawdown-chart', 'figure'),
-     Output('projections-chart', 'figure')],
+     Output('projections-chart', 'figure'),
+     Output('risk-data-source-container', 'children'),
+     Output('risk-sector-source-desc', 'children')],
     [Input('data-signal', 'data'),
      Input('theme-store', 'data'),
      Input('proj-return-slider', 'value'),
@@ -166,7 +172,19 @@ def update_risk_page(signal, theme, proj_return, proj_contrib):
     # 4. Projections
     proj_fig = dw.get_projections_chart(data, theme, rate_pct=proj_return, monthly_contrib=proj_contrib)
     
-    return risk_fig, corr_fig, dd_fig, proj_fig
+    # Data Source Badge
+    source_summary = dw.get_data_source_summary(data)
+    source_badge = create_data_source_badge(source_summary)
+    
+    # Dynamic Sector Description
+    if source_summary and source_summary.get('all_fmp'):
+        sector_desc = "Sector Classifications: Sourced from Financial Modeling Prep (FMP)."
+    elif source_summary and source_summary.get('sources', {}).get('FMP', 0) > 0:
+        sector_desc = "Sector Classifications: Mixed sources (FMP and Yahoo Finance)."
+    else:
+        sector_desc = "Sector Classifications: Sourced from Yahoo Finance / Equity Lookups."
+        
+    return risk_fig, corr_fig, dd_fig, proj_fig, source_badge, sector_desc
 
 # --- SIMULATOR CALLBACKS (EXISTING LOGIC) ---
 

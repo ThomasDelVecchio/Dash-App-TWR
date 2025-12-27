@@ -3,6 +3,7 @@ from dash import dcc, html, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import dash_wrappers as dw
+from components.data_source_badge import create_data_source_badge
 from components.monte_carlo import run_monte_carlo_simulation, calculate_trade_impact
 from config import GLOBAL_PALETTE
 import pandas as pd
@@ -19,7 +20,10 @@ layout = html.Div([
     dbc.Row([
         # Input Panel
         dbc.Col(dbc.Card([
-            dbc.CardHeader("Trade Ticket"),
+            html.Div([
+                dbc.CardHeader("Trade Ticket", style={"display": "inline-block", "border": "none"}),
+                html.Div(id="trade-data-source-header", style={"display": "inline-block", "paddingTop": "10px"})
+            ], className="d-flex justify-content-between align-items-center pe-3"),
             dbc.CardBody([
                 dbc.Label("Ticker Symbol"),
                 dbc.Input(
@@ -93,9 +97,12 @@ layout = html.Div([
     # DISCLOSURE FOOTER
     html.Hr(),
     html.Div([
-        html.P("Data Sources & Methodology:", className="fw-bold mb-1"),
+        html.Div([
+            html.P("Data Sources & Methodology:", className="fw-bold mb-1", style={"display": "inline-block"}),
+            html.Div(id="trade-data-source-footer-container", style={"display": "inline-block"})
+        ]),
         html.Ul([
-            html.Li("Sector Classifications: Sourced from Financial Modeling Prep (FMP)."),
+            html.Li("Sector Classifications: Sourced from Yahoo Finance / Equity Lookups.", id="trade-sector-source-desc"),
             html.Li("Price Data: Sourced from Yahoo Finance."),
             html.Li("Simulations: Historical Bootstrapping method uses 10-year realized daily returns. Past performance is not indicative of future results.")
         ], className="small text-muted")
@@ -355,14 +362,44 @@ def update_trade_lab(n_clicks, ticker, side, amount, swap_target, theme):
 # Render results from Cache (Input/Output Caching)
 @callback(
     [Output("sim-overlay-chart", "figure"),
-     Output("sim-stats-display", "children")],
+     Output("sim-stats-display", "children"),
+     Output("trade-data-source-footer-container", "children"),
+     Output("trade-sector-source-desc", "children"),
+     Output("trade-data-source-header", "children")],
     [Input("trade-lab-state", "data")]
 )
 def render_trade_lab_results(data):
+    # Always try to show data source status even if sim hasn't run
+    full_data = dw.get_data()
+    source_summary = dw.get_data_source_summary(full_data)
+    
+    # Create two separate instances with unique IDs for tooltips
+    def create_badge_with_suffix(summary, suffix):
+        if not summary: return None
+        badge_div = create_data_source_badge(summary)
+        # badge_div is html.Div([badge, tooltip])
+        badge = badge_div.children[0]
+        tooltip = badge_div.children[1]
+        
+        badge.id = f"data-source-badge-{suffix}"
+        tooltip.target = f"data-source-badge-{suffix}"
+        return badge_div
+
+    footer_badge = create_badge_with_suffix(source_summary, "footer")
+    header_badge = create_badge_with_suffix(source_summary, "header")
+
+    # Dynamic Sector Description
+    if source_summary and source_summary.get('all_fmp'):
+        sector_desc = "Sector Classifications: Sourced from Financial Modeling Prep (FMP)."
+    elif source_summary and source_summary.get('sources', {}).get('FMP', 0) > 0:
+        sector_desc = "Sector Classifications: Mixed sources (FMP and Yahoo Finance)."
+    else:
+        sector_desc = "Sector Classifications: Sourced from Yahoo Finance / Equity Lookups."
+
     if not data or not isinstance(data, dict):
-        return go.Figure(), "Enter trade details and click Run Simulation."
+        return go.Figure(), "Enter trade details and click Run Simulation.", footer_badge, sector_desc, header_badge
     
     # Reconstruct stats (Components are JSON serializable dictionaries in Dash)
     # If stats comes back as a dict, Dash can render it.
     
-    return data.get("fig", go.Figure()), data.get("stats", "")
+    return data.get("fig", go.Figure()), data.get("stats", ""), footer_badge, sector_desc, header_badge

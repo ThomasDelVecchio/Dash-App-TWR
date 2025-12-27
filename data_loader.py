@@ -62,25 +62,39 @@ def fetch_etf_sectors(ticker: str) -> dict:
     """
     ticker = ticker.upper()
     if ticker in _METADATA_CACHE:
-        return _METADATA_CACHE[ticker]
+        # Compatibility check: if old format (direct dict), return it
+        cached = _METADATA_CACHE[ticker]
+        if "weights" in cached:
+            return cached["weights"]
+        return cached
 
     weights = {}
+    source = "Unknown"
     
     # 1. Try FMP API
     weights = fetch_fmp_sector_weights(ticker)
+    if weights:
+        source = "FMP"
     
     # 2. Try yfinance
     if not weights:
         weights = fetch_yf_sector_weights(ticker)
+        if weights:
+            source = "YF"
         
     # 3. Equity Fallback
     if not weights:
         sector = get_equity_sector(ticker)
         if sector:
             weights = {sector: 100.0}
+            source = "Equity Fallback"
             
-    # Cache result (even if empty, to avoid re-fetching)
-    _METADATA_CACHE[ticker] = weights
+    # Cache result with metadata
+    _METADATA_CACHE[ticker] = {
+        "weights": weights,
+        "source": source,
+        "timestamp": datetime.now().isoformat()
+    }
     save_metadata_cache()
     
     return weights

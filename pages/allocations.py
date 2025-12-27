@@ -3,6 +3,7 @@ from dash import dcc, html, callback, Input, Output, State, no_update
 import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import dash_wrappers as dw
+from components.data_source_badge import create_data_source_badge
 
 layout = html.Div([
     # Top Row: Asset Class Pie & Bar
@@ -30,7 +31,10 @@ layout = html.Div([
     # Sector Row
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Sector Allocation (Look-through)", className="card-title p-2"),
+            html.Div([
+                html.H5("Sector Allocation (Look-through)", className="card-title p-2", style={"display": "inline-block"}),
+                html.Div(id="sector-data-source-container", style={"display": "inline-block"})
+            ]),
             dcc.Graph(id={'type': 'filter-chart', 'index': 'sector-chart'})
         ]), width=12, className="mb-4"),
     ]),
@@ -48,7 +52,8 @@ layout = html.Div([
     [Output({'type': 'filter-chart', 'index': 'asset-bar-chart'}, 'figure'),
      Output('asset-class-table-container', 'children'),
      Output({'type': 'filter-chart', 'index': 'sector-chart'}, 'figure'),
-     Output('history-chart', 'figure')],
+     Output('history-chart', 'figure'),
+     Output('sector-data-source-container', 'children')],
     [Input('data-signal', 'data'),
      Input('theme-store', 'data'),
      Input('chatbot-command', 'data'),
@@ -129,7 +134,11 @@ def update_allocations(signal, theme, chat_cmd, _filters):
     sector = dw.get_sector_allocation_chart(data, theme)
     hist = dw.get_allocation_history_chart(data, theme)
     
-    return bar, asset_class_content, sector, hist
+    # Data Source Badge
+    source_summary = dw.get_data_source_summary(data)
+    source_badge = create_data_source_badge(source_summary)
+    
+    return bar, asset_class_content, sector, hist, source_badge
 
 # New Callbacks for Drilldown
 @callback(

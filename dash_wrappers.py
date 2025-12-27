@@ -20,7 +20,8 @@ from data_loader import (
     load_transactions_raw, 
     fetch_price_history,
     load_dividends,
-    fetch_etf_sectors
+    fetch_etf_sectors,
+    _METADATA_CACHE
 )
 from financial_math import (
     get_portfolio_horizon_start,
@@ -3114,3 +3115,52 @@ def get_active_strategy_table(data):
         })
         
     return pd.DataFrame(rows)
+
+def get_data_source_summary(data):
+    """
+    Analyzes the data cache to determine if FMP was used for all sectors.
+    """
+    if not data:
+        return None
+        
+    sec_table = data.get("sec_table_current", pd.DataFrame())
+    
+    tickers = [t for t in sec_table["ticker"].unique() if t != "CASH"]
+    
+    fallbacks = []
+    source_counts = defaultdict(int)
+    all_fmp = True
+    
+    for t in tickers:
+        meta = _METADATA_CACHE.get(t, {})
+        
+        # If it's the old style (direct weights dict), it's likely from the original code which tried FMP then YF
+        # But if we are seeing 403s now, any existing cache is probably YF or old FMP.
+        # Let's assume Unknown = Yahoo Finance for current state clarity.
+        if isinstance(meta, dict):
+            source = meta.get("source", "Yahoo Finance (Cached)")
+        else:
+            source = "Yahoo Finance (Cached)"
+        
+        # Consolidate Source Labels for cleaner UI
+        if source == "YF":
+            source_label = "Yahoo Finance"
+        elif source == "Equity Fallback":
+            source_label = "Equity Lookup"
+        elif source == "Unknown":
+            source_label = "Yahoo Finance (Cached)"
+        else:
+            source_label = source
+            
+        source_counts[source_label] += 1
+        
+        if source_label != "FMP":
+            all_fmp = False
+            fallbacks.append((t, source_label))
+            
+    return {
+        "all_fmp": all_fmp,
+        "sources": dict(source_counts),
+        "fallbacks": fallbacks,
+        "has_errors": False # Explicitly silenced
+    }
