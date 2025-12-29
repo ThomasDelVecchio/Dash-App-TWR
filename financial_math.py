@@ -44,6 +44,21 @@ def annualize_return(r_cum: float, start_date: pd.Timestamp, end_date: pd.Timest
         
     return r_cum
 
+def is_annualized(start_date: pd.Timestamp, end_date: pd.Timestamp) -> bool:
+    """
+    Helper to check if a period triggers annualization logic.
+    Matches the logic in annualize_return exactly.
+    """
+    if pd.isna(start_date) or pd.isna(end_date):
+        return False
+        
+    days = (end_date - start_date).days
+    if days <= 0:
+        return False
+
+    years = days / 365.25
+    return years > 1.0
+
 # ------------------------------------------------------------
 # Build portfolio value series (including CASH)
 # ------------------------------------------------------------
@@ -1009,9 +1024,13 @@ def compute_security_modified_dietz(
                 row[f"meta_{h}_flow"] = md_ret["net_flow"]
                 row[f"meta_{h}_inc"] = md_ret["income"]
                 row[f"meta_{h}_denom"] = md_ret["denom"]
+                row[f"meta_{h}_is_annualized"] = is_annualized(effective_start, as_of)
+                row[f"meta_{h}_days"] = (as_of - effective_start).days
             else:
                 # Apply Universal Gate
                 row[h] = annualize_return(md_ret, effective_start, as_of)
+                row[f"meta_{h}_is_annualized"] = is_annualized(effective_start, as_of)
+                row[f"meta_{h}_days"] = (as_of - effective_start).days
 
 
         rows.append(row)

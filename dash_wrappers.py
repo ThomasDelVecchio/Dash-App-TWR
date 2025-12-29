@@ -29,7 +29,8 @@ from financial_math import (
     fv_lump,
     fv_contrib,
     modified_dietz_for_ticker_window,
-    annualize_return
+    annualize_return,
+    is_annualized
 )
 from report_formatting import fmt_pct_clean, fmt_dollar_clean
 import config
@@ -545,7 +546,9 @@ def get_horizon_analysis(data):
             f"meta_Return_flow": net_flows,
             f"meta_Return_inc": 0.0, # Portfolio level income tricky to separate here
             f"meta_Return_denom": mv_start + net_flows, # Approximation for display
-            
+            f"meta_Return_is_annualized": is_annualized(start, as_of) if start is not None else False,
+            f"meta_Return_days": (as_of - start).days if start is not None else 0,
+
             f"meta_P/L_start": mv_start,
             f"meta_P/L_end": mv_end,
             f"meta_P/L_flow": net_flows,
@@ -598,7 +601,9 @@ def get_horizon_analysis(data):
         f"meta_Return_flow": si_flows,
         f"meta_Return_inc": 0.0,
         f"meta_Return_denom": si_mv_start + si_flows,
-        
+        f"meta_Return_is_annualized": is_annualized(si_start, as_of),
+        f"meta_Return_days": (as_of - si_start).days,
+
         f"meta_P/L_start": si_mv_start,
         f"meta_P/L_end": si_mv_end,
         f"meta_P/L_flow": si_flows,
@@ -3023,6 +3028,10 @@ def fetch_audit_details(request_data):
         request_data["meta_Return_start"] = row_data.get("meta_Return_start")
         request_data["meta_Return_end"] = row_data.get("meta_Return_end")
         request_data["meta_Return_flow"] = row_data.get("meta_Return_flow")
+        
+        # Pass Annualization Context
+        request_data["meta_Return_is_annualized"] = row_data.get("meta_Return_is_annualized")
+        request_data["meta_Return_days"] = row_data.get("meta_Return_days")
         
         return request_data
         

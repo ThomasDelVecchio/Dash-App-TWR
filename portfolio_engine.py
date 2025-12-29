@@ -20,6 +20,7 @@ from financial_math import (
     modified_dietz_for_ticker_window,
     modified_dietz_for_asset_class_window,
     annualize_return,
+    is_annualized,
     HORIZONS,
     ANNUALIZE_HORIZONS,
 )
@@ -454,9 +455,13 @@ def run_engine(end_date=None):
                     row[f"meta_{h}_flow"] = ret["net_flow"]
                     row[f"meta_{h}_inc"] = ret["income"]
                     row[f"meta_{h}_denom"] = ret["denom"]
+                    row[f"meta_{h}_is_annualized"] = is_annualized(start_date, as_of)
+                    row[f"meta_{h}_days"] = (as_of - start_date).days
                 else:
                     # Apply Universal Gate
                     row[h] = annualize_return(ret, start_date, as_of)
+                    row[f"meta_{h}_is_annualized"] = is_annualized(start_date, as_of)
+                    row[f"meta_{h}_days"] = (as_of - start_date).days
                     
         class_rows.append(row)
 

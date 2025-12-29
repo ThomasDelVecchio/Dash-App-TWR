@@ -198,7 +198,7 @@ def get_audit_modal_content(request_data):
             $$
             """
             explanation = (
-                f"Calculated using the annualized Return ($R_p$) and Volatility ($\sigma_p$). "
+                r"Calculated using the annualized Return ($R_p$) and Volatility ($\sigma_p$). "
                 f"Assumes a Risk-Free Rate ($R_f$) of **{RISK_FREE_RATE:.1%}**. "
                 "Higher is better (more return per unit of total risk)."
             )
@@ -352,8 +352,23 @@ def get_audit_modal_content(request_data):
         v_end = request_data.get("meta_Return_end", 0.0)
         flow = request_data.get("meta_Return_flow", 0.0)
         
-        # Formula Header
-        formula_tex = r"""
+        # Check for Annualization
+        is_annualized = request_data.get("meta_Return_is_annualized", False)
+        
+        # Calculate Cumulative Return from monthly factors
+        cum_factor = 1.0
+        for item in monthly_data:
+            cum_factor *= item.get("factor", 1.0)
+        r_cum_val = cum_factor - 1.0
+
+        if is_annualized:
+             formula_tex = r"""
+        $$
+        TWR_{cum} = \left( \prod_{t=1}^{n} (1 + r_t) \right) - 1
+        $$
+        """
+        else:
+             formula_tex = r"""
         $$
         TWR = \left( \prod_{t=1}^{n} (1 + r_t) \right) - 1
         $$
@@ -368,9 +383,42 @@ def get_audit_modal_content(request_data):
             html.Tr([html.Td("Start Value"), html.Td(fmt_dollar_clean(v_start), className="text-end")]),
             html.Tr([html.Td("End Value"), html.Td(fmt_dollar_clean(v_end), className="text-end")]),
             html.Tr([html.Td("Net External Flows"), html.Td(fmt_dollar_clean(flow), className="text-end")]),
-            html.Tr([html.Td("Final Return", className="fw-bold"), html.Td(str(request_data.get('value', 'N/A')), className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
         ]
+
+        if is_annualized:
+             # Show Cumulative first, then Annualized below
+             summary_rows.append(html.Tr([html.Td("Cumulative Return"), html.Td(f"{r_cum_val*100:,.2f}%", className="text-end")]))
+             summary_rows.append(html.Tr([html.Td("Annualized Return", className="fw-bold"), html.Td(str(request_data.get('value', 'N/A')), className="text-end fw-bold", style={'borderTop': '1px solid white'})]))
+        else:
+             summary_rows.append(html.Tr([html.Td("Final Return", className="fw-bold"), html.Td(str(request_data.get('value', 'N/A')), className="text-end fw-bold", style={'borderTop': '1px solid white'})]))
+
         content.append(dbc.Table(html.Tbody(summary_rows), bordered=False, size="sm", className="mt-3 mb-4", style={'maxWidth': '400px'}))
+        
+        # Annualization Section (if applicable)
+        if is_annualized:
+            days = request_data.get("meta_Return_days")
+            if days is None: days = 0
+            years = days / 365.25 if days > 0 else 0
+            final_res = request_data.get('value', 'N/A')
+            
+            ann_formula_tex = r"""
+            $$
+            \text{Annualized Return} = (1 + TWR_{cum})^{\frac{1}{Y}} - 1
+            $$
+            """
+            
+            ann_plugged_tex = fr"""
+            $$
+            \text{{Return}}_{{ann}} = (1 + {r_cum_val:.4f})^{{\frac{{1}}{{{years:.2f}}}}} - 1 = \mathbf{{{final_res}}}
+            $$
+            """
+            
+            content.append(html.H6("Annualization Applied", className="text-muted mt-3"))
+            content.append(dcc.Markdown(ann_formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Div(f"Period Length: {days} days ({years:.2f} years)", className="text-muted small mb-2"))
+            content.append(dcc.Markdown(ann_plugged_tex, mathjax=True, className="text-body"))
+            content.append(html.P("Since the period is greater than 1 year, the return is annualized (Compound Annual Growth Rate).", className="text-muted small"))
+            content.append(html.Hr())
         
         # Handle Insufficient Data
         if not monthly_data:
@@ -455,35 +503,74 @@ def get_audit_modal_content(request_data):
     def fmt_num(n): return f"{n:,.2f}"
     
     if is_return:
-        # Modified Dietz Formula
+        # Modified Dietz Formula (Cumulative)
         key_denom = f"meta_{col_id}_denom"
         denom = safe_float(row_data.get(key_denom, v_start + flow))
         
         formula_tex = r"""
         $$
-        \text{Return} = \frac{V_{end} - V_{start} - \text{Net Flows} + \text{Income}}{\text{Average Capital Invested}}
+        \text{Cumulative Return} = \frac{V_{end} - V_{start} - \text{Net Flows} + \text{Income}}{\text{Average Capital Invested}}
         $$
         """
         
         sub_tex = fr"""
         $$
-        \text{{Return}} = \frac{{{fmt_num(v_end)} - {fmt_num(v_start)} - ({fmt_num(flow)}) + {fmt_num(inc)}}}{{{fmt_num(denom)}}}
+        \text{{Return}}_{{cum}} = \frac{{{fmt_num(v_end)} - {fmt_num(v_start)} - ({fmt_num(flow)}) + {fmt_num(inc)}}}{{{fmt_num(denom)}}}
         $$
         """
         
         numerator = v_end - v_start - flow + inc
+        r_cum_val = numerator / denom if denom != 0 else 0.0
+        
+        # Check for Annualization
+        is_annualized = row_data.get(f"meta_{col_id}_is_annualized", False)
+        
+        # If annualized, the grid value is annualized result. Show computed cumulative here.
+        # If not, the grid value is cumulative.
+        if is_annualized:
+            r_display = f"{r_cum_val * 100:,.2f}%"
+        else:
+            r_display = request_data.get('value', 'N/A')
+
         result_tex = fr"""
         $$
-        = \frac{{{fmt_num(numerator)}}}{{{fmt_num(denom)}}} = {request_data.get('value', 'N/A')}
+        = \frac{{{fmt_num(numerator)}}}{{{fmt_num(denom)}}} = {r_display}
         $$
         """
         
         content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
         content.append(html.Hr())
-        content.append(html.H6("Applied Calculation", className="text-muted"))
+        content.append(html.H6("Applied Calculation (Cumulative)", className="text-muted"))
         content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
         content.append(dcc.Markdown(result_tex, mathjax=True, className="text-body"))
         
+        if is_annualized:
+            days = row_data.get(f"meta_{col_id}_days", 0)
+            years = days / 365.25 if days > 0 else 0
+            
+            # Final result from grid (Annualized)
+            final_res = request_data.get('value', 'N/A')
+            
+            ann_formula_tex = r"""
+            $$
+            \text{Annualized Return} = (1 + R_{cum})^{\frac{1}{Y}} - 1
+            $$
+            """
+            
+            # Show plugged in values
+            # Using raw string for latex but interpolated values
+            ann_plugged_tex = fr"""
+            $$
+            \text{{Return}}_{{ann}} = (1 + {r_cum_val:.4f})^{{\frac{{1}}{{{years:.2f}}}}} - 1 = \mathbf{{{final_res}}}
+            $$
+            """
+            
+            content.append(html.H6("Annualization Applied", className="text-muted mt-3"))
+            content.append(dcc.Markdown(ann_formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Div(f"Period Length: {days} days ({years:.2f} years)", className="text-muted small mb-2"))
+            content.append(dcc.Markdown(ann_plugged_tex, mathjax=True, className="text-body"))
+            content.append(html.P("Since the period is greater than 1 year, the return is annualized (Compound Annual Growth Rate).", className="text-muted small"))
+
         rows = [
             html.Tr([html.Td("Ending Value (V_end)"), html.Td(fmt_dollar_clean(v_end), className="text-end")]),
             html.Tr([html.Td("Starting Value (V_start)"), html.Td(fmt_dollar_clean(v_start), className="text-end")]),
