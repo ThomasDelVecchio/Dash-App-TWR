@@ -30,6 +30,12 @@ TARGET_PORTFOLIO_VALUE = 50000.0
 TARGET_MONTHLY_CONTRIBUTION = 400  # or whatever value you want
 
 # ============================================================
+# TAX RATES
+# ============================================================
+TAX_RATE_ST = 0.35  # Short-Term Capital Gains Rate (35%)
+TAX_RATE_LT = 0.15  # Long-Term Capital Gains Rate (15%)
+
+# ============================================================
 # RISK PARAMETERS
 # ============================================================
 RISK_FREE_RATE = 0.04  # 4% annual risk-free rate for Sharpe/Sortino ratios

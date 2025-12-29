@@ -379,5 +379,35 @@ $$\text{TE} = \sigma(R_p - R_b)$$
     *   **Low TE**: The portfolio closely mimics the index (Passive/Closet Indexing).
     *   **High TE**: The manager is taking active bets different from the index (Active Management).
         """
+    },
+
+    "tax_101": {
+        "title": "Tax Authority 101",
+        "content": r"""
+A guide to understanding how the **Tax Authority** module manages your portfolio's tax efficiency.
+
+#### **1. What is a Tax Lot?**
+When you buy shares, they aren't just thrown into a single pool. Each purchase creates a distinct **Tax Lot** with its own:
+*   **Date Acquired**: Determines if gains are Short-Term or Long-Term.
+*   **Cost Basis**: The purchase price (plus fees). Used to calculate Profit/Loss.
+
+#### **2. FIFO (First-In, First-Out)**
+This application uses the **FIFO** accounting method.
+*   **Rule**: When you sell shares, the engine assumes you are selling the **oldest** shares you own first.
+*   **Impact**: Selling older shares often means realizing larger gains (if the market is up), but they are more likely to be Long-Term.
+
+#### **3. The 1-Year Cliff**
+The single most important factor in tax planning is the holding period.
+*   **Short-Term (< 1 Year)**: Taxed at your ordinary income rate (approx. **35%**).
+*   **Long-Term (> 1 Year)**: Taxed at the preferential capital gains rate (approx. **15%**).
+
+**The Strategy**: The "Cliff Watch" alerts you when a lot is nearing the 1-year mark. Holding for just a few more days can reduce your tax bill on that lot by **~57%**.
+
+#### **4. Tax Loss Harvesting**
+"Turning a paper loss into a cash tax saving."
+*   **Concept**: Intentionally selling an asset that has dropped in value.
+*   **Benefit**: The realized loss can be used to offset Realized Gains from other winners, lowering your total tax bill.
+*   **Wash Sale Rule**: If you sell for a loss, you CANNOT buy the "substantially identical" security back within **30 days** (before or after). If you do, the loss is disallowed.
+        """
     }
 }

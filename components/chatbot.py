@@ -10,10 +10,17 @@ import dash_wrappers as dw
 import config
 from data_loader import fetch_price_history
 from pages.help_content import HELP_TOPICS
+from tax_engine import build_tax_lots, simulate_sell
+from report_formatting import fmt_dollar_clean
 
 # ============================================================
 # CONFIG & KNOWLEDGE BASE
 # ============================================================
+
+STRATEGIC_KEYWORDS = [
+    "should", "sell", "buy", "wait", "time to", "analysis", 
+    "advisory", "strategy", "opinion", "recommend", "hold"
+]
 
 COMPONENT_REGISTRY = {
     "cumulative_return": {
@@ -255,8 +262,29 @@ EXPLANATIONS = {
         "1. **External Flows**: Deposits or withdrawals.\n"
         "2. **Market Effect**: Investment performance (Price changes + Dividends)."
     ),
+
     "profit": "Profit/Loss (P/L) is calculated as `Mark-to-Market Value - Net Invested Capital`. It represents the actual economic gain or loss in dollars.",
     "return": "See 'TWR' for Portfolio Return or 'Modified Dietz' for Asset Class/Ticker Return.",
+    
+    # --- TAX DEFINITIONS ---
+    "tax harvest": (
+        "**Harvestable Losses** (Tax Loss Harvesting) is the practice of selling an asset that has experienced a loss. \n\n"
+        "By realizing this loss, you can use it to **offset realized capital gains** and up to $3,000 of ordinary income "
+        "on your tax return, directly lowering your tax bill."
+    ),
+    "tax efficiency": (
+        "**Tax Efficiency** refers to the percentage of your portfolio held in **Long-Term** tax lots (held > 1 year). \n\n"
+        "Long-term gains are taxed at preferential rates (typically 15% or 20%), whereas Short-Term gains are taxed "
+        "as ordinary income (up to 37%)."
+    ),
+    "tax cliff": (
+        "The **Tax Cliff** is the specific date when a tax lot crosses from Short-Term to Long-Term (366 days). \n\n"
+        "Crossing this cliff usually drops the tax rate on gains from ~35% to ~15%."
+    ),
+    "wash sale": (
+        "A **Wash Sale** occurs if you sell a security at a loss and buy a 'substantially identical' security within 30 days before or after the sale. \n\n"
+        "If this happens, the IRS **disallows the loss deduction**."
+    ),
 }
 
 # ============================================================
@@ -335,17 +363,61 @@ SYNONYMS = {
     "beating": "excess return",
     "losing to": "excess return",
     "alpha": "excess return",
+
+    # Tax Synonyms
+    "owe": "realized tax",
+    "bill": "realized tax",
+    "realized": "realized tax",
+    "irs": "realized tax",
+    "uncle sam": "realized tax",
+    "paid taxes": "realized tax",
+    "tax ytd": "realized tax",
+    "pay": "realized tax",
+    
+    "liability": "unrealized tax",
+    "unrealized": "unrealized tax",
+    "shadow bill": "unrealized tax",
+    "deferred": "unrealized tax",
+    "potential tax": "unrealized tax",
+    "if i sold everything": "unrealized tax",
+
+    "harvestable loss": "tax harvest",
+    "harvestable": "tax harvest",
+    "harvest": "tax harvest",
+    "tax efficiency": "tax efficiency",
+    "efficiency": "tax efficiency",
+    "long term percent": "tax efficiency",
+    "cliff": "tax cliff",
+    "long term": "tax cliff",
+    "short term": "tax cliff",
+    "holding period": "tax cliff",
+    "1 year": "tax cliff",
+    "365": "tax cliff",
+
+    "harvest": "harvesting",
+    "write off": "harvesting",
+    "loser": "harvesting",
+    "save tax": "harvesting",
+    "red": "harvesting",
+    "offset": "harvesting",
 }
 
 def normalize_text(text):
     """Normalize synonyms and casual phrasing to canonical terms."""
     text = text.lower()
+    
+    # PROTECT TICKERS: Don't normalize words that are valid tickers
+    # We'll use a regex to only replace synonyms if they are whole words
+    # and NOT valid tickers.
+    
     # Sort by length descending to match longest phrases first
     sorted_syns = sorted(SYNONYMS.items(), key=lambda x: len(x[0]), reverse=True)
     
     for syn, canonical in sorted_syns:
-        if syn in text:
-            text = text.replace(syn, canonical)
+        # Use regex for whole-word replacement to avoid partial matches (like 'gld' matching 'gold')
+        # Only replace if the synonym isn't exactly the word we're looking for as a ticker
+        # (Though some tickers are words, 'gold' is an asset class here)
+        text = re.sub(r"\b" + re.escape(syn) + r"\b", canonical, text)
             
     # Cleanup redundant phrases
     text = text.replace("performing performing", "performing")
@@ -420,7 +492,7 @@ def extract_entity(text, data):
     
     for t in tickers:
         # Check for word boundary to avoid partial matches
-        if re.search(r"\\b" + re.escape(t.lower()) + r"\\b", text):
+        if re.search(r"\b" + re.escape(t.lower()) + r"\b", text):
             return t, "ticker"
             
     # 2. Asset Classes
@@ -442,13 +514,18 @@ def extract_entity(text, data):
         "intl": "International Equity",
         "cash": "CASH"
     }
+
+    # Only check for asset classes if a ticker hasn't been found or if the text strongly implies AC
+    # But wait, the ticker loop already returned if it found one.
+    # The issue is "gold" is in "should i wait to sell gld".
+    # We should use word boundaries for AC keywords too.
     
     for ac in ac_list:
-        if ac.lower() in text:
+        if re.search(r"\b" + re.escape(ac.lower()) + r"\b", text):
             return ac, "asset_class"
             
     for keyword, formal in ac_map.items():
-        if keyword in text:
+        if re.search(r"\b" + re.escape(keyword) + r"\b", text):
             return formal, "asset_class"
             
     # 3. Sectors
@@ -578,6 +655,100 @@ def analyze_portfolio():
 # ============================================================
 # QUERY HANDLERS
 # ============================================================
+
+def handle_tax_query(text):
+    """
+    Handles robust tax queries using the Tax Engine.
+    """
+    text = text.lower()
+    print(f"DEBUG Chatbot: handle_tax_query received: '{text}'")
+    
+    # 1. Simulation (Regex)
+    # Pattern A: sell 10 AAPL
+    match_a = re.search(r"(?:sell|simulate|dump)\s+(\d+)\s+(?:shares\s+of\s+)?([a-z0-9\-\.]+)", text)
+    # Pattern B: sell AAPL 10
+    match_b = re.search(r"(?:sell|simulate|dump)\s+([a-z0-9\-\.]+)\s+(\d+)", text)
+    
+    if match_a or match_b:
+        if match_a:
+            shares, ticker = float(match_a.group(1)), match_a.group(2)
+        else:
+            ticker, shares = match_b.group(1), float(match_b.group(2))
+            
+        result = simulate_sell(ticker, shares)
+        return result["summary_text"]
+
+    # Load Data (Only if needed)
+    open_lots, realized_events = build_tax_lots()
+    
+    # 2. Harvesting (Must check for "tax harvest" due to SYNONYMS)
+    if "tax harvest" in text or "harvest" in text:
+        print("DEBUG Chatbot: Tax query matched Harvesting")
+        if open_lots.empty: return "No open lots to harvest."
+        
+        losers = open_lots[open_lots["Unrealized P/L"] < 0].sort_values("Unrealized P/L", ascending=True)
+        if losers.empty:
+            return "You have no unrealized losses available to harvest right now."
+            
+        total_harvest = abs(losers["Unrealized P/L"].sum())
+        top = losers.iloc[0]
+        
+        return (f"**Harvestable Losses** represent the total dollar amount of unrealized losses currently in your portfolio that can be sold to offset realized gains, thereby reducing your tax bill.\n\n"
+                f"You have **{fmt_dollar_clean(total_harvest)}** in unrealized losses available to harvest.\n\n"
+                f"Top target: **{top['Ticker']}** (Down **{fmt_dollar_clean(abs(top['Unrealized P/L']))}**).")
+
+    # 3. Tax Efficiency
+    if "efficiency" in text:
+        if open_lots.empty: return "No open lots to calculate efficiency."
+        total_mv = open_lots["Market Value"].sum()
+        lt_mv = open_lots[open_lots["Term"] == "Long-Term"]["Market Value"].sum()
+        efficiency_pct = (lt_mv / total_mv * 100) if total_mv > 0 else 0.0
+        
+        return (f"**Tax Efficiency** measures the percentage of your portfolio held in 'Long-Term' lots (assets held for > 1 year).\n\n"
+                f"Current Efficiency: **{efficiency_pct:.1f}%**.\n"
+                f"Higher efficiency is better, as long-term gains are taxed at a lower rate (typically 0-20%) compared to short-term gains (up to 37%).")
+
+    # 4. Realized Bill
+    if "realized tax" in text:
+        total = realized_events["Tax Impact"].sum() if not realized_events.empty else 0.0
+        gains = realized_events["Realized P/L"].sum() if not realized_events.empty else 0.0
+        return f"You currently have a **Realized Tax Bill** of **{fmt_dollar_clean(total)}**. This comes from **{fmt_dollar_clean(gains)}** in realized gains YTD."
+
+    # 5. Unrealized Liability
+    if "unrealized tax" in text:
+        total = open_lots["Est Tax Liability"].sum() if not open_lots.empty else 0.0
+        return f"Your **Unrealized Tax Liability** (Shadow Bill) is **{fmt_dollar_clean(total)}**. This is what you would owe if you liquidated everything today."
+
+    # 6. Cliff Watch
+    if "tax cliff" in text:
+        if open_lots.empty or "Is Near Cliff" not in open_lots.columns:
+            return "No open lots found."
+            
+        near_cliff = open_lots[open_lots["Is Near Cliff"] == True]
+        if near_cliff.empty:
+            return "No lots are currently within 30 days of the Long-Term cliff."
+            
+        count = len(near_cliff)
+        # Pick most significant
+        near_cliff = near_cliff.sort_values("Unrealized P/L", ascending=False)
+        top = near_cliff.iloc[0]
+        
+        return (f"⚠️ **YES**. You have **{count}** lots approaching the 1-year mark.\n\n"
+                f"Notable: **{top['Ticker']}** ({top['Shares']} shares) turns Long-Term in **{top['Days to LT']}** days. "
+                f"Hold to save ~20% on tax.")
+
+    # 7. Catch-All Summary (If text is just "tax" or "taxes" or "status")
+    if "tax" in text or "status" in text:
+        realized = realized_events["Tax Impact"].sum() if not realized_events.empty else 0.0
+        unrealized = open_lots["Est Tax Liability"].sum() if not open_lots.empty else 0.0
+        harvest_opps = len(open_lots[open_lots["Unrealized P/L"] < 0]) if not open_lots.empty else 0
+        
+        return (f"**Tax Status**:\n"
+                f"- You currently owe **{fmt_dollar_clean(realized)}** (Realized).\n"
+                f"- You have **{fmt_dollar_clean(unrealized)}** in potential Unrealized Liability.\n"
+                f"- You have **{harvest_opps}** harvesting opportunities available.")
+
+    return None
 
 def handle_ranking_query(text, data, horizon, metric=None):
     """
@@ -979,6 +1150,112 @@ def handle_portfolio_query(text, data, horizon):
             
     return "Could not determine portfolio metric."
 
+def handle_strategic_ticker_query(ticker, data):
+    """
+    Retrieves a broader set of context for a ticker (YTD, Vol, Benchmark Spread, Tax)
+    to generate a text-based strategic response.
+    """
+    try:
+        sec_current = data.get("sec_table_current")
+        risk_return = data.get("risk_return", {})
+        pv = data.get("pv")
+        
+        # 1. Performance Context (YTD)
+        ytd_ret = 0.0
+        asset_class = "Unknown"
+        if sec_current is not None and not sec_current.empty:
+            row = sec_current[sec_current["ticker"] == ticker]
+            if not row.empty:
+                ytd_ret = row["YTD"].iloc[0] if "YTD" in row.columns else 0.0
+                asset_class = row["asset_class"].iloc[0]
+        
+        # 2. Volatility Context (Asset Class Level)
+        vol = 0.0
+        if asset_class in risk_return:
+            vol = risk_return[asset_class].get("vol", 0.0)
+            
+        # 3. Benchmark Comparison (YTD vs SPY)
+        spy_ytd = 0.0
+        try:
+            if sec_current is not None and not sec_current.empty:
+                spy_row = sec_current[sec_current["ticker"] == "SPY"]
+                if not spy_row.empty:
+                    val = spy_row["YTD"].iloc[0]
+                    spy_ytd = val if pd.notna(val) else 0.0
+        except:
+            pass
+            
+        alpha_ytd = (ytd_ret - spy_ytd) * 100
+        
+        # 4. Tax Context
+        tax_notes = []
+        is_near_cliff = False
+        cliff_days = 0
+        unrealized_pl = 0.0
+        has_lots = False
+        
+        try:
+            open_lots, _ = build_tax_lots()
+            if not open_lots.empty:
+                ticker_lots = open_lots[open_lots["Ticker"] == ticker]
+                if not ticker_lots.empty:
+                    has_lots = True
+                    unrealized_pl = ticker_lots["Unrealized P/L"].sum()
+                    tax_notes.append(f"- **Unrealized P/L**: {fmt_dollar_clean(unrealized_pl)}")
+                    
+                    # Cliff Watch
+                    near_cliff = ticker_lots[ticker_lots["Is Near Cliff"] == True]
+                    if not near_cliff.empty:
+                        is_near_cliff = True
+                        cliff_days = int(near_cliff["Days to LT"].min())
+                        tax_notes.append(f"- ⚠️ **Tax Cliff**: Lots turn Long-Term in **{cliff_days} days**.")
+                    
+                    # Harvesting
+                    if unrealized_pl < 0:
+                        tax_notes.append(f"- 💡 **Candidate for Tax Loss Harvesting**.")
+        except Exception as e:
+            tax_notes.append(f"*(Tax data error: {str(e)})*")
+
+        # 5. Strategic Synthesis (The Final Answer)
+        recommendation = ""
+        if has_lots:
+            if is_near_cliff:
+                recommendation = f"**Strategic View**: Based on the upcoming tax cliff in {cliff_days} days, **waiting** to sell is likely the most tax-efficient move to lock in long-term rates."
+            elif unrealized_pl < 0:
+                recommendation = "**Strategic View**: This position is at a loss. Selling now could be used for **tax-loss harvesting** to offset other gains."
+            elif alpha_ytd > 5:
+                recommendation = "**Strategic View**: This ticker is significantly outperforming the benchmark YTD. If your target allocation allows, **holding** to let winners run may be appropriate."
+            else:
+                recommendation = "**Strategic View**: No immediate tax or performance red flags. Review your target allocation to decide if rebalancing is needed."
+        else:
+            recommendation = "**Strategic View**: No active position found. Consider the volatility and benchmark spread before entering a new position."
+
+        # 6. Synthesize Response (Format Cleanup)
+        perf_val = ytd_ret * 100
+        perf_str = f"{perf_val:+.2f}%" if pd.notna(perf_val) else "N/A"
+        alpha_str = f"{alpha_ytd:+.2f}%" if pd.notna(alpha_ytd) else "N/A"
+        
+        perf_color = "🟢" if (pd.notna(perf_val) and perf_val >= 0) else "🔴"
+        
+        response = [
+            f"**Strategic Analysis: {ticker}**",
+            f"{perf_color} **YTD**: {perf_str} | **vs SPY**: {alpha_str}",
+            f"🎲 **Volatility**: {vol:.1f}% ({asset_class})",
+            "\n**Tax Context**:",
+        ]
+        
+        if tax_notes:
+            response.extend(tax_notes)
+        else:
+            response.append("- No active tax lots found.")
+            
+        response.append(f"\n{recommendation}")
+        
+        return "\n".join(response)
+        
+    except Exception as e:
+        return f"Error generating strategic analysis for {ticker}: {str(e)}"
+
 def handle_benchmark_query(text, data, horizon):
     """
     Handles "excess return vs [TICKER]"
@@ -1068,6 +1345,17 @@ def process_data_query(text, context=None):
         new_metric = extract_metric(text_norm)
         resolved_metric = new_metric if new_metric else last_metric
         
+        # --- STRATEGIC INTENT BRANCH (NEW) ---
+        # Check if this is an advisory/strategic query about a ticker
+        is_strategic = any(k in text_norm for k in STRATEGIC_KEYWORDS)
+        if is_strategic and new_entity and new_entity_type == "ticker":
+            return None, handle_strategic_ticker_query(new_entity, data), {
+                "last_horizon": "YTD", # Strategic analysis defaults to YTD context
+                "last_entity": new_entity,
+                "last_entity_type": "ticker",
+                "last_metric": "strategy"
+            }
+
         # Special Case: If resolving to default/context, ensure we don't accidentally
         # apply an entity context to a portfolio-wide query (e.g. "Total value").
         is_portfolio_query = any(x in text_norm for x in ["portfolio", "total", "cash", "account", "flows", "benchmark", "excess return"])
@@ -1217,7 +1505,19 @@ def parse_intent(text, pathname=None, context=None):
         
         current_page = pathname.strip("/").lower() if pathname else "overview"
         if not current_page: current_page = "overview"
-        
+
+        # --- PRIORITY 1: DATA QUERIES (Numeric Answers) ---
+        # We process this first so questions like "portfolio return" get numbers, not definitions.
+        cmd, data_response, updated_context = process_data_query(text, context)
+        if data_response:
+            # We must be careful: process_data_query fallthrough is "Portfolio Value".
+            # Only return if it actually matched something specific or if it's a clear data query.
+            # But wait, the user wants "SI return" which IS a data query.
+            # If the response isn't the "could not determine" fallback, use it.
+            if "could not determine" not in data_response.lower():
+                return cmd, data_response, updated_context
+
+        # --- PRIORITY 2: UI COMMANDS (SORT/FILTER) ---
         # 1. SORT (Strict Regex on Normalized)
         sort_match = re.search(r"sort\s+(?P<target>.*?)\s+by\s+(?P<col>.*)", text_norm)
         if not sort_match and text_norm.startswith("sort"):
@@ -1260,7 +1560,7 @@ def parse_intent(text, pathname=None, context=None):
         # --- INTENT BIFURCATION ---
         # Check if user explicitly wants an explanation (report, chart, definition)
         # Check RAW text for phrases like "what is the" or "what is" to avoid normalization issues
-        is_explanation = any(x in raw_text for x in ["report", "chart", "graph", "table", "explain", "describe", "definition", "meaning", "what is the", "what is"])
+        is_explanation = any(x in raw_text for x in ["report", "chart", "graph", "table", "explain", "describe", "definition", "meaning", "what is the", "what is", "define", "how does", "how do"])
         
         # Helper to check KB
         def check_knowledge_base():
@@ -1295,12 +1595,16 @@ def parse_intent(text, pathname=None, context=None):
             if kb_response:
                 return None, kb_response, context
 
-        # 5. DATA QUERY (The core enhancement)
-        # We try to process as a data query. If it returns a response, use it.
-        # If not, fall through to explanation/help.
-        _, data_response, updated_context = process_data_query(text, context)
+        # 5. TAX QUERY (Priority Intercept)
+        # Check if it's a tax question first
+        tax_response = handle_tax_query(text_norm)
+        if tax_response:
+             # Check for raw simulation command too (in case normalization stripped numbers? No, norm keeps numbers)
+             return None, tax_response, context
+
+        # 6. DATA QUERY (Fallback)
         if data_response:
-            return None, data_response, updated_context
+             return None, data_response, updated_context
 
         # 6. EXPLANATION FALLBACK
         # If not explicit explanation but data query failed, try KB now

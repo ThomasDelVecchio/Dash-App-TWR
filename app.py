@@ -12,7 +12,7 @@ from components import chatbot
 from components.audit_modal import get_audit_modal_content
 
 # Import Pages
-from pages import overview, performance, allocations, attribution, flows, holdings, risk, settings, trade_lab, help_index
+from pages import overview, performance, allocations, attribution, flows, holdings, risk, settings, trade_lab, help_index, taxes
 
 # Initialize App
 app = dash.Dash(
@@ -46,6 +46,7 @@ sidebar = html.Div(
                 dbc.NavLink("Holdings", href="/holdings", active="exact"),
                 dbc.NavLink("Risk & Proj", href="/risk", active="exact"),
                 dbc.NavLink("Trade Lab", href="/trade-lab", active="exact"),
+                dbc.NavLink("Tax Authority", href="/taxes", active="exact"),
                 dbc.NavLink("Settings", href="/settings", active="exact"),
                 dbc.NavLink("Help Index", href="/help", active="exact"),
             ],
@@ -184,6 +185,7 @@ app.validation_layout = html.Div([
     risk.layout,
     settings.layout,
     trade_lab.layout,
+    taxes.layout,
     help_index.layout
 ])
 
@@ -210,6 +212,8 @@ def render_page_content(pathname):
         return risk.layout
     elif pathname == "/trade-lab":
         return trade_lab.layout
+    elif pathname == "/taxes":
+        return taxes.layout
     elif pathname == "/settings":
         return settings.layout
     elif pathname == "/help":
