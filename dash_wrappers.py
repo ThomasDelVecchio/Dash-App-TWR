@@ -28,7 +28,8 @@ from financial_math import (
     compute_period_twr,
     fv_lump,
     fv_contrib,
-    modified_dietz_for_ticker_window
+    modified_dietz_for_ticker_window,
+    annualize_return
 )
 from report_formatting import fmt_pct_clean, fmt_dollar_clean
 import config
@@ -763,7 +764,7 @@ def get_correlation_heatmap(data, theme="light"):
     fig.update_layout(
         title="90-Day Rolling Correlation (Top Holdings)",
         template="plotly_white" if theme == "light" else "plotly_dark",
-        margin=dict(l=40, r=40, t=40, b=40),
+        margin=dict(l=40, r=40, t=40, b=80), # Standardized bottom margin for height matching
         height=500
     )
     return fig
@@ -1318,7 +1319,12 @@ def get_allocation_history_chart(data, theme="light"):
             mode='lines',
             stackgroup='one',
             name=col,
-            line=dict(color=GLOBAL_PALETTE[i % len(GLOBAL_PALETTE)]),
+            line=dict(
+                color=GLOBAL_PALETTE[i % len(GLOBAL_PALETTE)],
+                width=1.5,
+                shape='spline',
+                smoothing=1.2
+            ),
             hovertemplate=f"<b>{col}</b>: %{{y:.2f}}%<extra></extra>"
         ))
         
@@ -1345,7 +1351,9 @@ def get_monthly_attribution_breakdown(data, year_month_str):
     Decomposes a specific month's Market Effect into Asset Class components
     using Frongello Linking.
     """
-    year, month = map(int, year_month_str.split('-'))
+    parts = year_month_str.split('-')
+    year = int(parts[0])
+    month = int(parts[1])
     start_date = pd.Timestamp(year, month, 1)
     end_date = start_date + pd.offsets.MonthEnd(1)
 
@@ -1559,10 +1567,11 @@ def get_risk_return_chart(data, theme="light"):
         template="plotly_white" if theme == "light" else "plotly_dark",
         showlegend=True,
         height=500,
+        margin=dict(l=40, r=40, t=40, b=80), # Standardized margin
         legend=dict(
             orientation="h",
             yanchor="top",
-            y=-0.3,
+            y=-0.18, # Brought closer to x-axis title
             xanchor="center",
             x=0.5,
             title_text="Legend",
@@ -1770,7 +1779,11 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
                             base_price = float(ser_window.iloc[0])
                             
                         end_price = float(ser_window.iloc[-1])
-                        b_ret = end_price / base_price - 1.0
+                        b_cum = end_price / base_price - 1.0
+                        
+                        # Apply Universal Gate to Benchmark Return
+                        # Use pv.index.max() as the end date to match Portfolio TWR
+                        b_ret = annualize_return(b_cum, start, pv.index.max())
                     
                     diff = (p_val - b_ret) * 100
                 except:
@@ -2280,20 +2293,6 @@ def get_growth_of_capital_chart(data, filter_value="Total", theme="light", end_d
     
     fig = go.Figure()
     
-    # Color mapping for asset classes (aligned with GLOBAL_PALETTE where possible)
-    color_map = {
-        "US Large Cap": GLOBAL_PALETTE[0],
-        "US Growth": GLOBAL_PALETTE[6],
-        "US Small Cap": GLOBAL_PALETTE[2],
-        "International Equity": GLOBAL_PALETTE[8],
-        "Gold / Precious Metals": GLOBAL_PALETTE[10],
-        "Digital Assets": GLOBAL_PALETTE[4],
-        "Fixed Income": GLOBAL_PALETTE[1],
-        "US Bonds": GLOBAL_PALETTE[1],
-        "CASH": "#D3D3D3", # Keep light gray for Cash
-        "Total": "#000000" # Keep black for Total
-    }
-    
     # 1. Prepare Data for Stacking (Everything EXCEPT Total)
     # If filter_value == "Total" or "All", show all components stacked.
     
@@ -2306,9 +2305,9 @@ def get_growth_of_capital_chart(data, filter_value="Total", theme="light", end_d
         plot_classes = stack_df["Asset Class"].unique()
         
         # Add Stacked Area Traces (Portfolio Value)
-        for ac in plot_classes:
+        for i, ac in enumerate(plot_classes):
             ac_data = stack_df[stack_df["Asset Class"] == ac]
-            color = color_map.get(ac, "#808080")
+            color = GLOBAL_PALETTE[i % len(GLOBAL_PALETTE)]
             
             fig.add_trace(go.Scatter(
                 x=ac_data["Date"],
@@ -2344,7 +2343,7 @@ def get_growth_of_capital_chart(data, filter_value="Total", theme="light", end_d
         # Area chart for Value, Dashed line for Invested
         ac_data = ts_df[ts_df["Asset Class"] == filter_value].sort_values("Date")
         if not ac_data.empty:
-            color = color_map.get(filter_value, "#808080")
+            color = GLOBAL_PALETTE[0]
             
             # Area (Value)
             fig.add_trace(go.Scatter(
@@ -2728,23 +2727,12 @@ def _get_daily_asset_class_series(data):
     
     if cf_ext is None or cf_ext.empty: return pd.DataFrame()
     
-    # 1. Timeline Setup
-    market_start = data["inception_date"]
-    end_date = pv.index.max()
-    full_idx = pd.date_range(start=market_start, end=end_date, freq="D")
+    # 1. Timeline Setup (TRADING DAYS ONLY)
+    # Using pv.index ensures we align with the official TWR calculation
+    # and avoid "Phantom Returns" from non-trading day flows.
+    full_idx = pv.sort_index().index
+    pv_aligned = pv.sort_index()
     
-    # PV Safety Net
-    cum_ext_flows = cf_ext.groupby("date")["amount"].sum().cumsum().reindex(full_idx, method='ffill').fillna(0.0)
-    pv_aligned = pv.reindex(full_idx).ffill()
-    
-    # Use np.where: if pv is zero/missing AND cum_ext_flows is positive, overwrite with cum_ext_flows
-    pv_aligned_values = np.where(
-        (pv_aligned.isnull() | (pv_aligned == 0)) & (cum_ext_flows > 0),
-        cum_ext_flows,
-        pv_aligned
-    )
-    pv_aligned = pd.Series(pv_aligned_values, index=full_idx)
-
     # 2. Map Tickers to Asset Classes
     ac_map = holdings.set_index("ticker")["asset_class"].to_dict()
     
@@ -2753,22 +2741,28 @@ def _get_daily_asset_class_series(data):
     if not dividends.empty: dividends["date"] = pd.to_datetime(dividends["date"]).dt.normalize()
     
     # 3. Daily Shares per Ticker
+    # We must construct shares_daily on the TRADING DAY index.
+    # Logic: Cumulative sum of shares up to that trading day.
     if not tx_raw.empty:
+        # Aggregate trades by date first
         shares_delta = tx_raw.pivot_table(index="date", columns="ticker", values="shares", aggfunc="sum").fillna(0.0)
         
-        pre_market_shares = shares_delta[shares_delta.index < market_start].sum()
-        if not pre_market_shares.eq(0).all():
-            if market_start in shares_delta.index:
-                shares_delta.loc[market_start] += pre_market_shares
-            else:
-                shares_delta.loc[market_start] = pre_market_shares
-                
-        shares_delta = shares_delta.reindex(full_idx, fill_value=0.0)
-        shares_daily = shares_delta.cumsum()
+        # Reindex to trading days
+        # method='pad' ensures we carry forward the cumulative position
+        # However, we need CUMULATIVE first.
+        shares_daily_calendar = shares_delta.cumsum()
+        
+        # Align to trading days (ffill/pad picks up the latest position as of that day)
+        # Note: We need 'asof' logic. reindex(method='ffill') works if index is sorted.
+        shares_daily = shares_daily_calendar.reindex(full_idx, method='ffill').fillna(0.0)
+        
+        # Handle pre-inception shares if any (though usually start at 0)
+        # If pv starts later than first trade, we capture existing state.
     else:
         shares_daily = pd.DataFrame(index=full_idx)
         
-    # 4. Daily Prices per Ticker (ffill)
+    # 4. Daily Prices per Ticker
+    # Prices are already on trading days (mostly), but align strictly to pv index
     px_daily = prices.reindex(full_idx).ffill()
     
     # 5. Calculate Daily MV per Asset Class
@@ -2788,12 +2782,18 @@ def _get_daily_asset_class_series(data):
     mv_daily_ac["CASH"] = pv_aligned - sum_sec_mv
 
     # 7. Daily Flows (Net Internal) per Asset Class
+    # CRITICAL FIX: Roll forward flows on non-trading days to next trading day
     flow_daily_ac = pd.DataFrame(0.0, index=full_idx, columns=mv_daily_ac.columns)
     
-    def add_flow(date, col, amount):
-        target_date = date if date >= market_start else market_start
-        if target_date in flow_daily_ac.index:
-            flow_daily_ac.loc[target_date, col] += amount
+    def add_flow_mapped(date, col, amount):
+        # Find the first trading day >= date
+        try:
+            loc = full_idx.searchsorted(date)
+            if loc < len(full_idx):
+                target_date = full_idx[loc]
+                flow_daily_ac.loc[target_date, col] += amount
+        except:
+            pass
 
     if not tx_raw.empty:
         tx_mapped = tx_raw.copy()
@@ -2802,12 +2802,12 @@ def _get_daily_asset_class_series(data):
         if not sec_tx.empty:
             grp = sec_tx.groupby(["date", "asset_class"])["amount"].sum()
             for (d, ac), amt in grp.items():
-                add_flow(d, ac, -amt)
-                add_flow(d, "CASH", amt)
+                add_flow_mapped(d, ac, -amt)
+                add_flow_mapped(d, "CASH", amt)
                     
     ext_grp = cf_ext.groupby("date")["amount"].sum()
     for d, amt in ext_grp.items():
-        add_flow(d, "CASH", amt)
+        add_flow_mapped(d, "CASH", amt)
 
     # 9. Daily Income (Dividends)
     inc_daily_ac = pd.DataFrame(0.0, index=full_idx, columns=mv_daily_ac.columns)
@@ -2816,11 +2816,16 @@ def _get_daily_asset_class_series(data):
         div_mapped["asset_class"] = div_mapped["ticker"].map(ac_map).fillna("Other")
         grp = div_mapped.groupby(["date", "asset_class"])["amount"].sum()
         for (d, ac), amt in grp.items():
-            if d in inc_daily_ac.index:
-                inc_daily_ac.loc[d, ac] += amt
-                # FIX: Record dividend as a flow INTO Cash so it doesn't look like a loss in Recon
-                if d in flow_daily_ac.index:
-                    flow_daily_ac.loc[d, "CASH"] += amt
+            # Roll forward dividend date too
+            try:
+                loc = full_idx.searchsorted(d)
+                if loc < len(full_idx):
+                    target_date = full_idx[loc]
+                    inc_daily_ac.loc[target_date, ac] += amt
+                    # FIX: Record dividend as a flow INTO Cash
+                    flow_daily_ac.loc[target_date, "CASH"] += amt
+            except:
+                pass
                 
     # 10. Construct Final DataFrame
     mv_stack = mv_daily_ac.stack().rename("End_MV")
@@ -3028,12 +3033,24 @@ def _calculate_residual_return(data, df_explained):
     Helper to calculate the 'residual' return (Cash/Recon).
     Ensures P/L Source of Truth is clipped to exactly the same date range as the Attribution.
     """
-    # 1. TWR Residual
-    port_twr = data["twr_si"]
-    if pd.isna(port_twr): port_twr = 0.0
+    # 1. TWR Residual (Must be CUMULATIVE to match Frongello Sum)
+    # data["twr_si"] is Annualized by default in the engine.
+    # We must re-calculate the Cumulative TWR for valid comparison.
+    pv = data["pv"]
+    cf_ext = data.get("cf_ext")
+    inception = data["inception_date"]
+    
+    if not pv.empty:
+        end_date = pv.index.max()
+        # Compute Cumulative TWR (no annualization)
+        twr_cum = compute_period_twr(pv, cf_ext, inception, end_date)
+    else:
+        twr_cum = 0.0
+        
+    if pd.isna(twr_cum): twr_cum = 0.0
     
     explained_twr_pct = df_explained["Contribution (%)"].sum()
-    residual_pct = (port_twr * 100.0) - explained_twr_pct
+    residual_pct = (twr_cum * 100.0) - explained_twr_pct
     
     # 2. P/L Residual
     pv = data["pv"]
@@ -3086,16 +3103,17 @@ def get_si_attribution_summary(data):
         
     return df.sort_values("Contribution (%)", ascending=False)
 
-def get_active_strategy_table(data):
+def get_active_strategy_table(data, benchmarks=None):
     """
     Returns summary table of Active Risk metrics (Beta, Tracking Error)
     compared to major benchmarks.
     """
-    benchmarks = {
-        "S&P 500": "SPY",
-        "Total World": "VT",
-        "US Bonds": "BND"
-    }
+    if benchmarks is None:
+        benchmarks = {
+            "S&P 500": "SPY",
+            "Cons 40/60": "AOK",
+            "Global 60/40": "AOR"
+        }
     
     rows = []
     

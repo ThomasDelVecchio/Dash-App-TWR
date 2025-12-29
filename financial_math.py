@@ -15,6 +15,36 @@ ANNUALIZE_HORIZONS = {
 }
 
 # ------------------------------------------------------------
+# Universal Annualization Logic Gate
+# ------------------------------------------------------------
+def annualize_return(r_cum: float, start_date: pd.Timestamp, end_date: pd.Timestamp) -> float:
+    """
+    Universal Logic Gate for Return Calculation:
+    - Calculates exact duration in years using 365.25 day basis.
+    - If duration > 1.0 years (strictly > 365 days approx), Annualize (CAGR).
+    - If duration <= 1.0 years, keep Cumulative.
+    """
+    if pd.isna(r_cum):
+        return np.nan
+        
+    days = (end_date - start_date).days
+    if days <= 0:
+        return r_cum
+
+    years = days / 365.25
+    
+    # Strictly greater than 1.0 years triggers annualization
+    # 365 days / 365.25 = 0.9993 <= 1.0 -> Cumulative
+    # 366 days / 365.25 = 1.0020 > 1.0 -> Annualized
+    if years > 1.0:
+        # Prevent math domain error for -100% loss
+        if r_cum <= -1.0:
+            return -1.0
+        return (1.0 + r_cum) ** (1.0 / years) - 1.0
+        
+    return r_cum
+
+# ------------------------------------------------------------
 # Build portfolio value series (including CASH)
 # ------------------------------------------------------------
 
@@ -195,7 +225,7 @@ def compute_period_twr(
     """
     # 1) Restrict PV to horizon
     pv_window = pv[(pv.index >= start_date) & (pv.index <= end_date)].sort_index()
-    if pv_window.empty or len(pv_window) < 2:
+    if pv_window.empty:
         if return_breakdown:
             return np.nan, []
         return np.nan
@@ -298,7 +328,6 @@ def compute_period_twr(
         return twr_val, breakdown
         
     return twr_val
-
 
 
 def get_portfolio_horizon_start(
@@ -457,7 +486,8 @@ def compute_horizon_twr(
     if start is None:
         return np.nan
 
-    return compute_period_twr(pv, cf, start, as_of)
+    r_cum = compute_period_twr(pv, cf, start, as_of)
+    return annualize_return(r_cum, start, as_of)
 
 
 # ------------------------------------------------------------
@@ -495,7 +525,7 @@ def modified_dietz_for_ticker_window(
     if end < start:
         return np.nan
 
-    total_days = (end - start).days
+    total_days = (end - start).days + 1
     if total_days == 0:
         return 0.0
     
@@ -549,7 +579,11 @@ def modified_dietz_for_ticker_window(
         total_divs = dividends.loc[mask_div, "amount"].sum()
 
     # Cashflows inside (start, end]
-    tx_window = tx_sorted[(tx_sorted["date"] > start) & (tx_sorted["date"] <= end)].copy()
+    # If V0 is 0 (likely inception), we must include flows ON the start date to fund the position
+    if V0 < 1e-6:
+        tx_window = tx_sorted[(tx_sorted["date"] >= start) & (tx_sorted["date"] <= end)].copy()
+    else:
+        tx_window = tx_sorted[(tx_sorted["date"] > start) & (tx_sorted["date"] <= end)].copy()
     
     # Our file uses amount negative for buys (cash out), positive for sells (cash in)
     # Contributions C_i should be positive for cash INTO the security (BUY).
@@ -629,7 +663,7 @@ def modified_dietz_for_asset_class_window(
     if not tickers:
         return np.nan
 
-    total_days = (end - start).days
+    total_days = (end - start).days + 1
     if total_days <= 0:
         return 0.0
 
@@ -964,7 +998,11 @@ def compute_security_modified_dietz(
             )
             
             if isinstance(md_ret, dict):
-                row[h] = md_ret["return"]
+                r_val = md_ret["return"]
+                # Apply Universal Gate
+                r_final = annualize_return(r_val, effective_start, as_of)
+                
+                row[h] = r_final
                 # Add Audit Meta Columns
                 row[f"meta_{h}_start"] = md_ret["start_val"]
                 row[f"meta_{h}_end"] = md_ret["end_val"]
@@ -972,7 +1010,8 @@ def compute_security_modified_dietz(
                 row[f"meta_{h}_inc"] = md_ret["income"]
                 row[f"meta_{h}_denom"] = md_ret["denom"]
             else:
-                row[h] = md_ret
+                # Apply Universal Gate
+                row[h] = annualize_return(md_ret, effective_start, as_of)
 
 
         rows.append(row)

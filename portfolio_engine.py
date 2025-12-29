@@ -19,6 +19,7 @@ from financial_math import (
     get_portfolio_horizon_start,
     modified_dietz_for_ticker_window,
     modified_dietz_for_asset_class_window,
+    annualize_return,
     HORIZONS,
     ANNUALIZE_HORIZONS,
 )
@@ -225,14 +226,10 @@ def run_engine(end_date=None):
         .rename(columns={"index": "Horizon", 0: "Return"})
     )
     
-    # ---- ANNUALIZED SINCE-INCEPTION TWR (if > 1 year) ----
-    as_of = pv.index.max()
-    days_since_inception = (as_of - inception_date).days
-    if pd.notna(twr_since_inception) and days_since_inception > 365:
-        years_since_inception = days_since_inception / 365.0
-        twr_since_inception_annualized = (1.0 + twr_since_inception) ** (1.0 / years_since_inception) - 1.0
-    else:
-        twr_since_inception_annualized = np.nan
+    # ---- ANNUALIZED SINCE-INCEPTION TWR (Unified Gate) ----
+    # twr_since_inception is now already annualized if > 1 year by compute_horizon_twr
+    # We maintain this variable for backward compatibility with dash_wrappers
+    twr_since_inception_annualized = twr_since_inception
 
 
     # ---- SINCE-INCEPTION PORTFOLIO P/L (ECONOMIC, MATCHES BUILD_REPORT) ----
@@ -449,14 +446,17 @@ def run_engine(end_date=None):
                 )
                 
                 if isinstance(ret, dict):
-                    row[h] = ret["return"]
+                    # Apply Universal Gate
+                    row[h] = annualize_return(ret["return"], start_date, as_of)
+                    
                     row[f"meta_{h}_start"] = ret["start_val"]
                     row[f"meta_{h}_end"] = ret["end_val"]
                     row[f"meta_{h}_flow"] = ret["net_flow"]
                     row[f"meta_{h}_inc"] = ret["income"]
                     row[f"meta_{h}_denom"] = ret["denom"]
                 else:
-                    row[h] = ret
+                    # Apply Universal Gate
+                    row[h] = annualize_return(ret, start_date, as_of)
                     
         class_rows.append(row)
 
@@ -471,35 +471,7 @@ def run_engine(end_date=None):
 
 
     # ------ Annualize multi-year horizons (3Y, 5Y) for reporting ------
-
-    for label, years in ANNUALIZE_HORIZONS.items():
-        # Portfolio TWR (twr_df is long-form)
-        mask = twr_df["Horizon"] == label
-        if mask.any():
-            vals = twr_df.loc[mask, "Return"]
-            twr_df.loc[mask, "Return"] = np.where(
-                vals.notna(),
-                (1.0 + vals) ** (1.0 / years) - 1.0,
-                np.nan,
-            )
-
-        # Security-level MD table (wide form)
-        if not sec_table.empty and label in sec_table.columns:
-            vals = sec_table[label]
-            sec_table[label] = np.where(
-                vals.notna(),
-                (1.0 + vals) ** (1.0 / years) - 1.0,
-                np.nan,
-            )
-
-        # Asset-class MD table (wide form)
-        if not class_df.empty and label in class_df.columns:
-            vals = class_df[label]
-            class_df[label] = np.where(
-                vals.notna(),
-                (1.0 + vals) ** (1.0 / years) - 1.0,
-                np.nan,
-            )
+    # REMOVED: Annualization is now handled by universal gate inside computation functions.
 
     return twr_df, sec_table, class_df, pv, twr_since_inception, twr_since_inception_annualized, pl_since_inception
 

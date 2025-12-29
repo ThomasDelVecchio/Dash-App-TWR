@@ -95,7 +95,7 @@ def get_audit_modal_content(request_data):
     # ----------------------------------------------------
     # TYPE 2.5: Contribution to Return (CTR)
     # ----------------------------------------------------
-    if "Contrib" in str(col_id) and "meta_denominator" in row_data:
+    if any(x in str(col_id) for x in ["Contrib", "Effect"]) and "meta_denominator" in row_data:
         ticker = row_data.get("Asset Class", "Unknown")
         effect = row_data.get("Effect", 0.0)
         denom = row_data.get("meta_denominator", 0.0)
@@ -141,7 +141,7 @@ def get_audit_modal_content(request_data):
     # ----------------------------------------------------
     # TYPE 2.6: Frongello Attribution (Geometric Linking)
     # ----------------------------------------------------
-    if "Contrib" in str(col_id) and "meta_frongello_sum_factors" in row_data:
+    if any(x in str(col_id) for x in ["Contrib", "Effect"]) and "meta_frongello_sum_factors" in row_data:
         ticker = row_data.get("Asset Class", "Unknown")
         effect = row_data.get("Effect", 0.0)
         final_contrib = row_data.get("Contribution (%)", 0.0)

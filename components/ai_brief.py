@@ -121,10 +121,21 @@ def generate_ai_summary(data):
     # "Today's session is strong, with the portfolio up +1.2% (+$1,250), outperforming the S&P 500 (+0.8%)."
     intro = f"Today's session is **{sentiment}**, with the portfolio currently **{ret_1d*100:+.2f}%** (**{day_pl_str}**){spy_txt}. "
     
-    if ret_mtd > 0:
-        intro += f"This adds to a positive month (**{ret_mtd*100:+.2f}%** MTD)."
-    else:
-        intro += f"This continues to weigh on monthly performance (**{ret_mtd*100:+.2f}%** MTD)."
+    # MTD Context
+    mtd_txt = ""
+    if abs(ret_1d) < 0.0001: # Essentially flat
+        mtd_txt = f"Monthly performance remains unchanged (**{ret_mtd*100:+.2f}%** MTD)."
+    elif ret_1d > 0: # Positive Day
+        if ret_mtd > 0:
+            mtd_txt = f"This adds to a positive month (**{ret_mtd*100:+.2f}%** MTD)."
+        else:
+            mtd_txt = f"This helps recover some monthly losses (**{ret_mtd*100:+.2f}%** MTD)."
+    else: # Negative Day
+        if ret_mtd > 0:
+            mtd_txt = f"This weighs on an otherwise positive month (**{ret_mtd*100:+.2f}%** MTD)."
+        else:
+            mtd_txt = f"This adds to monthly losses (**{ret_mtd*100:+.2f}%** MTD)."
+    intro += mtd_txt
         
     # Drivers
     # "Leading the charge is NVDA (+5%), while TSLA (-2%) is creating some drag."

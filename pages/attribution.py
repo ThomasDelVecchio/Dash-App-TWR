@@ -64,13 +64,18 @@ def update_attribution_detail(click_data, figure, theme):
     data = dw.get_data()
     if not data: return "", "Breakdown"
     
-    if not click_data:
+    if not click_data or 'points' not in click_data or not click_data['points']:
         return html.Div("Click a bar above to view details.", className="text-muted p-3"), "Breakdown"
 
     period_type = figure.get('layout', {}).get('meta', {}).get('period_type', 'daily')
     
-    point = click_data['points'][0]
-    date_str = point['x']
+    try:
+        point = click_data['points'][0]
+        date_str = point.get('x')
+        if not date_str:
+            return html.Div("Invalid data point selected.", className="text-warning p-3"), "Breakdown"
+    except (KeyError, IndexError):
+        return html.Div("Error reading selection.", className="text-danger p-3"), "Breakdown"
     
     if period_type == 'monthly':
         breakdown_df = dw.get_monthly_attribution_breakdown(data, date_str)
@@ -248,13 +253,14 @@ def update_si_attribution(signal, theme):
 @callback(
     Output('active-strategy-table-container', 'children'),
     [Input('data-signal', 'data'),
-     Input('theme-store', 'data')]
+     Input('theme-store', 'data'),
+     Input('benchmark-store', 'data')]
 )
-def update_active_strategy_table(signal, theme):
+def update_active_strategy_table(signal, theme, benchmarks):
     data = dw.get_data()
     if not data: return html.Div("Loading...", className="p-3")
     
-    df = dw.get_active_strategy_table(data)
+    df = dw.get_active_strategy_table(data, benchmarks=benchmarks)
     
     if df.empty:
         return html.Div("Insufficient data for active strategy metrics.", className="text-warning p-3")
