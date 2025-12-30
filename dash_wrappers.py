@@ -3196,63 +3196,89 @@ def get_data_source_summary(data):
 # TAX AUTHORITY VISUALS
 # ============================================================
 
-def get_tax_liability_sunburst(open_lots, theme="light"):
+def get_tax_liability_sunburst(open_lots, realized_events, theme="light"):
     """
-    Institutional Sunburst for Tax Liability Composition.
-    Hierarchy: Total -> Term -> Ticker.
+    Upgraded Institutional Sunburst for Total Tax Threat.
+    Hierarchy: Total Liability -> Status (Realized vs Unrealized) -> Term (ST/LT) -> Ticker.
+    Fixes branchvalues="total" crash by filtering for positive liabilities only.
     """
-    if open_lots.empty:
-        return go.Figure()
+    # 1. Filter for positive liabilities ONLY to ensure branchvalues="total" math works
+    # This prevents the crash where Children sum to > Parent due to negative tax credits
+    ol_pos = open_lots[open_lots["Est Tax Liability"] > 0].copy() if not open_lots.empty else pd.DataFrame()
+    re_pos = realized_events[realized_events["Tax Impact"] > 0].copy() if not realized_events.empty else pd.DataFrame()
 
-    # Pre-process for hierarchy
-    # We need a dataframe with: IDs, Labels, Parents, Values
-    # Levels:
-    # 1. Total Liability (Root)
-    # 2. Short-Term / Long-Term (Inner)
-    # 3. Ticker (Outer)
+    if ol_pos.empty and re_pos.empty:
+        return go.Figure().update_layout(
+            title="No Tax Liability Detected", 
+            template="plotly_dark" if theme=="dark" else "plotly_white"
+        )
 
-    total_liab = open_lots["Est Tax Liability"].sum()
-    if total_liab <= 0:
-        return go.Figure().update_layout(title="No Est. Tax Liability Found", template="plotly_dark" if theme=="dark" else "plotly_white")
-
+    # 2. Aggregate Data
+    unrealized_total = ol_pos["Est Tax Liability"].sum() if not ol_pos.empty else 0
+    realized_total = re_pos["Tax Impact"].sum() if not re_pos.empty else 0
+    total_liab = unrealized_total + realized_total
+    
     data = []
     
-    # Root
+    # --- LEVEL 0: ROOT ---
     data.append({
-        "id": "Total Liability",
-        "parent": "",
-        "label": "Total Liability",
-        "value": total_liab,
-        "color": GLOBAL_PALETTE[0]
+        "id": "Total Liability", "parent": "", "label": "Total Liability", 
+        "value": total_liab, "color": GLOBAL_PALETTE[0], "status": "Root"
     })
 
-    # Terms
-    terms = open_lots.groupby("Term")["Est Tax Liability"].sum()
-    for term, val in terms.items():
-        if val <= 0: continue
-        # ST = Reddish, LT = Blue/Greenish
-        color = GLOBAL_PALETTE[2] if "Short" in term else GLOBAL_PALETTE[4]
+    # --- LEVEL 1: STATUS ---
+    if realized_total > 0:
         data.append({
-            "id": term,
-            "parent": "Total Liability",
-            "label": term,
-            "value": val,
-            "color": color
+            "id": "Realized", "parent": "Total Liability", "label": "Realized", 
+            "value": realized_total, "color": "#2c3e50", "status": "Realized"
+        })
+    if unrealized_total > 0:
+        data.append({
+            "id": "Unrealized", "parent": "Total Liability", "label": "Unrealized", 
+            "value": unrealized_total, "color": "#7f8c8d", "status": "Unrealized"
         })
 
-    # Tickers per Term
-    ticker_terms = open_lots.groupby(["Term", "Ticker"])["Est Tax Liability"].sum().reset_index()
-    for _, row in ticker_terms.iterrows():
-        if row["Est Tax Liability"] <= 0: continue
-        data.append({
-            "id": f"{row['Term']}_{row['Ticker']}",
-            "parent": row["Term"],
-            "label": row["Ticker"],
-            "value": row["Est Tax Liability"],
-            "color": GLOBAL_PALETTE[2] if "Short" in row["Term"] else GLOBAL_PALETTE[4]
-        })
+    # --- LEVEL 2: TERM ---
+    if not re_pos.empty:
+        rt = re_pos.groupby("Term")["Tax Impact"].sum()
+        for term, val in rt.items():
+            color = "#c0392b" if "Short" in term else "#2980b9" # Darker solid tones
+            data.append({
+                "id": f"Realized_{term}", "parent": "Realized", "label": term, 
+                "value": val, "color": color, "status": "Realized"
+            })
+    if not ol_pos.empty:
+        ut = ol_pos.groupby("Term")["Est Tax Liability"].sum()
+        for term, val in ut.items():
+            color = "#e74c3c" if "Short" in term else "#3498db" # Lighter tones
+            data.append({
+                "id": f"Unrealized_{term}", "parent": "Unrealized", "label": term, 
+                "value": val, "color": color, "status": "Unrealized"
+            })
+
+    # --- LEVEL 3: TICKER ---
+    if not re_pos.empty:
+        rtk = re_pos.groupby(["Term", "Ticker"])["Tax Impact"].sum().reset_index()
+        for _, row in rtk.iterrows():
+            color = "#c0392b" if "Short" in row["Term"] else "#2980b9"
+            data.append({
+                "id": f"Realized_{row['Term']}_{row['Ticker']}", "parent": f"Realized_{row['Term']}", 
+                "label": row["Ticker"], "value": row["Tax Impact"], "color": color, "status": "Realized"
+            })
+    if not ol_pos.empty:
+        utk = ol_pos.groupby(["Term", "Ticker"])["Est Tax Liability"].sum().reset_index()
+        for _, row in utk.iterrows():
+            color = "#e74c3c" if "Short" in row["Term"] else "#3498db"
+            data.append({
+                "id": f"Unrealized_{row['Term']}_{row['Ticker']}", "parent": f"Unrealized_{row['Term']}", 
+                "label": row["Ticker"], "value": row["Est Tax Liability"], "color": color, "status": "Unrealized"
+            })
 
     df_sun = pd.DataFrame(data)
+
+    # Custom Tooltip Logic using customdata
+    # Status column is already in df_sun
+    df_sun["status_marker"] = df_sun["status"].apply(lambda x: "(Locked In)" if x == "Realized" else ("(Potential)" if x == "Unrealized" else ""))
 
     fig = go.Figure(go.Sunburst(
         ids=df_sun["id"],
@@ -3261,7 +3287,8 @@ def get_tax_liability_sunburst(open_lots, theme="light"):
         values=df_sun["value"],
         branchvalues="total",
         marker=dict(colors=df_sun["color"]),
-        hovertemplate="<b>%{label}</b><br>Liability: $%{value:,.2f}<extra></extra>"
+        customdata=df_sun["status_marker"],
+        hovertemplate="<b>%{label}</b><br>Liability: $%{value:,.2f} %{customdata}<extra></extra>"
     ))
 
     fig.update_layout(
@@ -3289,6 +3316,9 @@ def get_tax_tactical_radar(open_lots, theme="light"):
     df["Status"] = np.where(df["Unrealized P/L"] >= 0, "Gain", "Loss")
     color_map = {"Gain": GLOBAL_PALETTE[4], "Loss": GLOBAL_PALETTE[2]} # Greenish for gain, Reddish for loss
 
+    # Fix Date Formatting for Tooltip (Remove timestamp)
+    df["Date Acquired Display"] = pd.to_datetime(df["Date Acquired"]).dt.strftime("%Y-%m-%d")
+
     fig = px.scatter(
         df,
         x="Days Held",
@@ -3297,7 +3327,7 @@ def get_tax_tactical_radar(open_lots, theme="light"):
         color="Status",
         color_discrete_map=color_map,
         hover_name="Ticker",
-        custom_data=["Ticker", "Shares", "Date Acquired"]
+        custom_data=["Ticker", "Shares", "Date Acquired Display"]
     )
 
     # Hover Template customization

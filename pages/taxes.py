@@ -350,7 +350,7 @@ def update_tax_dashboard(signal, theme, chat_cmd):
     ], active_tab="tab-open")
 
     # 5. Charts
-    sunburst_fig = dw.get_tax_liability_sunburst(open_lots, theme=theme)
+    sunburst_fig = dw.get_tax_liability_sunburst(open_lots, realized_events, theme=theme)
     radar_fig = dw.get_tax_tactical_radar(open_lots, theme=theme)
 
     return (
