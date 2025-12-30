@@ -499,12 +499,19 @@ def calculate_horizon_pl(pv: pd.Series, inception_date: pd.Timestamp, cf_ext: pd
         return None
 
     # ----- Map horizon start onto actual PV index -----
+    # GIPS FIX: Snap to the NEAREST PRIOR price (Backward Snap) if start is missing (e.g. Jan 1 Holiday)
+    # This aligns with Ticker P/L logic and ensures we capture the full period return (e.g. from Dec 31 Close).
     if start not in pv.index:
         pv_idx = pv.index.sort_values()
         pos = pv_idx.searchsorted(start)
-        if pos >= len(pv_idx):
-            return None
-        start = pv_idx[pos]
+        # pos is the insertion point (next date). We want the previous date.
+        if pos > 0:
+            start = pv_idx[pos - 1]
+        else:
+            # Start date is before inception/first data. 
+            # If we are strictly gated, we might return None. 
+            # But usually we snap to inception (pos=0).
+            start = pv_idx[0]
 
     mv_start = float(pv.loc[start])
     mv_end   = float(pv.loc[as_of])
