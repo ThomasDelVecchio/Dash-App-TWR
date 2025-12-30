@@ -193,7 +193,11 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
             "_sort_rank": rank, 
             "_is_header": 1,
             "Sharpe (SI)": sharpe_str,
-            "Vol (SI)": vol_str
+            "Vol (SI)": vol_str,
+            "meta_Sharpe (SI)_ret": ac_risk.get("return", 0.0),
+            "meta_Sharpe (SI)_vol": ac_risk.get("vol", 0.0),
+            "meta_Sharpe (SI)_rf": 4.0,
+            "meta_Vol (SI)_vol": ac_risk.get("vol", 0.0)
         }
         # Add all meta columns from class_df row
         for k, v in crow.items():

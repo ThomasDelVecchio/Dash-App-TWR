@@ -191,20 +191,42 @@ def get_audit_modal_content(request_data):
         content = []
         content.append(html.H4(f"Audit: {ticker} ({col_id})", className="mb-3"))
         
+        def fmt_num(n): return f"{n:,.2f}"
+
         if "Sharpe" in str(col_id):
+            ret = float(row_data.get(f"meta_{col_id}_ret", 0.0))
+            vol = float(row_data.get(f"meta_{col_id}_vol", 0.0))
+            rf = float(row_data.get(f"meta_{col_id}_rf", 4.0))
+
             formula_tex = r"""
             $$
             \text{Sharpe} = \frac{R_p - R_f}{\sigma_p}
             $$
             """
+            sub_tex = fr"""
+            $$
+            \text{{Sharpe}} = \frac{{{ret:.2f}\% - {rf:.1f}\%}}{{{vol:.2f}\%}} = \mathbf{{{metric_val}}}
+            $$
+            """
             explanation = (
                 r"Calculated using the annualized Return ($R_p$) and Volatility ($\sigma_p$). "
-                f"Assumes a Risk-Free Rate ($R_f$) of **{RISK_FREE_RATE:.1%}**. "
+                f"Assumes a Risk-Free Rate ($R_f$) of **{rf/100:.1%}**. "
                 "Higher is better (more return per unit of total risk)."
             )
             content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
             content.append(dcc.Markdown(explanation, mathjax=True, className="text-muted small"))
             
+            rows = [
+                html.Tr([html.Td("Annualized Return (Rp)"), html.Td(f"{ret:.2f}%", className="text-end")]),
+                html.Tr([html.Td("Risk-Free Rate (Rf)"), html.Td(f"{rf:.1f}%", className="text-end")]),
+                html.Tr([html.Td("Volatility (σp)"), html.Td(f"{vol:.2f}%", className="text-end")]),
+                html.Tr([html.Td("Sharpe Ratio", className="fw-bold"), html.Td(metric_val, className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '350px'}))
+
         elif "Sortino" in str(col_id):
             formula_tex = r"""
             $$
@@ -218,25 +240,42 @@ def get_audit_modal_content(request_data):
             """
             content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
             content.append(dcc.Markdown(explanation, mathjax=True, className="text-muted small"))
+            
+            rows = [
+                html.Tr([html.Td("Metric Value"), html.Td(metric_val, className="text-end fw-bold")]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
 
         elif "Vol" in str(col_id):
+            vol = float(row_data.get(f"meta_{col_id}_vol", 0.0))
+            
             formula_tex = r"""
             $$
             \text{Volatility} = \sigma = \sqrt{\frac{\sum (R_i - \bar{R})^2}{N-1}} \times \sqrt{252}
             $$
             """
+            
+            sub_tex = fr"""
+            $$
+            \sigma_{{ann}} = \sigma_{{daily}} \times \sqrt{252} = \mathbf{{{vol:.2f}\%}}
+            $$
+            """
+            
             explanation = r"""
             Annualized Standard Deviation of daily returns. 
             Represents the total variability of the asset's price path.
             """
             content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
             content.append(dcc.Markdown(explanation, className="text-muted small"))
             
-        rows = [
-            html.Tr([html.Td("Metric Value"), html.Td(metric_val, className="text-end fw-bold")]),
-        ]
-        content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
-        
+            rows = [
+                html.Tr([html.Td("Annualized Volatility (σ)"), html.Td(f"{vol:.2f}%", className="text-end fw-bold")]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
+            
         return dbc.ModalBody(content)
 
     # ----------------------------------------------------
