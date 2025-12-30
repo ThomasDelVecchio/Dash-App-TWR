@@ -34,7 +34,7 @@ from financial_math import (
 )
 from report_formatting import fmt_pct_clean, fmt_dollar_clean
 import config
-from config import TARGET_MONTHLY_CONTRIBUTION, GLOBAL_PALETTE, RISK_FREE_RATE
+from config import TARGET_MONTHLY_CONTRIBUTION, GLOBAL_PALETTE, RISK_FREE_RATE, TAX_RATE_LT, TAX_RATE_ST
 
 # ============================================================
 # GLOBAL DATA CACHE (Server-Side)
@@ -3191,3 +3191,143 @@ def get_data_source_summary(data):
         "fallbacks": fallbacks,
         "has_errors": False # Explicitly silenced
     }
+
+# ============================================================
+# TAX AUTHORITY VISUALS
+# ============================================================
+
+def get_tax_liability_sunburst(open_lots, theme="light"):
+    """
+    Institutional Sunburst for Tax Liability Composition.
+    Hierarchy: Total -> Term -> Ticker.
+    """
+    if open_lots.empty:
+        return go.Figure()
+
+    # Pre-process for hierarchy
+    # We need a dataframe with: IDs, Labels, Parents, Values
+    # Levels:
+    # 1. Total Liability (Root)
+    # 2. Short-Term / Long-Term (Inner)
+    # 3. Ticker (Outer)
+
+    total_liab = open_lots["Est Tax Liability"].sum()
+    if total_liab <= 0:
+        return go.Figure().update_layout(title="No Est. Tax Liability Found", template="plotly_dark" if theme=="dark" else "plotly_white")
+
+    data = []
+    
+    # Root
+    data.append({
+        "id": "Total Liability",
+        "parent": "",
+        "label": "Total Liability",
+        "value": total_liab,
+        "color": GLOBAL_PALETTE[0]
+    })
+
+    # Terms
+    terms = open_lots.groupby("Term")["Est Tax Liability"].sum()
+    for term, val in terms.items():
+        if val <= 0: continue
+        # ST = Reddish, LT = Blue/Greenish
+        color = GLOBAL_PALETTE[2] if "Short" in term else GLOBAL_PALETTE[4]
+        data.append({
+            "id": term,
+            "parent": "Total Liability",
+            "label": term,
+            "value": val,
+            "color": color
+        })
+
+    # Tickers per Term
+    ticker_terms = open_lots.groupby(["Term", "Ticker"])["Est Tax Liability"].sum().reset_index()
+    for _, row in ticker_terms.iterrows():
+        if row["Est Tax Liability"] <= 0: continue
+        data.append({
+            "id": f"{row['Term']}_{row['Ticker']}",
+            "parent": row["Term"],
+            "label": row["Ticker"],
+            "value": row["Est Tax Liability"],
+            "color": GLOBAL_PALETTE[2] if "Short" in row["Term"] else GLOBAL_PALETTE[4]
+        })
+
+    df_sun = pd.DataFrame(data)
+
+    fig = go.Figure(go.Sunburst(
+        ids=df_sun["id"],
+        labels=df_sun["label"],
+        parents=df_sun["parent"],
+        values=df_sun["value"],
+        branchvalues="total",
+        marker=dict(colors=df_sun["color"]),
+        hovertemplate="<b>%{label}</b><br>Liability: $%{value:,.2f}<extra></extra>"
+    ))
+
+    fig.update_layout(
+        template="plotly_dark" if theme == "dark" else "plotly_white",
+        margin=dict(t=10, l=10, r=10, b=10),
+        height=350
+    )
+    return fig
+
+def get_tax_tactical_radar(open_lots, theme="light"):
+    """
+    Tactical Radar for Harvest vs Hold decisions.
+    X: Days Held, Y: Unrealized P/L, Size: Market Value.
+    """
+    if open_lots.empty:
+        return go.Figure()
+
+    df = open_lots.copy()
+    
+    # Days Held calculation if not present
+    if "Days Held" not in df.columns:
+        df["Days Held"] = (datetime.now() - df["Date Acquired"]).dt.days
+
+    # Colors based on Gain/Loss
+    df["Status"] = np.where(df["Unrealized P/L"] >= 0, "Gain", "Loss")
+    color_map = {"Gain": GLOBAL_PALETTE[4], "Loss": GLOBAL_PALETTE[2]} # Greenish for gain, Reddish for loss
+
+    fig = px.scatter(
+        df,
+        x="Days Held",
+        y="Unrealized P/L",
+        size="Market Value",
+        color="Status",
+        color_discrete_map=color_map,
+        hover_name="Ticker",
+        custom_data=["Ticker", "Shares", "Date Acquired"]
+    )
+
+    # Hover Template customization
+    fig.update_traces(
+        hovertemplate=(
+            "<b>%{customdata[0]}</b><br>" +
+            "Shares: %{customdata[1]:,.2f}<br>" +
+            "Acquired: %{customdata[2]}<br>" +
+            "Days Held: %{x}<br>" +
+            "P/L: $%{y:,.2f}<extra></extra>"
+        )
+    )
+
+    # Vertical line at 365 (LT Cliff)
+    fig.add_vline(x=365, line_dash="dash", line_color="gray", annotation_text="LT Cliff", annotation_position="top left")
+    
+    # Horizontal line at 0 P/L
+    fig.add_hline(y=0, line_dash="dash", line_color="gray")
+
+    fig.update_layout(
+        template="plotly_dark" if theme == "dark" else "plotly_white",
+        margin=dict(t=30, l=50, r=30, b=50),
+        xaxis_title="Days Held",
+        yaxis_title="Unrealized P/L ($)",
+        showlegend=False,
+        height=350
+    )
+    
+    # Format X and Y axes
+    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)', tickformat="$,.0f")
+
+    return fig

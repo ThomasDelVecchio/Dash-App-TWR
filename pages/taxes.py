@@ -26,6 +26,25 @@ layout = html.Div([
         dbc.Col(html.Div(id="tax-kpi-efficiency-container"), width=6, lg=3),
     ], className="mb-4 g-3"),
 
+    # --- VISUALIZATIONS ---
+    dbc.Row([
+        # Sunburst Chart
+        dbc.Col(dbc.Card([
+            dbc.CardHeader("Liability Composition"),
+            dbc.CardBody([
+                dcc.Graph(id="tax-sunburst-chart", config={"displayModeBar": False})
+            ])
+        ], className="h-100"), width=12, lg=4),
+
+        # Tactical Radar
+        dbc.Col(dbc.Card([
+            dbc.CardHeader("Tactical Decision Radar (Harvest vs Hold)"),
+            dbc.CardBody([
+                dcc.Graph(id="tax-tactical-radar", config={"displayModeBar": False})
+            ])
+        ], className="h-100"), width=12, lg=8),
+    ], className="mb-4 g-3"),
+
     # --- ALERTS SECTION ---
     dbc.Row([
         # Cliff Watch
@@ -98,6 +117,8 @@ layout = html.Div([
      Output("tax-kpi-unrealized-container", "children"),
      Output("tax-kpi-harvestable-container", "children"),
      Output("tax-kpi-efficiency-container", "children"),
+     Output("tax-sunburst-chart", "figure"),
+     Output("tax-tactical-radar", "figure"),
      Output("cliff-watch-container", "children"),
      Output("harvest-radar-container", "children"),
      Output("lot-explorer-container", "children")],
@@ -328,7 +349,15 @@ def update_tax_dashboard(signal, theme, chat_cmd):
         dbc.Tab(grid_realized, label="Realized History", tab_id="tab-realized"),
     ], active_tab="tab-open")
 
-    return kpi_realized, kpi_unrealized, kpi_harvest, kpi_efficiency, cliff_grid, harvest_grid, explorer_tabs
+    # 5. Charts
+    sunburst_fig = dw.get_tax_liability_sunburst(open_lots, theme=theme)
+    radar_fig = dw.get_tax_tactical_radar(open_lots, theme=theme)
+
+    return (
+        kpi_realized, kpi_unrealized, kpi_harvest, kpi_efficiency, 
+        sunburst_fig, radar_fig,
+        cliff_grid, harvest_grid, explorer_tabs
+    )
 
 @callback(
     Output("sim-output", "children"),
