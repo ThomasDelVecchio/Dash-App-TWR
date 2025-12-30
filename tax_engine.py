@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+from functools import lru_cache
 from data_loader import load_transactions_raw, fetch_price_history
 from config import TAX_RATE_ST, TAX_RATE_LT
 
@@ -47,14 +48,19 @@ def _days_to_long_term(date_acquired):
     return max(0, remaining)
 
 # ============================================================
-# CORE ENGINE: FIFO MATCHING
+# CORE ENGINE: MULTI-STRATEGY MATCHING
 # ============================================================
 
-def build_tax_lots():
+@lru_cache(maxsize=32)
+def build_tax_lots(strategy="FIFO", signal=None):
     """
-    Reconstructs the tax lot history from raw transactions.
+    Reconstructs the tax lot history from raw transactions using specified strategy.
     Includes Wash Sale detection.
     
+    Args:
+        strategy (str): 'FIFO', 'LIFO', or 'HIFO'. Default 'FIFO'.
+        signal (str): Optional data timestamp to invalidate cache when data changes.
+        
     Returns:
         open_lots_df (pd.DataFrame): Currently held lots.
         realized_events_df (pd.DataFrame): Closed tax events.
@@ -77,8 +83,8 @@ def build_tax_lots():
         # Filter and Sort Chronologically
         tx_history = raw_tx[raw_tx["ticker"] == ticker].sort_values("date")
         
-        # FIFO Queue for this ticker
-        # Each item: [date_acquired, shares_remaining, cost_per_share]
+        # Lot Queue for this ticker (List of dicts)
+        # Each item: {date_acquired, shares, cost_per_share}
         lot_queue = []
         
         for _, row in tx_history.iterrows():
@@ -110,8 +116,21 @@ def build_tax_lots():
                 total_proceeds = amount 
                 proceeds_per_share = total_proceeds / shares_to_sell if shares_to_sell > 0 else 0
                 
+                # Apply Strategy Sorting before matching
+                if strategy == "LIFO":
+                    # Last-In, First-Out: Sort by Date Descending
+                    lot_queue.sort(key=lambda x: x["date_acquired"], reverse=True)
+                elif strategy == "HIFO":
+                    # Highest-In, First-Out: Sort by Cost Descending, then Date Ascending (FIFO tie-break)
+                    # Tuple sort: (-cost, date) -> min() of this sorts by max cost, then min date
+                    # OR simply sort normally with key
+                    lot_queue.sort(key=lambda x: (-x["cost_per_share"], x["date_acquired"]))
+                else:
+                    # FIFO (Default): Sort by Date Ascending
+                    lot_queue.sort(key=lambda x: x["date_acquired"])
+                
                 while shares_to_sell > 1e-6 and lot_queue:
-                    # Peek at oldest lot (FIFO)
+                    # Take from top of sorted queue
                     current_lot = lot_queue[0]
                     
                     available = current_lot["shares"]
@@ -277,9 +296,9 @@ def build_tax_lots():
 # SIMULATOR
 # ============================================================
 
-def simulate_sell(ticker, shares_to_sell):
+def simulate_sell(ticker, shares_to_sell, strategy="FIFO"):
     """
-    Simulates selling shares using FIFO logic.
+    Simulates selling shares using specified strategy.
     Alerts on Wash Sales (Buying in last 30 days).
     """
     ticker = normalize_ticker(ticker)
@@ -287,14 +306,26 @@ def simulate_sell(ticker, shares_to_sell):
     if shares_to_sell <= 0:
         return {"summary_text": "Invalid share quantity.", "total_gain": 0, "est_tax": 0, "breakdown": []}
 
-    open_lots_df, _ = build_tax_lots() # Rebuild to get fresh state
+    open_lots_df, _ = build_tax_lots(strategy=strategy) # Rebuild to get fresh state using strategy
     
     if open_lots_df.empty or ticker not in open_lots_df["Ticker"].values:
         return {"summary_text": f"No open lots found for {ticker}.", "total_gain": 0, "est_tax": 0, "breakdown": []}
         
-    lots = open_lots_df[open_lots_df["Ticker"] == ticker].sort_values("Date Acquired")
+    # Get lots for ticker
+    lots_df = open_lots_df[open_lots_df["Ticker"] == ticker].copy()
     
-    total_avail = lots["Shares"].sum()
+    # Sort lots based on Strategy for the *next* sell simulation
+    # Note: open_lots_df is already the result of past strategy application. 
+    # We now simulate the next step.
+    if strategy == "LIFO":
+        lots_df = lots_df.sort_values("Date Acquired", ascending=False)
+    elif strategy == "HIFO":
+        lots_df = lots_df.sort_values(["Cost Per Share", "Date Acquired"], ascending=[False, True])
+    else:
+        # FIFO
+        lots_df = lots_df.sort_values("Date Acquired", ascending=True)
+    
+    total_avail = lots_df["Shares"].sum()
     if shares_to_sell > total_avail:
         return {
             "summary_text": f"Cannot sell {shares_to_sell} shares. Only {total_avail:.2f} available.",
@@ -322,10 +353,10 @@ def simulate_sell(ticker, shares_to_sell):
     total_st_gain = 0.0
     total_lt_gain = 0.0
     
-    curr_price = lots.iloc[0]["Current Price"]
+    curr_price = lots_df.iloc[0]["Current Price"]
     summary_parts = []
     
-    for _, lot in lots.iterrows():
+    for _, lot in lots_df.iterrows():
         if remaining_to_sell <= 1e-6:
             break
             

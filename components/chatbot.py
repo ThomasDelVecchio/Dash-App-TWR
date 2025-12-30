@@ -230,6 +230,46 @@ COMPONENT_REGISTRY = {
         "description": "Comparison of portfolio sensitivity (Beta) and active deviation (Tracking Error) against major benchmarks like SPY.",
         "interpretation": "Beta > 1 means higher volatility than the market. High Tracking Error means you are deviating significantly from the benchmark (Active Management).",
         "common_questions": ["active strategy", "beta", "tracking error", "active risk", "benchmark comparison"]
+    },
+    "tax_sunburst": {
+        "canonical_name": "Tax Liability Composition",
+        "type": "chart",
+        "page": "taxes",
+        "description": "Sunburst chart showing the breakdown of your estimated tax liability by Term (Short/Long) and then by Asset Class.",
+        "interpretation": "Identify which parts of your portfolio are driving your potential tax bill. Inner ring is Term, outer ring is Asset Class.",
+        "common_questions": ["sunburst", "liability chart", "tax composition", "breakdown of taxes"]
+    },
+    "tax_tactical_radar": {
+        "canonical_name": "Tactical Decision Radar",
+        "type": "chart",
+        "page": "taxes",
+        "description": "A scatter plot designed to help with 'Harvest vs Hold' decisions. Maps Unrealized P/L (X-axis) against Days Held (Y-axis).",
+        "interpretation": "Top-Left (High Loss, Short Term) = Prime Harvesting candidates. Top-Right (High Gain, Short Term) = Avoid selling if near 365 days (Cliff).",
+        "common_questions": ["radar", "tactical radar", "harvest vs hold", "decision chart"]
+    },
+    "cliff_watch": {
+        "canonical_name": "The Cliff Watch",
+        "type": "table",
+        "page": "taxes",
+        "description": "List of tax lots that will turn Long-Term (held > 1 year) within the next 30 days.",
+        "interpretation": "If you are planning to sell these, WAIT. Crossing the 1-year mark typically reduces the tax rate on gains significantly.",
+        "common_questions": ["cliff watch", "cliff", "turning long term", "wait to sell"]
+    },
+    "harvest_radar": {
+        "canonical_name": "Harvesting Radar",
+        "type": "table",
+        "page": "taxes",
+        "description": "List of tax lots currently at a loss, ranked by the size of the loss.",
+        "interpretation": "These are your best opportunities to 'harvest' losses to offset other realized gains and lower your tax bill.",
+        "common_questions": ["harvesting radar", "harvest list", "losers", "what to harvest"]
+    },
+    "tax_lot_explorer": {
+        "canonical_name": "Tax Lot Explorer",
+        "type": "table",
+        "page": "taxes",
+        "description": "Comprehensive grid of all open tax lots and realized tax events.",
+        "interpretation": "Use this to see exactly when you bought each share and its individual cost basis. Essential for granular tax planning.",
+        "common_questions": ["lot explorer", "tax lots", "lots", "basis"]
     }
 }
 
@@ -374,32 +414,32 @@ SYNONYMS = {
     "tax ytd": "realized tax",
     "pay": "realized tax",
     
-    "liability": "unrealized tax",
-    "unrealized": "unrealized tax",
-    "shadow bill": "unrealized tax",
-    "deferred": "unrealized tax",
-    "potential tax": "unrealized tax",
-    "if i sold everything": "unrealized tax",
+    "liability": "tax_liability",
+    "unrealized tax": "tax_liability",
+    "unrealized": "tax_liability",
+    "shadow bill": "tax_liability",
+    "deferred": "tax_liability",
+    "potential tax": "tax_liability",
+    "if i sold everything": "tax_liability",
 
-    "harvestable loss": "tax harvest",
-    "harvestable": "tax harvest",
-    "harvest": "tax harvest",
-    "tax efficiency": "tax efficiency",
-    "efficiency": "tax efficiency",
-    "long term percent": "tax efficiency",
-    "cliff": "tax cliff",
-    "long term": "tax cliff",
-    "short term": "tax cliff",
-    "holding period": "tax cliff",
-    "1 year": "tax cliff",
-    "365": "tax cliff",
+    "harvestable losses": "tax_harvest",
+    "harvestable loss": "tax_harvest",
+    "harvestable": "tax_harvest",
+    "tax harvest": "tax_harvest",
+    "harvest": "tax_harvest",
+    "tax efficiency": "tax_efficiency",
+    "efficiency": "tax_efficiency",
+    "long term percent": "tax_efficiency",
+    "cliff": "tax_cliff",
+    "long term": "tax_cliff",
+    "short term": "tax_cliff",
+    "holding period": "tax_cliff",
+    "1 year": "tax_cliff",
+    "365": "tax_cliff",
 
-    "harvest": "harvesting",
-    "write off": "harvesting",
-    "loser": "harvesting",
-    "save tax": "harvesting",
-    "red": "harvesting",
-    "offset": "harvesting",
+    "write off": "tax_harvest",
+    "save tax": "tax_harvest",
+    "offset": "tax_harvest",
 }
 
 def normalize_text(text):
@@ -474,6 +514,14 @@ def extract_metric(text):
     if any(x in text for x in ["buys", "sells", "transactions", "trades"]): return "transaction"
     if any(x in text for x in ["net invested", "net amount", "net in", "total in"]): return "net_invested"
     if any(x in text for x in ["flows", "deposit", "withdrawal", "net flow"]): return "flows"
+    
+    # Tax Metrics
+    if "tax_liability" in text: return "tax_liability"
+    if "tax_realized" in text: return "tax_realized"
+    if "tax_harvest" in text: return "tax_harvest"
+    if "tax_efficiency" in text: return "tax_efficiency"
+    if "tax_cliff" in text: return "tax_cliff"
+    
     return None
 
 def extract_entity(text, data):
@@ -656,6 +704,90 @@ def analyze_portfolio():
 # QUERY HANDLERS
 # ============================================================
 
+def handle_tax_metric_query(entity_name, entity_type, metric, data, horizon=None):
+    """
+    Handles specific tax metric queries for Portfolio or Entities.
+    Metrics: tax_liability, tax_realized, tax_harvest, tax_efficiency, tax_cliff
+    """
+    open_lots, realized_events = build_tax_lots()
+    
+    # Filter by Entity if provided
+    filtered_lots = open_lots
+    filtered_realized = realized_events
+    
+    entity_label = "Portfolio"
+    
+    if entity_name:
+        entity_label = entity_name
+        # Normalize for matching
+        norm_entity = entity_name.upper()
+        
+        if entity_type == "ticker":
+            if not open_lots.empty:
+                filtered_lots = open_lots[open_lots["Ticker"] == norm_entity]
+            if not realized_events.empty:
+                filtered_realized = realized_events[realized_events["Ticker"] == norm_entity]
+                
+        elif entity_type == "asset_class":
+            # We need to map lots to asset class. This requires joining with sec_table_current.
+            # This is expensive, so we do it only if needed.
+            sec_current = data.get("sec_table_current")
+            if sec_current is not None:
+                # Create Ticker -> Asset Class map
+                # Ensure unique
+                ac_map = sec_current.set_index("ticker")["asset_class"].to_dict()
+                
+                if not open_lots.empty:
+                    # Map
+                    filtered_lots = open_lots.copy()
+                    filtered_lots["Asset Class"] = filtered_lots["Ticker"].map(ac_map)
+                    filtered_lots = filtered_lots[filtered_lots["Asset Class"] == entity_name]
+                    
+                if not realized_events.empty:
+                    filtered_realized = realized_events.copy()
+                    filtered_realized["Asset Class"] = filtered_realized["Ticker"].map(ac_map)
+                    filtered_realized = filtered_realized[filtered_realized["Asset Class"] == entity_name]
+            else:
+                return "Asset class tax data unavailable (missing holdings data)."
+
+    # 1. Tax Liability (Unrealized)
+    if metric == "tax_liability":
+        val = filtered_lots["Est Tax Liability"].sum() if not filtered_lots.empty else 0.0
+        return f"**{entity_label}** Estimated Tax Liability: **{fmt_dollar_clean(val)}**"
+
+    # 2. Realized Tax (YTD Bill)
+    elif metric == "tax_realized":
+        val = filtered_realized["Tax Impact"].sum() if not filtered_realized.empty else 0.0
+        gains = filtered_realized["Realized P/L"].sum() if not filtered_realized.empty else 0.0
+        return f"**{entity_label}** Realized Tax Bill (YTD): **{fmt_dollar_clean(val)}** (on {fmt_dollar_clean(gains)} gains)."
+
+    # 3. Harvestable Losses
+    elif metric == "tax_harvest":
+        if filtered_lots.empty: return f"No open lots found for **{entity_label}**."
+        losers = filtered_lots[filtered_lots["Unrealized P/L"] < 0]
+        val = abs(losers["Unrealized P/L"].sum())
+        
+        count = len(losers)
+        return f"**{entity_label}** Harvestable Losses: **{fmt_dollar_clean(val)}** across {count} lots."
+
+    # 4. Tax Efficiency (% Long Term)
+    elif metric == "tax_efficiency":
+        if filtered_lots.empty: return f"No open positions for **{entity_label}**."
+        total_mv = filtered_lots["Market Value"].sum()
+        lt_mv = filtered_lots[filtered_lots["Term"] == "Long-Term"]["Market Value"].sum()
+        pct = (lt_mv / total_mv * 100) if total_mv > 0 else 0.0
+        return f"**{entity_label}** Tax Efficiency: **{pct:.1f}%** Long-Term."
+
+    # 5. Tax Cliff
+    elif metric == "tax_cliff":
+        if filtered_lots.empty or "Is Near Cliff" not in filtered_lots.columns:
+            return f"No lots found for **{entity_label}**."
+        near = filtered_lots[filtered_lots["Is Near Cliff"] == True]
+        count = len(near)
+        return f"**{entity_label}**: **{count}** lots are approaching the Long-Term cliff (< 30 days)."
+
+    return f"Tax metric '{metric}' not implemented for {entity_label}."
+
 def handle_tax_query(text):
     """
     Handles robust tax queries using the Tax Engine.
@@ -682,7 +814,7 @@ def handle_tax_query(text):
     open_lots, realized_events = build_tax_lots()
     
     # 2. Harvesting (Must check for "tax harvest" due to SYNONYMS)
-    if "tax harvest" in text or "harvest" in text:
+    if "tax_harvest" in text or "harvest" in text:
         print("DEBUG Chatbot: Tax query matched Harvesting")
         if open_lots.empty: return "No open lots to harvest."
         
@@ -698,7 +830,7 @@ def handle_tax_query(text):
                 f"Top target: **{top['Ticker']}** (Down **{fmt_dollar_clean(abs(top['Unrealized P/L']))}**).")
 
     # 3. Tax Efficiency
-    if "efficiency" in text:
+    if "tax_efficiency" in text:
         if open_lots.empty: return "No open lots to calculate efficiency."
         total_mv = open_lots["Market Value"].sum()
         lt_mv = open_lots[open_lots["Term"] == "Long-Term"]["Market Value"].sum()
@@ -709,18 +841,18 @@ def handle_tax_query(text):
                 f"Higher efficiency is better, as long-term gains are taxed at a lower rate (typically 0-20%) compared to short-term gains (up to 37%).")
 
     # 4. Realized Bill
-    if "realized tax" in text:
+    if "tax_realized" in text:
         total = realized_events["Tax Impact"].sum() if not realized_events.empty else 0.0
         gains = realized_events["Realized P/L"].sum() if not realized_events.empty else 0.0
         return f"You currently have a **Realized Tax Bill** of **{fmt_dollar_clean(total)}**. This comes from **{fmt_dollar_clean(gains)}** in realized gains YTD."
 
     # 5. Unrealized Liability
-    if "unrealized tax" in text:
+    if "tax_liability" in text:
         total = open_lots["Est Tax Liability"].sum() if not open_lots.empty else 0.0
         return f"Your **Unrealized Tax Liability** (Shadow Bill) is **{fmt_dollar_clean(total)}**. This is what you would owe if you liquidated everything today."
 
     # 6. Cliff Watch
-    if "tax cliff" in text:
+    if "tax_cliff" in text:
         if open_lots.empty or "Is Near Cliff" not in open_lots.columns:
             return "No open lots found."
             
@@ -1388,7 +1520,12 @@ def process_data_query(text, context=None):
         if any(x in text_norm for x in ["highest", "lowest", "best", "worst", "top", "bottom", "rank", "list"]):
             return None, handle_ranking_query(text_norm, data, resolved_horizon, resolved_metric), updated_context
 
-        # 3. Entity Query (Specific OR Contextual)
+        # 3. Tax Metric Query (Intercept)
+        # Check if the resolved metric is tax-related
+        if resolved_metric and resolved_metric.startswith("tax_"):
+            return None, handle_tax_metric_query(resolved_entity, resolved_entity_type, resolved_metric, data, resolved_horizon), updated_context
+
+        # 4. Entity Query (Specific OR Contextual)
         if resolved_entity:
             # If the metric is about transactions, route to the new handler
             if resolved_metric in ["transaction", "net_invested"]:
@@ -1396,7 +1533,7 @@ def process_data_query(text, context=None):
             # Otherwise, use the existing entity query handler
             return None, handle_entity_query(resolved_entity, resolved_entity_type, text_norm, data, resolved_horizon, resolved_metric), updated_context
 
-        # 4. Portfolio Level Query (Default fallthrough)
+        # 5. Portfolio Level Query (Default fallthrough)
         # If no entity and not a ranking, assume portfolio
         return None, handle_portfolio_query(text_norm, data, resolved_horizon), updated_context
         

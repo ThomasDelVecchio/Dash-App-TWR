@@ -273,18 +273,21 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
             if mk not in [c["field"] for c in ret_column_defs]:
                 ret_column_defs.append({"field": mk, "hide": True})
             
-    ret_table = dag.AgGrid(
-        id="perf-horizon-ret-grid",
-        rowData=rows,
-        columnDefs=ret_column_defs,
-        defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "filter": True, "resizable": True},
-        className="ag-theme-alpine-dark audit-target",
-        dashGridOptions={
-            "domLayout": "autoHeight",
-            "getRowStyle": {
-                "function": "params.data.Type === 'Class' ? {'fontWeight': 'bold', 'backgroundColor': 'rgba(255,255,255,0.05)'} : {}"
+    ret_table = html.Div(
+        dag.AgGrid(
+            id="perf-horizon-ret-grid",
+            rowData=rows,
+            columnDefs=ret_column_defs,
+            defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "filter": True, "resizable": True},
+            columnSize="sizeToFit",
+            className="ag-theme-alpine-dark audit-target",
+            dashGridOptions={
+                "domLayout": "autoHeight",
+                "getRowStyle": {
+                    "function": "params.data.Type === 'Class' ? {'fontWeight': 'bold', 'backgroundColor': 'rgba(255,255,255,0.05)'} : {}"
+                }
             }
-        }
+        ), style={'overflowX': 'auto'}
     )
     
     # 3. Horizon P/L Table
@@ -420,26 +423,29 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
             if mk not in [c["field"] for c in pl_column_defs]:
                 pl_column_defs.append({"field": mk, "hide": True})
     
-    pl_table = dag.AgGrid(
-        id="perf-horizon-pl-grid",
-        rowData=pl_table_data,
-        columnDefs=pl_column_defs,
-        defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "filter": True, "resizable": True},
-        className="ag-theme-alpine-dark audit-target",
-        dashGridOptions={
-            "domLayout": "autoHeight",
-            "pinnedBottomRowData": pinned_pl_rows,
-            "getRowStyle": {
-                "function": """
-                if (params.data.Type === 'Class') {
-                    return {'fontWeight': 'bold', 'backgroundColor': 'rgba(255,255,255,0.05)'};
-                } else if (params.data.Type === 'Recon') {
-                    return {'fontWeight': 'bold', 'backgroundColor': 'rgba(255,255,0,0.15)', 'borderTop': '2px solid #888'};
-                }
-                return {};
-                """
+    pl_table = html.Div(
+        dag.AgGrid(
+            id="perf-horizon-pl-grid",
+            rowData=pl_table_data,
+            columnDefs=pl_column_defs,
+            defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "filter": True, "resizable": True},
+            columnSize="sizeToFit",
+            className="ag-theme-alpine-dark audit-target",
+            dashGridOptions={
+                "domLayout": "autoHeight",
+                "pinnedBottomRowData": pinned_pl_rows,
+                "getRowStyle": {
+                    "function": """
+                    if (params.data.Type === 'Class') {
+                        return {'fontWeight': 'bold', 'backgroundColor': 'rgba(255,255,255,0.05)'};
+                    } else if (params.data.Type === 'Recon') {
+                        return {'fontWeight': 'bold', 'backgroundColor': 'rgba(255,255,0,0.15)', 'borderTop': '2px solid #888'};
+                    }
+                    return {};
+                    """
+                    }
             }
-        }
+        ), style={'overflowX': 'auto'}
     )
     
     # ... inside update_performance function ...
@@ -582,19 +588,22 @@ def update_growth_analysis(signal, theme, dates, selected_ac, chat_cmd, _filters
                     col_def["cellClass"] = "text-end"
                 growth_column_defs.append(col_def)
             
-            table_output = dag.AgGrid(
-                id="perf-growth-grid",
-                rowData=main_rows,
-                columnDefs=growth_column_defs,
-                defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
-                className="ag-theme-alpine-dark audit-target",
-                dashGridOptions={
-                    "domLayout": "autoHeight",
-                    "pinnedBottomRowData": pinned_rows,
-                    "getRowStyle": {
-                        "function": "params.data['Asset Class'] === 'Total' ? {'fontWeight': 'bold', 'backgroundColor': 'rgba(255,255,255,0.05)', 'borderTop': '2px solid #888'} : {}"
+            table_output = html.Div(
+                dag.AgGrid(
+                    id="perf-growth-grid",
+                    rowData=main_rows,
+                    columnDefs=growth_column_defs,
+                    defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
+                    columnSize="sizeToFit",
+                    className="ag-theme-alpine-dark audit-target",
+                    dashGridOptions={
+                        "domLayout": "autoHeight",
+                        "pinnedBottomRowData": pinned_rows,
+                        "getRowStyle": {
+                            "function": "params.data['Asset Class'] === 'Total' ? {'fontWeight': 'bold', 'backgroundColor': 'rgba(255,255,255,0.05)', 'borderTop': '2px solid #888'} : {}"
+                        }
                     }
-                }
+                ), style={'overflowX': 'auto'}
             )
     except Exception as e:
         table_output = html.Div(f"Error loading table: {str(e)}", className="p-3 text-danger")

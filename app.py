@@ -59,7 +59,21 @@ sidebar = html.Div(
         # Controls
         html.Div([
             dbc.Label("Theme"),
-            dbc.Switch(id="theme-switch", label="Dark Mode", value=True, className="mb-2"),
+            dbc.Switch(id="theme-switch", label="Dark Mode", value=True, className="mb-2", persistence=True, persistence_type="local"),
+
+            dbc.Label("Tax Methodology"),
+            dbc.Select(
+                id="tax-strategy-select",
+                options=[
+                    {"label": "FIFO (First-In First-Out)", "value": "FIFO"},
+                    {"label": "LIFO (Last-In First-Out)", "value": "LIFO"},
+                    {"label": "HIFO (Highest-In First-Out)", "value": "HIFO"},
+                ],
+                value="FIFO",
+                persistence=True,
+                persistence_type="local",
+                className="mb-2 text-dark"
+            ),
             
             dbc.Label("Analysis End Date"),
             dcc.DatePickerSingle(
@@ -67,7 +81,9 @@ sidebar = html.Div(
                 date=datetime.now().date(),
                 display_format="YYYY-MM-DD",
                 className="mb-2 d-block",
-                style={'zIndex': 100}
+                style={'zIndex': 100},
+                persistence=True,
+                persistence_type="local"
             ),
             
             dbc.Label("Benchmarks"),
@@ -83,7 +99,9 @@ sidebar = html.Div(
                 ],
                 value=["SPY", "AOK", "AOR"],
                 multi=True,
-                className="mb-2 text-dark"
+                className="mb-2 text-dark",
+                persistence=True,
+                persistence_type="local"
             ),
             
             dbc.Label("Include Exited Tickers", className="mt-2"),
@@ -95,7 +113,9 @@ sidebar = html.Div(
                 ],
                 value=False, # Default to No (Hidden)
                 inline=True,
-                className="mb-2"
+                className="mb-2",
+                persistence=True,
+                persistence_type="local"
             ),
 
             html.Hr(),
@@ -121,6 +141,7 @@ app.layout = html.Div(
         dcc.Store(id="benchmark-store"),
         dcc.Store(id="filter-store", storage_type="memory"),
         dcc.Store(id="include-exited-store", data=False),
+        dcc.Store(id="tax-strategy-store", data="FIFO", storage_type="local"),
         
         # Global Audit Store
         dcc.Store(id="audit-request-store"),
@@ -234,13 +255,15 @@ def render_page_content(pathname):
      Output("date-range-store", "data"),
      Output("benchmark-store", "data"),
      Output("data-signal", "data"),
-     Output("include-exited-store", "data")],
+     Output("include-exited-store", "data"),
+     Output("tax-strategy-store", "data")],
     [Input("theme-switch", "value"),
      Input("date-picker-end", "date"),
      Input("benchmark-dropdown", "value"),
-     Input("include-exited-radio", "value")]
+     Input("include-exited-radio", "value"),
+     Input("tax-strategy-select", "value")]
 )
-def update_global_state(is_dark, end_date, benchmarks, include_exited):
+def update_global_state(is_dark, end_date, benchmarks, include_exited, tax_strategy):
     # Refresh data with new end date
     dw.refresh_data(end_date=end_date)
     
@@ -261,7 +284,7 @@ def update_global_state(is_dark, end_date, benchmarks, include_exited):
             elif b == "BND": label = "Total Bond"
             bm_map[label] = b
             
-    return theme, theme, dates, bm_map, datetime.now().isoformat(), include_exited
+    return theme, theme, dates, bm_map, datetime.now().isoformat(), include_exited, tax_strategy
 
 # 3. Global Filter Logic
 @app.callback(

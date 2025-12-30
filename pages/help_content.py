@@ -382,7 +382,7 @@ $$\text{TE} = \sigma(R_p - R_b)$$
     },
 
     "tax_101": {
-        "title": "Tax Authority 101",
+        "title": "Tax Authority & Methodologies",
         "content": r"""
 A guide to understanding how the **Tax Authority** module manages your portfolio's tax efficiency.
 
@@ -391,10 +391,24 @@ When you buy shares, they aren't just thrown into a single pool. Each purchase c
 *   **Date Acquired**: Determines if gains are Short-Term or Long-Term.
 *   **Cost Basis**: The purchase price (plus fees). Used to calculate Profit/Loss.
 
-#### **2. FIFO (First-In, First-Out)**
-This application uses the **FIFO** accounting method.
-*   **Rule**: When you sell shares, the engine assumes you are selling the **oldest** shares you own first.
-*   **Impact**: Selling older shares often means realizing larger gains (if the market is up), but they are more likely to be Long-Term.
+#### **2. Tax Lot Matching Strategies**
+You can select how the engine matches Sell orders to Buy lots via the global settings.
+
+*   **FIFO (First-In, First-Out)**
+    *   **Rule**: Sells the **oldest** shares first.
+    *   **Pros**: Most accepted standard. Often targets Long-Term shares first (lower tax rate).
+    *   **Cons**: In a rising market, oldest shares often have the largest gains (highest tax bill).
+
+*   **LIFO (Last-In, First-Out)**
+    *   **Rule**: Sells the **newest** shares first.
+    *   **Pros**: Good if you want to hold onto your long-term "core" position and just trade around it.
+    *   **Cons**: Likely to trigger Short-Term gains (higher tax rate).
+
+*   **HIFO (Highest-In, First-Out)**
+    *   **Rule**: Sells the shares with the **highest cost basis** first.
+    *   **Tie-Breaker**: If costs are equal, reverts to FIFO.
+    *   **Pros**: Mathematically minimizes current taxes. By selling expensive shares, you realize the smallest possible gain or the largest possible loss.
+    *   **Cons**: Increases the tax burden for future sells (since you are left with low-cost shares).
 
 #### **3. The 1-Year Cliff**
 The single most important factor in tax planning is the holding period.
@@ -408,6 +422,14 @@ The single most important factor in tax planning is the holding period.
 *   **Concept**: Intentionally selling an asset that has dropped in value.
 *   **Benefit**: The realized loss can be used to offset Realized Gains from other winners, lowering your total tax bill.
 *   **Wash Sale Rule**: If you sell for a loss, you CANNOT buy the "substantially identical" security back within **30 days** (before or after). If you do, the loss is disallowed.
+
+#### **5. Math Reference**
+
+**Tax Impact Calculation:**
+$$\text{Impact} = (\text{Proceeds} - \text{Cost Basis}) \times \text{Tax Rate}$$
+
+**Wash Sale Window:**
+$$t_{\text{sell}} - 30 \text{ days} \leq t_{\text{buy}} \leq t_{\text{sell}} + 30 \text{ days}$$
         """
     }
 }

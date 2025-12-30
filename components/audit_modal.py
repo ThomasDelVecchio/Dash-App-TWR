@@ -2,8 +2,8 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 import pandas as pd
 import numpy as np
-from report_formatting import fmt_dollar_clean, fmt_pct_clean
-from config import RISK_FREE_RATE
+from report_formatting import fmt_dollar_clean, fmt_pct_clean, fmt_number_clean
+from config import RISK_FREE_RATE, TAX_RATE_ST, TAX_RATE_LT
 
 def get_audit_modal_content(request_data):
     """
@@ -237,6 +237,175 @@ def get_audit_modal_content(request_data):
         ]
         content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
         
+        return dbc.ModalBody(content)
+
+    # ----------------------------------------------------
+    # TYPE 6: Tax Lot Audit
+    # ----------------------------------------------------
+    tax_cols = ["Unrealized P/L", "Realized P/L", "Tax Impact", "Cost Basis", "Market Value", "Est Tax Liability"]
+    if col_id in tax_cols and "Ticker" in row_data:
+        ticker = row_data.get("Ticker", "Unknown")
+        shares = float(row_data.get("Shares", 0))
+        cost_basis = float(row_data.get("Cost Basis", 0))
+        
+        # Infer other values
+        # Note: Market Value might not be in Realized Events
+        market_val = float(row_data.get("Market Value", 0))
+        realized_pl = float(row_data.get("Realized P/L", 0))
+        unrealized_pl = float(row_data.get("Unrealized P/L", 0))
+        tax_impact = float(row_data.get("Tax Impact", 0))
+        
+        # Infer Cost Per Share if not present (sometimes hidden)
+        cost_per_share = cost_basis / shares if shares > 0 else 0
+        
+        content = []
+        content.append(html.H4(f"Audit: {ticker} ({col_id})", className="mb-3"))
+        
+        def fmt_num(n): return f"{n:,.2f}"
+
+        if col_id == "Cost Basis":
+            formula_tex = r"""
+            $$
+            \text{Cost Basis} = \text{Shares} \times \text{Cost Per Share}
+            $$
+            """
+            sub_tex = fr"""
+            $$
+            \text{{Cost Basis}} = {fmt_num(shares)} \times {fmt_num(cost_per_share)}
+            $$
+            """
+            
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+            
+            rows = [
+                html.Tr([html.Td("Shares"), html.Td(fmt_number_clean(shares), className="text-end")]),
+                html.Tr([html.Td("Cost Per Share"), html.Td(fmt_dollar_clean(cost_per_share), className="text-end")]),
+                html.Tr([html.Td("Total Cost Basis", className="fw-bold"), html.Td(fmt_dollar_clean(cost_basis), className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
+
+        elif col_id == "Unrealized P/L":
+            formula_tex = r"""
+            $$
+            \text{Unrealized P/L} = \text{Market Value} - \text{Cost Basis}
+            $$
+            """
+            sub_tex = fr"""
+            $$
+            \text{{P/L}} = {fmt_num(market_val)} - {fmt_num(cost_basis)}
+            $$
+            """
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+            
+            rows = [
+                html.Tr([html.Td("Market Value"), html.Td(fmt_dollar_clean(market_val), className="text-end")]),
+                html.Tr([html.Td("Cost Basis"), html.Td(fmt_dollar_clean(cost_basis), className="text-end")]),
+                html.Tr([html.Td("Unrealized P/L", className="fw-bold"), html.Td(fmt_dollar_clean(unrealized_pl), className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
+
+        elif col_id == "Realized P/L":
+            # Proceeds = Cost + PL
+            proceeds = cost_basis + realized_pl
+            
+            formula_tex = r"""
+            $$
+            \text{Realized P/L} = \text{Total Proceeds} - \text{Cost Basis}
+            $$
+            """
+            sub_tex = fr"""
+            $$
+            \text{{P/L}} = {fmt_num(proceeds)} - {fmt_num(cost_basis)}
+            $$
+            """
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+            
+            rows = [
+                html.Tr([html.Td("Total Proceeds (Sold)"), html.Td(fmt_dollar_clean(proceeds), className="text-end")]),
+                html.Tr([html.Td("Cost Basis"), html.Td(fmt_dollar_clean(cost_basis), className="text-end")]),
+                html.Tr([html.Td("Realized P/L", className="fw-bold"), html.Td(fmt_dollar_clean(realized_pl), className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
+
+        elif col_id == "Tax Impact":
+            term = row_data.get("Term", "Short-Term")
+            # Assume rates from config constants roughly
+            rate_display = "35%" if term == "Short-Term" else "15%"
+            
+            formula_tex = r"""
+            $$
+            \text{Tax Impact} = \text{Realized P/L} \times \text{Tax Rate}
+            $$
+            """
+            
+            # Logic check: if loss, impact is 0 or negative? 
+            # In engine: "tax_impact = gain_loss * tax_rate if gain_loss > 0 else 0"
+            # Unless Wash Sale disallowed it?
+            
+            is_wash = "YES" in str(row_data.get("Is Wash Sale", ""))
+            
+            if is_wash:
+                explanation = "This loss is disallowed due to a Wash Sale (purchase within 30 days). Tax Impact is $0.00."
+                content.append(dbc.Alert(explanation, color="warning"))
+            elif realized_pl <= 0:
+                explanation = "Losses do not generate a direct tax liability (Impact $0.00), but can offset other gains."
+                content.append(dbc.Alert(explanation, color="info"))
+            else:
+                sub_tex = fr"""
+                $$
+                \text{{Impact}} = {fmt_num(realized_pl)} \times {rate_display}
+                $$
+                """
+                content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+                content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+                
+                rows = [
+                    html.Tr([html.Td("Realized Gain"), html.Td(fmt_dollar_clean(realized_pl), className="text-end")]),
+                    html.Tr([html.Td(f"Est. Rate ({term})"), html.Td(rate_display, className="text-end")]),
+                    html.Tr([html.Td("Tax Impact", className="fw-bold"), html.Td(fmt_dollar_clean(tax_impact), className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
+                ]
+                content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
+
+        elif col_id == "Est Tax Liability":
+            term = row_data.get("Term", "Short-Term")
+            tax_rate = TAX_RATE_ST if term == "Short-Term" else TAX_RATE_LT
+            rate_display = f"{tax_rate:.0%}"
+            est_liability = float(row_data.get("Est Tax Liability", 0))
+            
+            formula_tex = r"""
+            $$
+            \text{Est Liability} = \text{Unrealized P/L} \times \text{Tax Rate}
+            $$
+            """
+            
+            if unrealized_pl <= 0:
+                explanation = "Unrealized losses do not carry a tax liability until sold (and may reduce taxes if harvested)."
+                content.append(dbc.Alert(explanation, color="info"))
+            else:
+                sub_tex = fr"""
+                $$
+                \text{{Liability}} = {fmt_num(unrealized_pl)} \times {tax_rate}
+                $$
+                """
+                content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+                content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+                
+                rows = [
+                    html.Tr([html.Td("Unrealized Gain"), html.Td(fmt_dollar_clean(unrealized_pl), className="text-end")]),
+                    html.Tr([html.Td(f"Est. Rate ({term})"), html.Td(rate_display, className="text-end")]),
+                    html.Tr([html.Td("Est Liability", className="fw-bold"), html.Td(fmt_dollar_clean(est_liability), className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
+                ]
+                content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
+
         return dbc.ModalBody(content)
 
     # ----------------------------------------------------

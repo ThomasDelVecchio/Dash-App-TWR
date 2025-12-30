@@ -81,15 +81,28 @@ layout = html.Div([
                     dbc.Col([
                         dbc.Label("Ticker"),
                         dbc.Input(id="sim-ticker", placeholder="e.g. AAPL", type="text"),
-                    ], width=4),
+                    ], width=3),
                     dbc.Col([
                         dbc.Label("Shares to Sell"),
                         dbc.Input(id="sim-shares", placeholder="0", type="number"),
-                    ], width=4),
+                    ], width=3),
+                    dbc.Col([
+                        dbc.Label("Sim Strategy"),
+                        dbc.RadioItems(
+                            id="sim-strategy-radio",
+                            options=[
+                                {"label": "FIFO", "value": "FIFO"},
+                                {"label": "LIFO", "value": "LIFO"},
+                                {"label": "HIFO", "value": "HIFO"},
+                            ],
+                            value="FIFO",
+                            inline=True
+                        ),
+                    ], width=3),
                     dbc.Col([
                         dbc.Label("Action"),
                         dbc.Button("Simulate Sale", id="btn-simulate", color="primary", className="w-100")
-                    ], width=4, className="d-flex flex-column justify-content-end"),
+                    ], width=3, className="d-flex flex-column justify-content-end"),
                 ]),
                 html.Hr(),
                 html.Div(id="sim-output", className="p-3 rounded border", style={"whiteSpace": "pre-wrap", "minHeight": "100px"})
@@ -124,11 +137,13 @@ layout = html.Div([
      Output("lot-explorer-container", "children")],
     [Input("data-signal", "data"),
      Input("theme-store", "data"),
-     Input("chatbot-command", "data")]
+     Input("chatbot-command", "data"),
+     Input("tax-strategy-store", "data")]
 )
-def update_tax_dashboard(signal, theme, chat_cmd):
+def update_tax_dashboard(signal, theme, chat_cmd, strategy):
     # Load Fresh Data
-    open_lots, realized_events = build_tax_lots()
+    strategy = strategy or "FIFO"
+    open_lots, realized_events = build_tax_lots(strategy=strategy, signal=signal)
     
     grid_theme = "ag-theme-alpine-dark" if theme == "dark" else "ag-theme-alpine"
 
@@ -216,10 +231,11 @@ def update_tax_dashboard(signal, theme, chat_cmd):
                 col_defs.append(cd)
 
             cliff_grid = dag.AgGrid(
+                id="cliff-watch-grid",
                 rowData=cliff_display.to_dict("records"),
                 columnDefs=col_defs,
                 defaultColDef=default_col_def,
-                className=grid_theme,
+                className=f"{grid_theme} audit-target",
                 columnSize="responsiveSizeToFit",
                 dashGridOptions={"domLayout": "autoHeight"}
             )
@@ -257,10 +273,11 @@ def update_tax_dashboard(signal, theme, chat_cmd):
                 col_defs.append(cd)
 
             harvest_grid = dag.AgGrid(
+                id="harvest-radar-grid",
                 rowData=harvest_display.to_dict("records"),
                 columnDefs=col_defs,
                 defaultColDef=default_col_def,
-                className=grid_theme,
+                className=f"{grid_theme} audit-target",
                 columnSize="responsiveSizeToFit",
                 dashGridOptions={"domLayout": "autoHeight"}
             )
@@ -297,10 +314,11 @@ def update_tax_dashboard(signal, theme, chat_cmd):
             col_defs.append(cd)
             
         grid_open = dag.AgGrid(
+            id="tax-lots-open-grid",
             rowData=explorer_df.to_dict("records"),
             columnDefs=col_defs,
             defaultColDef=default_col_def,
-            className=grid_theme,
+            className=f"{grid_theme} audit-target",
             columnSize="responsiveSizeToFit",
             dashGridOptions={"domLayout": "autoHeight", "pagination": True, "paginationPageSize": 20}
         )
@@ -334,10 +352,11 @@ def update_tax_dashboard(signal, theme, chat_cmd):
             col_defs.append(cd)
 
         grid_realized = dag.AgGrid(
+            id="tax-lots-realized-grid",
             rowData=realized_df.to_dict("records"),
             columnDefs=col_defs,
             defaultColDef=default_col_def,
-            className=grid_theme,
+            className=f"{grid_theme} audit-target",
             columnSize="responsiveSizeToFit",
             dashGridOptions={"domLayout": "autoHeight", "pagination": True, "paginationPageSize": 20}
         )
@@ -363,9 +382,10 @@ def update_tax_dashboard(signal, theme, chat_cmd):
     Output("sim-output", "children"),
     Input("btn-simulate", "n_clicks"),
     [State("sim-ticker", "value"),
-     State("sim-shares", "value")]
+     State("sim-shares", "value"),
+     State("sim-strategy-radio", "value")]
 )
-def run_simulation(n_clicks, ticker, shares):
+def run_simulation(n_clicks, ticker, shares, strategy):
     if not n_clicks:
         return "Enter parameters and click Simulate."
         
@@ -377,6 +397,6 @@ def run_simulation(n_clicks, ticker, shares):
     except ValueError:
         return "Invalid shares amount."
         
-    result = simulate_sell(ticker, shares_float)
+    result = simulate_sell(ticker, shares_float, strategy=strategy)
     
     return result["summary_text"]
