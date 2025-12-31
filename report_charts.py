@@ -290,7 +290,7 @@ def plot_excess_return(horizons_plot, bm_labels, excess):
         ylim = max(0.5, np.nanmax(np.abs(all_vals)) * 1.25)
         ax.set_ylim(-ylim, ylim)
 
-    ax.legend(fontsize=8, ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.18))
+    ax.legend(fontsize=8, ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.22))
     plt.tight_layout()
     
     return _save_chart_to_stream(fig)
@@ -320,7 +320,7 @@ def plot_internal_trading_flows(net_by_class):
 
     ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.25),
+        bbox_to_anchor=(0.5, -0.32),
         ncol=3,
         fontsize=9.5
     )

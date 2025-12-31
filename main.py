@@ -19,13 +19,28 @@ def run_console_report():
             print(f"{h:>3}: insufficient data")
         else:
             print(f"{h:>3}: {v:>8.4%}")
+    
+    # Add Since Inception to TWR display
+    si_v = twr_since_inception_annualized if pd.notna(twr_since_inception_annualized) else twr_since_inception
+    if pd.isna(si_v):
+        print(f" SI: insufficient data")
+    else:
+        print(f" SI: {si_v:>8.4%}")
     print("\n==========================================================\n")
+
+    # ---------- PRINT P/L SUMMARY ----------
+    print("========== PORTFOLIO P/L SUMMARY ==========\n")
+    print(f"P/L Since Inception: {pl_since_inception:,.2f}")
+    print("\n===========================================\n")
 
     # ---------- PRINT SECURITY-LEVEL TABLE ----------
     if not sec_table.empty:
+        # Hide meta columns for console output
+        clean_sec = sec_table[[c for c in sec_table.columns if not str(c).startswith("meta_")]]
+        
         print("========== SECURITY-LEVEL MODIFIED DIETZ RETURNS (Money-Weighted) ==========\n")
         with pd.option_context("display.float_format", lambda x: f"{x:0.4f}"):
-            print(sec_table.to_string(index=False))
+            print(clean_sec.to_string(index=False))
         print("\n==========================================================================\n")
     else:
         print("No valid security-level Modified Dietz returns could be computed.\n")
@@ -33,9 +48,12 @@ def run_console_report():
 
     # ---------- PRINT ASSET-CLASS TABLE ----------
     if not class_df.empty:
+        # Hide meta columns for console output
+        clean_class = class_df[[c for c in class_df.columns if not str(c).startswith("meta_")]]
+        
         print("========== ASSET CLASS MODIFIED DIETZ RETURNS (Money-Weighted) ==========\n")
         with pd.option_context("display.float_format", lambda x: f"{x:0.4%}"):
-            print(class_df.to_string(index=False))
+            print(clean_class.to_string(index=False))
         print("\n==========================================================================\n")
     else:
         print("No valid asset-class Modified Dietz returns could be computed.\n")

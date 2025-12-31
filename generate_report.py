@@ -14,7 +14,8 @@ from collections import defaultdict
 # Imports from new modules
 from config import (
     TARGET_PORTFOLIO_VALUE, 
-    TARGET_MONTHLY_CONTRIBUTION
+    TARGET_MONTHLY_CONTRIBUTION,
+    GLOBAL_PALETTE
 )
 from data_loader import (
     load_cashflows_external, 
@@ -24,12 +25,14 @@ from data_loader import (
     load_holdings,
     fetch_etf_sectors
 )
+import dash_wrappers as dw
 from dash_wrappers import _calculate_dynamic_risk_profile
 from financial_math import (
     get_portfolio_horizon_start, 
     modified_dietz_for_ticker_window, 
     fv_lump, 
-    fv_contrib
+    fv_contrib,
+    annualize_return
 )
 from portfolio_engine import (
     run_engine, 
@@ -73,9 +76,17 @@ def format_footer(p):
 # =====================================================================
 
 def build_report():
-
-    # Run the engine (unchanged math)
-    twr_df, sec_full, class_full, pv, twr_si, twr_si_annualized, pl_si = run_engine()
+    # Fetch unified data from dash_wrappers to ensure parity
+    data = dw.get_data()
+    
+    # Extract needed components from unified data cache
+    twr_df = data["twr_df"]
+    sec_full = data["sec_table"]
+    class_full = data["class_df"]
+    pv = data["pv"]
+    twr_si = data["twr_si"]
+    twr_si_annualized = data["twr_si_ann"]
+    pl_si = data["pl_si"]
     
     twr_raw = twr_df.copy()  # keep numeric returns for excess-return calc
 
@@ -263,10 +274,15 @@ def build_report():
         as_of = pv.index.max()
         if h == "SI":
             raw_start = None
+            portfolio_inception = pv.index.min()
         else:
             raw_start = get_portfolio_horizon_start(pv, inception_date, h)
+            portfolio_inception = None
         
-        pl_val = calculate_ticker_pl(ticker, h, prices, as_of, tx_all_raw, sec_only, raw_start, dividends=div_all_raw)
+        pl_val = calculate_ticker_pl(
+            ticker, h, prices, as_of, tx_all_raw, sec_only, raw_start, 
+            dividends=div_all_raw, portfolio_inception=portfolio_inception
+        )
         return fmt_dollar_clean(pl_val) if pl_val is not None else "N/A"
 
     # ---------------------------------------------------------------
@@ -661,11 +677,8 @@ def build_report():
     # =============================================================
     # TICKER ALLOCATION PIE CHART
     # =============================================================
-    # Build ticker allocation group (Use sec_current)
-    ticker_group = sec_current.copy()
-    ticker_group = ticker_group[ticker_group["value"] > 0]  # exclude zero-value tickers
-
-    # Sort descending by value to avoid adjacent small slices
+    # Match Dash logic exactly
+    ticker_group = sec_current[sec_current["value"] > 0].copy()
     ticker_group = ticker_group.sort_values(by="value", ascending=False)
 
     ticker_labels = ticker_group["ticker"].tolist()
@@ -778,139 +791,19 @@ def build_report():
     doc.add_heading("Asset Allocation Over Time", level=2)
 
     try:
-        tx_hist = load_transactions_raw().copy()
+        img_stream = dw.get_allocation_history_chart(data) # Use Dash logic
+        
+        paragraph = doc.add_paragraph()
+        run = paragraph.add_run()
+        run.add_picture(img_stream, width=Inches(7))
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-        # Need both transactions and prices to build history
-        if tx_hist.empty or prices.empty:
-            doc.add_paragraph(
-                "Insufficient transaction or price history to build an allocation-over-time chart."
-            )
-        else:
-
-            # ---------------------------------------------------------------
-            # Build a continuous daily index & forward-fill PV
-            # ---------------------------------------------------------------
-            full_index = pd.date_range(
-                start=pv.index.min(),
-                end=pv.index.max(),
-                freq="D"
-            )
-
-            pv_mod = pv.reindex(full_index).ffill()
-            alloc_index = full_index
-
-            # Pivot transactions into daily share changes per ticker
-            tx_hist["date"] = pd.to_datetime(tx_hist["date"])
-            pos_changes = (
-                tx_hist
-                .pivot_table(
-                    index="date",
-                    columns="ticker",
-                    values="shares",
-                    aggfunc="sum"
-                )
-                .sort_index()
-            )
-
-            # Align positions to full daily index, FF to avoid dips
-            pos_changes = pos_changes.reindex(alloc_index, fill_value=0.0)
-            pos_daily = pos_changes.cumsum().ffill().bfill()
-
-            # -------------------------------------------------------
-            # Reconcile position history to current holdings
-            # -------------------------------------------------------
-            shares_map = (
-                sec_only[["ticker", "shares"]]
-                .set_index("ticker")["shares"]
-                .to_dict()
-            )
-
-            # Adjust existing ticker columns to match final snapshot
-            for t in list(pos_daily.columns):
-                if t == "CASH":
-                    continue
-                if t in shares_map:
-                    target = float(shares_map[t])
-                    current = float(pos_daily[t].iloc[-1])
-                    diff = target - current
-                    if abs(diff) > 1e-8:
-                        pos_daily[t] = pos_daily[t] + diff
-
-            # Add static columns for tickers never seen in tx_hist
-            for t, shares in shares_map.items():
-                if t == "CASH":
-                    continue
-                if t not in pos_daily.columns and t in prices.columns:
-                    pos_daily[t] = float(shares)
-
-            # Restrict to tickers we actually have prices for
-            common_tickers = [t for t in pos_daily.columns if t in prices.columns]
-
-            if not common_tickers:
-                doc.add_paragraph(
-                    "No overlapping tickers between transactions and price history."
-                )
-            else:
-                pos_daily = pos_daily[common_tickers]
-
-                # Forward-fill prices on full daily index
-                px_aligned = (
-                    prices[common_tickers]
-                    .reindex(alloc_index)
-                    .ffill()
-                    .bfill()
-                )
-
-                # Daily market value per ticker
-                mv_daily = pos_daily * px_aligned
-
-                # Map tickers → asset classes
-                holdings_map = (
-                    holdings_df[["ticker", "asset_class"]]
-                    .drop_duplicates()
-                    .set_index("ticker")["asset_class"]
-                    .to_dict()
-                )
-
-                def map_asset_class_short(ticker: str) -> str:
-                    full = holdings_map.get(ticker, "Unknown")
-                    return asset_class_map.get(full, full)
-
-                mv_daily.columns = [map_asset_class_short(t) for t in mv_daily.columns]
-
-                # Aggregate by asset class
-                mv_by_class = mv_daily.T.groupby(level=0).sum().T
-
-                # Align PV
-                pv_mod_aligned = pv_mod.reindex(mv_by_class.index).ffill().bfill()
-                invested_total = mv_by_class.sum(axis=1)
-                cash_series = pv_mod_aligned - invested_total
-                mv_by_class["Cash"] = cash_series
-
-                # Convert to allocation percentages
-                total_mv = mv_by_class.sum(axis=1).replace(0, np.nan)
-                alloc = mv_by_class.div(total_mv, axis=0).dropna(how="all")
-
-                if alloc.empty:
-                    doc.add_paragraph(
-                        "No valid allocation history could be computed."
-                    )
-                else:
-                    alloc_pct = alloc * 100.0
-
-                    img_stream = plot_asset_allocation_history(alloc_pct)
-
-                    paragraph = doc.add_paragraph()
-                    run = paragraph.add_run()
-                    run.add_picture(img_stream, width=Inches(7))
-                    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-                    cap = doc.add_paragraph(
-                        "Figure: Daily asset class allocation over time, including cash.",
-                        style="Normal",
-                    )
-                    cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    format_footer(cap)
+        cap = doc.add_paragraph(
+            "Figure: Daily asset class allocation over time, including cash.",
+            style="Normal",
+        )
+        cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        format_footer(cap)
 
     except Exception:
         doc.add_paragraph(
@@ -1086,11 +979,23 @@ def build_report():
             hist.index = pd.to_datetime(hist.index)
             ser = hist[ticker].dropna()
 
-            # Align to portfolio SI start
-            ser = ser[ser.index >= si_start]
+            # GIPS COMPLIANCE FIX: Benchmark Normalization (Since Inception)
+            base_price = None
+            market_start = pv.index.min()
+            if si_start <= market_start:
+                history_before = ser[ser.index < si_start]
+                if not history_before.empty:
+                    base_price = float(history_before.iloc[-1])
 
-            if len(ser) > 1:
-                ser_norm = (ser / ser.iloc[0] - 1.0) * 100.0
+            # Align to portfolio SI start
+            ser_plot = ser[ser.index >= si_start]
+            ser_plot = ser_plot[ser_plot.index <= pv.index.max()]
+
+            if not ser_plot.empty:
+                if base_price is None:
+                    base_price = float(ser_plot.iloc[0])
+                
+                ser_norm = (ser_plot / base_price - 1.0) * 100.0
                 benchmark_curves_si[name] = ser_norm
         except Exception:
             continue
@@ -1156,18 +1061,44 @@ def build_report():
             return np.nan
 
         if horizon == "SI":
-            start = si_start  # same since-inception start used in the SI chart
+            start = inception_date
         else:
             start = get_portfolio_horizon_start(pv, inception_date, horizon)
 
         if start is None:
             return np.nan
 
+        # Align to market start for base lookup
+        market_start = pv.index.min()
+        
+        # GIPS COMPLIANCE FIX: Benchmark Normalization
+        # Look for price strictly before start_date to use as base
+        base_price = None
+        
+        # SI or very early start
+        if start <= market_start:
+            history_before = ser[ser.index < market_start]
+            if not history_before.empty:
+                base_price = float(history_before.iloc[-1])
+        else:
+            # Standard horizon: find price strictly before 'start'
+            history_before = ser[ser.index < start]
+            if not history_before.empty:
+                base_price = float(history_before.iloc[-1])
+
         ser_h = ser[ser.index >= start]
-        if len(ser_h) < 2:
+        ser_h = ser_h[ser_h.index <= pv.index.max()]
+        
+        if ser_h.empty:
             return np.nan
 
-        return ser_h.iloc[-1] / ser_h.iloc[0] - 1.0  # decimal
+        if base_price is None:
+            base_price = float(ser_h.iloc[0])
+
+        b_cum = ser_h.iloc[-1] / base_price - 1.0
+        
+        # Use pv.index.max() for consistent annualization duration
+        return annualize_return(b_cum, start, pv.index.max())
 
     # Build table rows with excess return columns
     combined_rows = []
@@ -1288,7 +1219,8 @@ def build_report():
     for h in horizons_plot:
         p_val = port_ret_num.get(h, np.nan)
         for bm in bm_labels:
-            b_val = compute_bm_ret(bm, h)
+            # Use the robust compute_bm_ret_decimal function for the chart too!
+            b_val = compute_bm_ret_decimal(bm, h)
             if pd.isna(p_val) or pd.isna(b_val):
                 excess[bm].append(np.nan)
             else:
@@ -1494,7 +1426,8 @@ def build_report():
             for t in all_tickers:
                 # Pass pv_start_date for SI alignment
                 val = calculate_ticker_pl(
-                    t, h, prices, as_of_dt, tx_all_raw, sec_only, raw_start, 
+                    t, h, prices, as_of_dt, tx_all_raw, sec_only, 
+                    raw_start=raw_start if h != "SI" else None, 
                     dividends=div_all_raw,
                     portfolio_inception=pv_start_date if h == "SI" else None
                 )
