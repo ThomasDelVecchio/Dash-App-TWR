@@ -538,6 +538,206 @@ def get_audit_modal_content(request_data):
         return dbc.ModalBody(content)
 
     # ----------------------------------------------------
+    # TYPE 7: Rebalancing Audit
+    # ----------------------------------------------------
+    rebal_cols = ["Full_Target_Buy", "Amount", "ProForma_Pct", "Drift", "Tax_Impact"]
+    if col_id in rebal_cols:
+        ticker = row_data.get("Ticker", "Unknown")
+        content = []
+        content.append(html.H4(f"Audit: {ticker} ({col_id.replace('_', ' ')})", className="mb-3"))
+        
+        def safe_float(k): return float(row_data.get(k, 0.0))
+        def fmt_num(n): return f"{n:,.2f}"
+        
+        # Meta Data Extraction
+        proforma_total = safe_float("meta_proforma_total")
+        current_val = safe_float("meta_market_value")
+        target_pct = safe_float("meta_target_weight")
+        current_pct = safe_float("meta_current_weight")
+        drift = safe_float("meta_drift")
+        amount = safe_float("meta_amount") # recommend_amount
+        full_target_buy = safe_float("meta_full_target_buy")
+        allow_sales = row_data.get("meta_allow_sales", False)
+        
+        if col_id == "Drift":
+            formula_tex = r"""
+            $$
+            \text{Drift} = \text{Target \%} - \text{Current \%}
+            $$
+            """
+            sub_tex = fr"""
+            $$
+            \text{{Drift}} = {target_pct:.2f}\% - {current_pct:.2f}\% = \mathbf{{{drift:.2f}\%}}
+            $$
+            """
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+            
+        elif col_id == "Full_Target_Buy":
+            formula_tex = r"""
+            $$
+            \text{Target Buy} = (\text{Target \%} \times \text{Pro-Forma Total}) - \text{Current Value}
+            $$
+            """
+            sub_tex = fr"""
+            $$
+            \text{{Target Buy}} = ({target_pct/100:.4f} \times {fmt_dollar_clean(proforma_total).replace('$', r'\$')}) - {fmt_dollar_clean(current_val).replace('$', r'\$')}
+            $$
+            """
+            res_tex = fr"""
+            $$
+            = \mathbf{{{fmt_dollar_clean(full_target_buy).replace('$', r'\$')}}}
+            $$
+            """
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+            content.append(dcc.Markdown(res_tex, mathjax=True, className="text-body"))
+            
+        elif col_id == "ProForma_Pct":
+            new_val = current_val + amount
+            formula_tex = r"""
+            $$
+            \text{Pro-Forma \%} = \frac{\text{Current Value} + \text{Recommended Amount}}{\text{Pro-Forma Total}}
+            $$
+            """
+            sub_tex = fr"""
+            $$
+            \frac{{{fmt_dollar_clean(current_val).replace('$', r'\$')} + ({fmt_dollar_clean(amount).replace('$', r'\$')})}}{{{fmt_dollar_clean(proforma_total).replace('$', r'\$')}}}
+            $$
+            """
+            # Calculated result
+            calc_pct = (new_val / proforma_total * 100) if proforma_total else 0
+            res_tex = fr"""
+            $$
+            = \frac{{{fmt_dollar_clean(new_val).replace('$', r'\$')}}}{{{fmt_dollar_clean(proforma_total).replace('$', r'\$')}}} = \mathbf{{{calc_pct:.2f}\%}}
+            $$
+            """
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+            content.append(dcc.Markdown(res_tex, mathjax=True, className="text-body"))
+            
+            if amount > 0 and calc_pct < current_pct:
+                content.append(dbc.Alert("Note: Percentage decreased despite buying because the cash injection increased the portfolio total more than the asset's specific growth (Dilution).", color="info", className="mt-2"))
+
+        elif col_id == "Amount":
+            if amount > 0:
+                # BUY LOGIC
+                total_drift = safe_float("meta_total_drift")
+                cash = safe_float("meta_cash_to_deploy")
+                
+                formula_tex = r"""
+                $$
+                \text{Allocation} = \frac{\text{Drift}}{\text{Total Drift}} \times \text{Cash to Deploy}
+                $$
+                """
+                
+                ideal_share = (drift / total_drift * cash) if total_drift > 0 else 0
+                
+                sub_tex = fr"""
+                $$
+                \frac{{{drift:.2f}\%}}{{{total_drift:.2f}\%}} \times {fmt_dollar_clean(cash).replace('$', r'\$')} = \mathbf{{{fmt_dollar_clean(ideal_share).replace('$', r'\$')}}}
+                $$
+                """
+                
+                content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+                content.append(html.Hr())
+                content.append(html.H6("Applied Calculation (Drift-Weighted Waterfall)", className="text-muted"))
+                content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+                
+                if amount < ideal_share - 0.01:
+                    diff = ideal_share - amount
+                    content.append(dbc.Alert(f"Capped at Full Target Buy. Excess ${diff:,.2f} redistributed to other assets.", color="warning"))
+                elif amount > ideal_share + 0.01:
+                     content.append(dbc.Alert("Received extra allocation from other capped assets (Waterfall).", color="success"))
+            
+            elif amount < 0:
+                # SELL LOGIC
+                # Logic: If Overweight AND Allow Sales, we sell.
+                formula_tex = r"""
+                $$
+                \text{Recommended Sell} = \text{Target Value} - \text{Current Value}
+                $$
+                """
+                
+                target_val = (target_pct / 100.0) * proforma_total
+                
+                sub_tex = fr"""
+                $$
+                \text{{Sell}} = {fmt_dollar_clean(target_val).replace('$', r'\$')} - {fmt_dollar_clean(current_val).replace('$', r'\$')}
+                $$
+                """
+                
+                res_tex = fr"""
+                $$
+                = \mathbf{{{fmt_dollar_clean(full_target_buy).replace('$', r'\$')}}}
+                $$
+                """
+                
+                content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+                content.append(html.Hr())
+                content.append(html.H6("Applied Calculation (Target - Current)", className="text-muted"))
+                content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+                content.append(dcc.Markdown(res_tex, mathjax=True, className="text-body"))
+                
+                content.append(html.P("Since 'Allow Sales' is enabled and the asset is overweight, the engine recommends selling to reach the target.", className="text-muted small mt-2"))
+
+            else:
+                # ZERO LOGIC
+                content.append(html.P("No trade recommended.", className="fw-bold"))
+                if full_target_buy < 0 and not allow_sales:
+                     content.append(dbc.Alert("Asset is Overweight, but 'Allow Sales' is disabled.", color="warning"))
+                elif abs(full_target_buy) < 0.01:
+                     content.append(dbc.Alert("Asset is exactly on target.", color="success"))
+                else:
+                     content.append(dbc.Alert("Drift is insufficient or no cash remaining for allocation.", color="secondary"))
+
+        elif col_id == "Tax_Impact":
+            realized_pl = safe_float("meta_realized_pl")
+            est_tax = safe_float("meta_tax")
+            
+            formula_tex = r"""
+            $$
+            \text{Est Tax Liability} = \sum (\text{Realized P/L}_{lot} \times \text{Tax Rate}_{lot})
+            $$
+            """
+            
+            # Since we don't have per-lot details here, we show aggregate
+            eff_rate = (est_tax / realized_pl * 100) if realized_pl > 0 else 0.0
+            
+            sub_tex = fr"""
+            $$
+            \text{{Total Liability}} = \mathbf{{{fmt_dollar_clean(est_tax).replace('$', r'\$')}}}
+            $$
+            """
+            
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation (Aggregate)", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+            
+            rows = [
+                html.Tr([html.Td("Total Realized Gain"), html.Td(fmt_dollar_clean(realized_pl), className="text-end")]),
+                html.Tr([html.Td("Effective Tax Rate"), html.Td(f"{eff_rate:.1f}%", className="text-end")]),
+                html.Tr([html.Td("Est Tax Liability", className="fw-bold"), html.Td(fmt_dollar_clean(est_tax), className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '350px'}))
+            
+            if est_tax == 0 and realized_pl > 0:
+                 content.append(dbc.Alert("No tax liability (likely offset by losses or tax-advantaged account assumptions).", color="success"))
+            elif not allow_sales:
+                 content.append(dbc.Alert("'Allow Sales' is disabled, so no tax impact is generated.", color="info"))
+            else:
+                 content.append(html.P("Calculation uses the Tax Engine to simulate selling specific tax lots, prioritizing high-cost (loss) lots first to minimize taxes.", className="text-muted small"))
+
+        return dbc.ModalBody(content)
+
+    # ----------------------------------------------------
     # TYPE 3: Contribution Schedule
     # ----------------------------------------------------
 

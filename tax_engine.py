@@ -214,27 +214,8 @@ def build_tax_lots(strategy="FIFO", signal=None):
             # Check if ANY buy falls in window (excluding the exact match if we were matching trades, 
             # but here we are matching specific lots. 
             # Simplified Rule: Any buy in window triggers Wash Sale flag on the LOSS.)
-            # NOTE: Logic refinement - technically the buy must be a "replacement" share. 
-            # If I bought 30 days ago and sold today, that buy IS the lot I sold? 
-            # No, FIFO means I sold the OLDEST lot. 
-            # If I bought 30 days ago, that is a NEW lot. 
-            # If I sell an OLD lot (acquired 2 years ago) at a loss, but I bought a NEW lot 20 days ago, that IS a Wash Sale.
-            # So checking ANY buy in window is generally correct for the "Replacement Share" rule.
-            # Only exception: The buy that created the lot we just sold? 
-            # If I bought Lot A 2 years ago. Sold Lot A today. 
-            # Buy dates will include Lot A's date (2 years ago). That is outside window.
-            # What if I bought Lot B today and sold Lot B today (Day trade loss)?
-            # Buy Date = Today. Sell Date = Today. Window covers it. 
-            # Wash Sale triggers? Yes, intraday losses are wash sales if you keep the position? 
-            # Actually if you close the position fully it's fine. 
-            # But the "Institutional Safety" requirement implies strict flagging.
             
             mask = (dates >= start_window) & (dates <= end_window)
-            
-            # We must exclude the buy of the lot itself IF it falls in window?
-            # Actually, standard wash sale rule is about acquiring substantially identical stock.
-            # If I buy and sell same day, I have no replacement stock held? 
-            # Let's stick to the 30-day window rule requested.
             
             if np.any(mask):
                 return True, 0.0 # Disallowed Loss -> Tax Impact 0 (Loss doesn't reduce tax)
@@ -406,4 +387,166 @@ def simulate_sell(ticker, shares_to_sell, strategy="FIFO"):
         "total_gain": total_st_gain + total_lt_gain,
         "est_tax": total_tax,
         "breakdown": impact_records
+    }
+
+# ============================================================
+# OPTIMIZATION: TAX-AWARE SALES
+# ============================================================
+
+def calculate_tax_optimized_sales(candidates, avoid_st_gains=True):
+    """
+    Calculates recommended sales for multiple tickers to meet target sell amounts,
+    prioritizing tax efficiency (Losses First, Gains Last).
+    
+    Priority:
+    1. Long-Term Losses (Harvest)
+    2. Short-Term Losses
+    3. Long-Term Gains
+    4. Short-Term Gains (Optional: Avoid)
+    
+    Args:
+        candidates (dict): {ticker: amount_to_sell_usd}
+        avoid_st_gains (bool): If True, will stop selling if only ST Gains remain.
+        
+    Returns:
+        dict: {
+            "sales_df": pd.DataFrame, # Columns: [Ticker, Shares, Proceeds, Realized_PL, Tax_Impact, Term]
+            "total_proceeds": float,
+            "total_realized_pl": float,
+            "est_tax_liability": float
+        }
+    """
+    if not candidates:
+        return {
+            "sales_df": pd.DataFrame(), 
+            "total_proceeds": 0.0, 
+            "total_realized_pl": 0.0, 
+            "est_tax_liability": 0.0
+        }
+        
+    # 1. Get All Lots
+    open_lots_df, _ = build_tax_lots(strategy="FIFO")
+    if open_lots_df.empty:
+         return {
+            "sales_df": pd.DataFrame(), 
+            "total_proceeds": 0.0, 
+            "total_realized_pl": 0.0, 
+            "est_tax_liability": 0.0
+        }
+        
+    # 2. Check Wash Sale Risks (Recent Buys in last 30 days)
+    raw_tx = load_transactions_raw()
+    wash_risks = set()
+    if not raw_tx.empty:
+        raw_tx["ticker"] = raw_tx["ticker"].apply(normalize_ticker)
+        cutoff = datetime.now() - timedelta(days=30)
+        # Any buy in last 30 days creates risk
+        recent_buys = raw_tx[(raw_tx["shares"] > 0) & (raw_tx["date"] >= cutoff)]
+        wash_risks = set(recent_buys["ticker"].unique())
+        
+    recommended_sales = []
+    
+    for ticker, target_usd in candidates.items():
+        ticker = normalize_ticker(ticker)
+        if target_usd <= 0: continue
+        
+        # Get lots for this ticker
+        t_lots = open_lots_df[open_lots_df["Ticker"] == ticker].copy()
+        if t_lots.empty: continue
+        
+        # Current Price needed to convert USD to Shares
+        # t_lots has "Current Price" from build_tax_lots
+        curr_price = t_lots.iloc[0]["Current Price"]
+        if curr_price <= 0: continue
+        
+        # We need to sell $X worth. 
+        # But we select by LOTS. 
+        
+        # Classify Buckets
+        # Bucket 1: LT Loss
+        # Bucket 2: ST Loss
+        # Bucket 3: LT Gain
+        # Bucket 4: ST Gain
+        
+        def assign_bucket(row):
+            # WASH SALE FILTER: If Loss AND Ticker in Risk Set -> Exclude (Bucket 99)
+            if row["Unrealized P/L"] < 0 and ticker in wash_risks:
+                return 99 # Do not sell
+                
+            if row["Unrealized P/L"] < 0:
+                return 1 if row["Term"] == "Long-Term" else 2
+            else:
+                return 3 if row["Term"] == "Long-Term" else 4
+        
+        t_lots["Bucket"] = t_lots.apply(assign_bucket, axis=1)
+        
+        # Sort: Bucket asc, then maybe magnitude of loss desc?
+        # Requirement says "Sell first to harvest losses". 
+        # Within buckets, HIFO (Highest Cost) is generally best for losses (Maximize Loss) and best for Gains (Minimize Gain).
+        # HIFO = Sort by Cost Basis Per Share DESC.
+        t_lots = t_lots.sort_values(by=["Bucket", "Cost Per Share"], ascending=[True, False])
+        
+        remaining_target_usd = target_usd
+        
+        for _, lot in t_lots.iterrows():
+            if remaining_target_usd < 0.01:
+                break
+                
+            bucket = lot["Bucket"]
+            if bucket == 99: continue # Wash Sale Risk
+            
+            if bucket == 4 and avoid_st_gains:
+                # We hit ST Gains and want to avoid them. Stop selling this ticker.
+                break
+                
+            # How much can we sell from this lot?
+            lot_value = lot["Market Value"]
+            lot_shares = lot["Shares"]
+            
+            sell_value = min(lot_value, remaining_target_usd)
+            sell_shares = sell_value / curr_price
+            
+            # Record Sale
+            cost_basis_sold = sell_shares * lot["Cost Per Share"]
+            realized_pl = sell_value - cost_basis_sold
+            
+            # Tax
+            if realized_pl > 0:
+                rate = TAX_RATE_LT if bucket == 3 else TAX_RATE_ST # Bucket 3 is LT Gain
+                tax_impact = realized_pl * rate
+            else:
+                tax_impact = 0.0 # Loss doesn't pay tax
+                
+            recommended_sales.append({
+                "Ticker": ticker,
+                "Shares": sell_shares,
+                "Proceeds": sell_value,
+                "Realized P/L": realized_pl,
+                "Tax Impact": tax_impact,
+                "Term": lot["Term"],
+                "Bucket": bucket
+            })
+            
+            remaining_target_usd -= sell_value
+            
+    # Compile Results
+    if not recommended_sales:
+         return {
+            "sales_df": pd.DataFrame(), 
+            "total_proceeds": 0.0, 
+            "total_realized_pl": 0.0, 
+            "est_tax_liability": 0.0
+        }
+        
+    sales_df = pd.DataFrame(recommended_sales)
+    
+    total_proceeds = sales_df["Proceeds"].sum()
+    total_realized_pl = sales_df["Realized P/L"].sum()
+    est_tax_liability = sales_df["Tax Impact"].sum()
+    
+    return {
+        "sales_df": sales_df,
+        "total_proceeds": total_proceeds,
+        "total_realized_pl": total_realized_pl,
+        "est_tax_liability": est_tax_liability
     }

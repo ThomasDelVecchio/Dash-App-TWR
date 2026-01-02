@@ -55,7 +55,7 @@ layout = html.Div([
             ]),
             dbc.CardBody([
                 html.P("HOLD these lots! Waiting a few days drops tax rate from 35% to 15%.", className="text-muted small"),
-                dcc.Loading(html.Div(id="cliff-watch-container"))
+                dcc.Loading(html.Div(id="taxes-cliff-watch-container"))
             ])
         ]), width=12, lg=6, className="mb-4"),
 
@@ -132,7 +132,7 @@ layout = html.Div([
      Output("tax-kpi-efficiency-container", "children"),
      Output("tax-sunburst-chart", "figure"),
      Output("tax-tactical-radar", "figure"),
-     Output("cliff-watch-container", "children"),
+     Output("taxes-cliff-watch-container", "children"),
      Output("harvest-radar-container", "children"),
      Output("lot-explorer-container", "children")],
     [Input("data-signal", "data"),

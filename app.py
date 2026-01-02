@@ -12,7 +12,7 @@ from components import chatbot
 from components.audit_modal import get_audit_modal_content
 
 # Import Pages
-from pages import overview, performance, allocations, attribution, flows, holdings, risk, settings, trade_lab, help_index, taxes
+from pages import overview, performance, allocations, attribution, flows, holdings, risk, settings, trade_lab, help_index, taxes, rebalancing
 
 # Initialize App
 app = dash.Dash(
@@ -44,6 +44,7 @@ sidebar = html.Div(
                 dbc.NavLink("Attribution", href="/attribution", active="exact"),
                 dbc.NavLink("Flows", href="/flows", active="exact"),
                 dbc.NavLink("Holdings", href="/holdings", active="exact"),
+                dbc.NavLink("Rebalancing", href="/rebalancing", active="exact"),
                 dbc.NavLink("Risk & Proj", href="/risk", active="exact"),
                 dbc.NavLink("Trade Lab", href="/trade-lab", active="exact"),
                 dbc.NavLink("Tax Authority", href="/taxes", active="exact"),
@@ -91,13 +92,14 @@ sidebar = html.Div(
                 id="benchmark-dropdown",
                 options=[
                     {"label": "S&P 500 (SPY)", "value": "SPY"},
+                    {"label": "Total Stock (VTI)", "value": "VTI"},
+                    {"label": "Growth (VUG)", "value": "VUG"},
+                    {"label": "Aggressive 80/20 (AOA)", "value": "AOA"},
                     {"label": "Global 60/40 (AOR)", "value": "AOR"},
-                    {"label": "Conservative 40/60 (AOK)", "value": "AOK"},
+                    {"label": "Cons 40/60 (AOK)", "value": "AOK"},
                     {"label": "Nasdaq 100 (QQQ)", "value": "QQQ"},
-                    {"label": "Total Int'l Stock (VXUS)", "value": "VXUS"},
-                    {"label": "Total Bond Market (BND)", "value": "BND"},
                 ],
-                value=["SPY", "AOK", "AOR"],
+                value=["SPY", "VTI", "AOA"],
                 multi=True,
                 className="mb-2 text-dark",
                 persistence=True,
@@ -203,6 +205,7 @@ app.validation_layout = html.Div([
     attribution.layout,
     flows.layout,
     holdings.layout,
+    rebalancing.layout,
     risk.layout,
     settings.layout,
     trade_lab.layout,
@@ -229,6 +232,8 @@ def render_page_content(pathname):
         return flows.layout
     elif pathname == "/holdings":
         return holdings.layout
+    elif pathname == "/rebalancing":
+        return rebalancing.layout
     elif pathname == "/risk":
         return risk.layout
     elif pathname == "/trade-lab":
@@ -276,12 +281,13 @@ def update_global_state(is_dark, end_date, benchmarks, include_exited, tax_strat
         for b in benchmarks:
             # Simple label mapping
             label = b
-            if b == "SPY": label = "S&P 500"
-            elif b == "AOR": label = "Global 60/40"
-            elif b == "AOK": label = "Cons 40/60"
-            elif b == "QQQ": label = "Nasdaq 100"
-            elif b == "VXUS": label = "Total Int'l"
-            elif b == "BND": label = "Total Bond"
+            if b == "SPY": label = "S&P 500 (SPY)"
+            elif b == "VTI": label = "Total Stock (VTI)"
+            elif b == "VUG": label = "Growth (VUG)"
+            elif b == "AOA": label = "Aggressive (AOA)"
+            elif b == "AOR": label = "Global 60/40 (AOR)"
+            elif b == "AOK": label = "Cons 40/60 (AOK)"
+            elif b == "QQQ": label = "Nasdaq 100 (QQQ)"
             bm_map[label] = b
             
     return theme, theme, dates, bm_map, datetime.now().isoformat(), include_exited, tax_strategy

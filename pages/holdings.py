@@ -18,13 +18,6 @@ layout = html.Div([
     
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Illustrative Monthly Contribution Schedule", className="card-title p-2"),
-            dcc.Loading(html.Div(id='monthly-contrib-container'))
-        ]), width=12, className="mb-4"),
-    ]),
-    
-    dbc.Row([
-        dbc.Col(dbc.Card([
             html.H5("Ticker Allocation", className="card-title p-2"),
             dcc.Graph(id={'type': 'filter-chart', 'index': 'ticker-pie-chart'})
         ]), width=6, className="mb-4"),
@@ -37,7 +30,6 @@ layout = html.Div([
 
 @callback(
     [Output('holdings-table-container', 'children'),
-     Output('monthly-contrib-container', 'children'),
      Output({'type': 'filter-chart', 'index': 'ticker-pie-chart'}, 'figure'),
      Output({'type': 'filter-chart', 'index': 'ticker-bar-chart'}, 'figure')],
     [Input('data-signal', 'data'),
@@ -48,7 +40,7 @@ layout = html.Div([
 )
 def update_holdings(signal, theme, filters, chat_cmd, include_exited):
     data = dw.get_data()
-    if not data: return "Loading...", "Loading...", {}, {}
+    if not data: return "Loading...", {}, {}
     
     # Logic: Toggle view based on include_exited
     if include_exited:
@@ -177,58 +169,7 @@ def update_holdings(signal, theme, filters, chat_cmd, include_exited):
         ), style={'overflowX': 'auto'}
     )
     
-    # Monthly Contribution Schedule
-    contrib_df, footer_text, is_empty = dw.get_monthly_contribution_schedule(data)
-    
-    if is_empty:
-        monthly_contrib_content = html.Div([
-            html.P("All holdings are at or above target allocation. No contribution schedule needed.", 
-                   style={'fontStyle': 'italic', 'color': 'gray', 'padding': '10px'})
-        ])
-    else:
-        # Build definitions manually to support Chatbot Sort
-        contrib_column_defs = []
-        is_contrib_target = any(x in chat_target for x in ["contribution", "schedule", "monthly"])
-
-        for col in contrib_df.columns:
-            col_def = {"field": col, "headerName": col}
-            
-            # Hide meta columns
-            if col.startswith("meta_"):
-                col_def["hide"] = True
-            
-            # --- CHATBOT SORT (CONTRIB) ---
-            if chat_action == "SORT" and is_contrib_target:
-                target = chat_cmd["params"].get("column", "").lower()
-                direction = chat_cmd["params"].get("direction", "desc")
-                
-                if col.lower() == target or target in col.lower():
-                    col_def["sort"] = direction
-                    col_def["sortIndex"] = 0
-            
-            contrib_column_defs.append(col_def)
-
-        monthly_contrib_table = dag.AgGrid(
-            id="contrib-grid",
-            rowData=contrib_df.to_dict('records'),
-            columnDefs=contrib_column_defs,
-            defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
-            className="ag-theme-alpine-dark audit-target",
-            dashGridOptions={"domLayout": "autoHeight"}
-        )
-        
-        monthly_contrib_content = html.Div([
-            monthly_contrib_table,
-            html.P(footer_text, style={
-                'fontSize': '9pt',
-                'fontStyle': 'italic',
-                'color': 'gray',
-                'marginTop': '10px',
-                'marginBottom': '0px'
-            })
-        ])
-    
     # Charts
     pie_fig, bar_fig = dw.get_ticker_allocation_charts(data, theme)
     
-    return table, monthly_contrib_content, pie_fig, bar_fig
+    return table, pie_fig, bar_fig

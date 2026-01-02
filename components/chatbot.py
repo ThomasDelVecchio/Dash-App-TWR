@@ -1273,6 +1273,55 @@ def handle_portfolio_query(text, data, horizon):
                 f"- **Beta**: {beta}\n"
                 f"- **Tracking Error**: {te}")
 
+    elif any(x in text for x in ["buys", "sells", "transactions", "trades"]):
+        # Portfolio-level transactions
+        tx_raw = data.get("tx_raw")
+        if tx_raw is None or tx_raw.empty: return "No transactions found."
+        
+        # Filter by Horizon
+        # We need a start date. Use PV index or similar logic.
+        start_date = None
+        if horizon == "SI":
+            start_date = data["inception_date"]
+        else:
+            # We can use the helper from dw if available, or approximate
+            # dw.get_portfolio_horizon_start is used in handle_benchmark_query
+            try:
+                start_date = dw.get_portfolio_horizon_start(data["pv"], data["inception_date"], horizon)
+            except:
+                pass
+        
+        if start_date:
+            tx_raw = tx_raw[tx_raw["date"] >= start_date]
+            
+        if tx_raw.empty: return f"No transactions found for **{horizon}**."
+        
+        # Filter by Type
+        query_type = "all"
+        if "buys" in text or "purchases" in text: query_type = "buy"
+        elif "sells" in text or "sales" in text: query_type = "sell"
+        
+        if query_type == "buy":
+            subset = tx_raw[tx_raw["amount"] < 0]
+            total = -subset["amount"].sum()
+            count = len(subset)
+            # Top 3 by amount
+            top_3 = subset.sort_values("amount", ascending=True).head(3)
+            top_str = ", ".join([f"{r['ticker']} (${-r['amount']:,.0f})" for _, r in top_3.iterrows()])
+            return f"**Buys ({horizon})**: {count} trades totaling **${total:,.2f}**.\nTop: {top_str}"
+            
+        elif query_type == "sell":
+            subset = tx_raw[tx_raw["amount"] > 0]
+            total = subset["amount"].sum()
+            count = len(subset)
+            top_3 = subset.sort_values("amount", ascending=False).head(3)
+            top_str = ", ".join([f"{r['ticker']} (${r['amount']:,.0f})" for _, r in top_3.iterrows()])
+            return f"**Sells ({horizon})**: {count} trades totaling **${total:,.2f}**.\nTop: {top_str}"
+            
+        else:
+            count = len(tx_raw)
+            return f"**Transactions ({horizon})**: {count} total trades."
+
     else:
         # Default to Total Value
         pv = data.get("pv")
@@ -1443,6 +1492,51 @@ def handle_benchmark_query(text, data, horizon):
     except Exception as e:
         return f"Error calculating benchmark comparison: {str(e)}"
 
+def handle_rebalancing_query(text, data):
+    """
+    Handles rebalancing intents like "what should i buy with $500" or "what can i sell".
+    """
+    # 1. Extract Amount
+    # Look for $X or X dollars or just numbers if context implies
+    amount = 0
+    # Regex for $500, $500.00, 500 dollars
+    match = re.search(r"\$?\s?(\d+(?:,\d{3})*(?:\.\d+)?)", text)
+    if match:
+        try:
+            amount = float(match.group(1).replace(",", ""))
+        except:
+            pass
+            
+    # 2. Determine Intent (Buy vs Sell/Rebalance)
+    allow_sales = False
+    # If user explicitly asks to sell or rebalance/fix, allow sales
+    if any(x in text.lower() for x in ["sell", "sales", "selling", "rebalance", "fix"]):
+        allow_sales = True
+        
+    # 3. Get Recommendations
+    recs = dw.get_rebalancing_recommendations(cash_to_deploy=amount, allow_sales=allow_sales)
+    
+    if not recs:
+        return "Your portfolio is perfectly balanced! No trades are recommended at this time."
+        
+    # 4. Format Response
+    response = [f"**Rebalancing Plan** (Cash: ${amount:,.2f} | Sales: {'Yes' if allow_sales else 'No'})"]
+    
+    buys = [r for r in recs if r['action'] == 'Buy']
+    sells = [r for r in recs if r['action'] == 'Sell']
+    
+    if sells:
+        response.append("\n**Sell Recommendations** (Overweight):")
+        for r in sells:
+            response.append(f"- Sell **{int(r['shares'])}** shares of **{r['ticker']}** (~${r['amount']:,.2f})")
+            
+    if buys:
+        response.append("\n**Buy Recommendations** (Underweight):")
+        for r in buys:
+            response.append(f"- Buy **{int(r['shares'])}** shares of **{r['ticker']}** (~${r['amount']:,.2f})")
+            
+    return "\n".join(response)
+
 def process_data_query(text, context=None):
     """
     Master Dispatcher for Data Queries.
@@ -1480,6 +1574,11 @@ def process_data_query(text, context=None):
         # --- STRATEGIC INTENT BRANCH (NEW) ---
         # Check if this is an advisory/strategic query about a ticker
         is_strategic = any(k in text_norm for k in STRATEGIC_KEYWORDS)
+        
+        # EXCEPTION: If the user is asking for transactions (buys/sells), it's NOT strategic
+        if resolved_metric in ["transaction", "net_invested"]:
+            is_strategic = False
+            
         if is_strategic and new_entity and new_entity_type == "ticker":
             return None, handle_strategic_ticker_query(new_entity, data), {
                 "last_horizon": "YTD", # Strategic analysis defaults to YTD context
@@ -1642,6 +1741,21 @@ def parse_intent(text, pathname=None, context=None):
         
         current_page = pathname.strip("/").lower() if pathname else "overview"
         if not current_page: current_page = "overview"
+
+        # --- PRIORITY 0: REBALANCING (New) ---
+        # Check for "should i buy", "what to buy", "invest", "rebalance"
+        # BUT exclude if a horizon is present (e.g. "what did i buy YTD")
+        
+        horizon_found = parse_horizon(text)
+        rebal_triggers = ["should i", "what to", "what can i", "invest", "deploy", "rebalance", "allocate", "buy", "sell"]
+        is_rebal_intent = any(x in text_norm for x in rebal_triggers)
+        
+        # If it looks like a rebalancing question AND has no specific time horizon (which implies history)
+        if is_rebal_intent and not horizon_found:
+             # Double check for past tense to be safe
+             past_tense = ["did i", "have i", "bought", "sold", "history", "transactions", "trades", "was"]
+             if not any(x in text_norm for x in past_tense):
+                 return None, handle_rebalancing_query(text_norm, dw.get_data()), context
 
         # --- PRIORITY 1: DATA QUERIES (Numeric Answers) ---
         # We process this first so questions like "portfolio return" get numbers, not definitions.

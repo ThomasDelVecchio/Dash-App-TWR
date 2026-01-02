@@ -32,6 +32,7 @@ from financial_math import (
     annualize_return,
     is_annualized
 )
+from tax_engine import calculate_tax_optimized_sales
 from report_formatting import fmt_pct_clean, fmt_dollar_clean
 import config
 from config import TARGET_MONTHLY_CONTRIBUTION, GLOBAL_PALETTE, RISK_FREE_RATE, TAX_RATE_LT, TAX_RATE_ST
@@ -3373,3 +3374,137 @@ def get_tax_tactical_radar(open_lots, theme="light"):
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)', tickformat="$,.0f")
 
     return fig
+
+def get_rebalancing_recommendations(cash_to_deploy=0, allow_sales=False):
+    """
+    Generates a list of buy/sell recommendations based on current portfolio state and targets.
+    Replicates logic from pages/rebalancing.py without modifying the UI.
+    """
+    data = get_data()
+    if not data:
+        return []
+    
+    # Extract required data
+    sec_table = data["sec_table_current"].copy()
+    holdings = data["holdings"].copy()
+    prices = data["prices"]
+    
+    if sec_table.empty:
+        return []
+    
+    # Exclude CASH from investment calculations
+    invested_df = sec_table[sec_table["ticker"] != "CASH"].copy()
+    
+    # Ensure target_pct is available
+    if "target_pct" not in invested_df.columns:
+        invested_df = invested_df.merge(
+            holdings[["ticker", "target_pct"]],
+            on="ticker",
+            how="left"
+        )
+        invested_df["target_pct"] = invested_df["target_pct"].fillna(0.0)
+    
+    # Current portfolio value (excluding cash)
+    current_total = invested_df["market_value"].sum()
+    
+    # Pro-forma total (current + new cash)
+    proforma_total = current_total + cash_to_deploy
+    
+    # Current weights
+    invested_df["current_weight_pct"] = (invested_df["market_value"] / current_total * 100) if current_total > 0 else 0
+    
+    target_df = invested_df.copy()
+    target_df["target_dollar"] = (target_df["target_pct"] / 100) * proforma_total
+    target_df["raw_diff"] = target_df["target_dollar"] - target_df["market_value"]
+    target_df["drift"] = (target_df["target_pct"] - target_df["current_weight_pct"])
+    
+    # Initialize columns
+    target_df["action"] = "Hold"
+    target_df["recommend_amount"] = 0.0
+    
+    sale_proceeds = 0.0
+    
+    # --- SALES LOGIC ---
+    if allow_sales:
+        overweight_mask = target_df["raw_diff"] < -0.01
+        candidates = {}
+        for _, row in target_df[overweight_mask].iterrows():
+            candidates[row["ticker"]] = abs(row["raw_diff"])
+            
+        sales_res = calculate_tax_optimized_sales(candidates, avoid_st_gains=True)
+        sales_df_res = sales_res["sales_df"]
+        sale_proceeds = sales_res["total_proceeds"]
+        
+        if not sales_df_res.empty:
+            sales_grp = sales_df_res.groupby("Ticker")[["Proceeds"]].sum()
+            for ticker, row in sales_grp.iterrows():
+                mask = target_df["ticker"] == ticker
+                if mask.any():
+                    target_df.loc[mask, "recommend_amount"] = -row["Proceeds"]
+                    target_df.loc[mask, "action"] = "Sell"
+
+    # --- BUYS LOGIC ---
+    total_cash_available = float(cash_to_deploy) + sale_proceeds
+    remaining_cash = total_cash_available
+    
+    buy_mask = (target_df["raw_diff"] > 0.01) & (target_df["recommend_amount"] == 0)
+    target_df.loc[buy_mask, "full_buy_need"] = target_df.loc[buy_mask, "raw_diff"]
+    target_df["buy_allocation"] = 0.0
+    
+    # Waterfall Allocation
+    for i in range(10):
+        if remaining_cash < 0.01:
+            break
+        mask_room = (target_df["buy_allocation"] < target_df.get("full_buy_need", 0)) & buy_mask
+        if not mask_room.any():
+            break
+        
+        current_drift_sum = target_df.loc[mask_room, "drift"].clip(lower=0).sum()
+        
+        if current_drift_sum > 0:
+            allocation_weights = target_df.loc[mask_room, "drift"].clip(lower=0) / current_drift_sum
+            step_size = min(remaining_cash, remaining_cash * 0.5) # Conservative steps
+            if i == 9: step_size = remaining_cash # Last step dump
+            
+            # Distribute
+            amounts = allocation_weights * step_size
+            # Cap at need
+            needs = target_df.loc[mask_room, "full_buy_need"] - target_df.loc[mask_room, "buy_allocation"]
+            actuals = np.minimum(amounts, needs)
+            
+            target_df.loc[mask_room, "buy_allocation"] += actuals
+            remaining_cash -= actuals.sum()
+        else:
+            break
+            
+    # Finalize Buys
+    buy_rows = target_df["buy_allocation"] > 0.01
+    target_df.loc[buy_rows, "recommend_amount"] = target_df.loc[buy_rows, "buy_allocation"]
+    target_df.loc[buy_rows, "action"] = "Buy"
+    
+    # Format Output
+    recommendations = []
+    for _, row in target_df.iterrows():
+        if row["action"] != "Hold":
+            # Get price for share count
+            price = 0
+            if row["ticker"] in prices:
+                price = prices[row["ticker"]].iloc[-1]
+            
+            shares = 0
+            if price > 0:
+                shares = abs(row["recommend_amount"]) / price
+                
+            recommendations.append({
+                "ticker": row["ticker"],
+                "action": row["action"],
+                "amount": abs(row["recommend_amount"]),
+                "shares": shares,
+                "price": price,
+                "drift": row["drift"]
+            })
+            
+    # Sort: Sells first, then Buys (largest to smallest)
+    recommendations.sort(key=lambda x: (0 if x["action"] == "Sell" else 1, -x["amount"]))
+    
+    return recommendations
