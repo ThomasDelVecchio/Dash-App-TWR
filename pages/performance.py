@@ -282,8 +282,8 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
             id="perf-horizon-ret-grid",
             rowData=rows,
             columnDefs=ret_column_defs,
-            defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "filter": True, "resizable": True},
-            columnSize="sizeToFit",
+            defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
+            # columnSize="sizeToFit", # Removed for mobile scrolling
             className="ag-theme-alpine-dark audit-target",
             dashGridOptions={
                 "domLayout": "autoHeight",
@@ -432,8 +432,8 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
             id="perf-horizon-pl-grid",
             rowData=pl_table_data,
             columnDefs=pl_column_defs,
-            defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "filter": True, "resizable": True},
-            columnSize="sizeToFit",
+            defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
+            # columnSize="sizeToFit", # Removed for mobile scrolling
             className="ag-theme-alpine-dark audit-target",
             dashGridOptions={
                 "domLayout": "autoHeight",
@@ -598,7 +598,7 @@ def update_growth_analysis(signal, theme, dates, selected_ac, chat_cmd, _filters
                     rowData=main_rows,
                     columnDefs=growth_column_defs,
                     defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
-                    columnSize="sizeToFit",
+                    # columnSize="sizeToFit", # Removed for mobile scrolling
                     className="ag-theme-alpine-dark audit-target",
                     dashGridOptions={
                         "domLayout": "autoHeight",

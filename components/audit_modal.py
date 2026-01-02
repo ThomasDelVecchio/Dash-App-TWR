@@ -93,7 +93,7 @@ def get_audit_modal_content(request_data):
         return dbc.ModalBody(content)
 
     # ----------------------------------------------------
-    # TYPE 2.5: Contribution to Return (CTR)
+    # TYPE 2.5: Contribution to Return (Daily / Simple)
     # ----------------------------------------------------
     if any(x in str(col_id) for x in ["Contrib", "Effect"]) and "meta_denominator" in row_data:
         ticker = row_data.get("Asset Class", "Unknown")
@@ -101,21 +101,45 @@ def get_audit_modal_content(request_data):
         denom = row_data.get("meta_denominator", 0.0)
         contrib_pct = row_data.get("Contribution (%)", 0.0)
         
-        def fmt_num(n): return f"{n:,.2f}"
+        # Extract Effect components
+        ac_start = row_data.get("meta_ac_start", 0.0)
+        ac_end = row_data.get("meta_ac_end", 0.0)
+        ac_flow = row_data.get("meta_ac_flow", 0.0)
+        ac_inc = row_data.get("meta_ac_inc", 0.0)
 
-        formula_tex = r"""
+        # Effect Formula
+        effect_formula_tex = r"""
+        $$
+        \text{Effect} = (\text{End Value} - \text{Start Value}) - \text{Net Flows} + \text{Income}
+        $$
+        """
+        
+        effect_sub_tex = fr"""
+        $$
+        \text{{Effect}} = ({fmt_dollar_clean(ac_end).replace('$', r'\$')} - {fmt_dollar_clean(ac_start).replace('$', r'\$')}) - {fmt_dollar_clean(ac_flow).replace('$', r'\$')} + {fmt_dollar_clean(ac_inc).replace('$', r'\$')}
+        $$
+        """
+        
+        effect_res_tex = fr"""
+        $$
+        = {fmt_dollar_clean(effect).replace('$', r'\$')}
+        $$
+        """
+
+        # Contribution Formula
+        contrib_formula_tex = r"""
         $$
         \text{Contribution} = \frac{\text{Effect}}{\text{Average Capital Invested}}
         $$
         """
         
-        sub_tex = fr"""
+        contrib_sub_tex = fr"""
         $$
-        \text{{Contribution}} = \frac{{{fmt_dollar_clean(effect)}}}{{{fmt_dollar_clean(denom)}}}
+        \text{{Contribution}} = \frac{{{fmt_dollar_clean(effect).replace('$', r'\$')}}}{{{fmt_dollar_clean(denom).replace('$', r'\$')}}}
         $$
         """
         
-        result_tex = fr"""
+        contrib_res_tex = fr"""
         $$
         = {contrib_pct:+.2f}\%
         $$
@@ -123,14 +147,25 @@ def get_audit_modal_content(request_data):
         
         content = []
         content.append(html.H4(f"Audit: {ticker} (Contribution to Return)", className="mb-3"))
-        content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
-        content.append(html.Hr())
-        content.append(html.H6("Applied Calculation", className="text-muted"))
-        content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
-        content.append(dcc.Markdown(result_tex, mathjax=True, className="text-body"))
+        
+        # Add Effect Section
+        content.append(html.H6("1. Effect Calculation", className="fw-bold mt-3"))
+        content.append(dcc.Markdown(effect_formula_tex, mathjax=True, className="text-body"))
+        content.append(dcc.Markdown(effect_sub_tex, mathjax=True, className="text-body"))
+        content.append(dcc.Markdown(effect_res_tex, mathjax=True, className="text-body"))
+        
+        # Add Contribution Section
+        content.append(html.H6("2. Contribution Calculation", className="fw-bold mt-3"))
+        content.append(dcc.Markdown(contrib_formula_tex, mathjax=True, className="text-body"))
+        content.append(dcc.Markdown(contrib_sub_tex, mathjax=True, className="text-body"))
+        content.append(dcc.Markdown(contrib_res_tex, mathjax=True, className="text-body"))
         
         rows = [
-            html.Tr([html.Td("Asset Class Effect"), html.Td(fmt_dollar_clean(effect), className="text-end")]),
+            html.Tr([html.Td("Start Value"), html.Td(fmt_dollar_clean(ac_start), className="text-end")]),
+            html.Tr([html.Td("End Value"), html.Td(fmt_dollar_clean(ac_end), className="text-end")]),
+            html.Tr([html.Td("Net Flows"), html.Td(fmt_dollar_clean(ac_flow), className="text-end")]),
+            html.Tr([html.Td("Income"), html.Td(fmt_dollar_clean(ac_inc), className="text-end")]),
+            html.Tr([html.Td("Asset Class Effect", className="fw-bold"), html.Td(fmt_dollar_clean(effect), className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
             html.Tr([html.Td("Avg Capital Invested"), html.Td(fmt_dollar_clean(denom), className="text-end")]),
             html.Tr([html.Td("Contribution", className="fw-bold"), html.Td(f"{contrib_pct:+.2f}%", className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
         ]
@@ -147,11 +182,50 @@ def get_audit_modal_content(request_data):
         final_contrib = row_data.get("Contribution (%)", 0.0)
         avg_denom = row_data.get("meta_frongello_avg_denom", 0.0)
         
+        # Extract Effect components
+        ac_start = row_data.get("meta_ac_start", 0.0)
+        ac_end = row_data.get("meta_ac_end", 0.0)
+        ac_flow = row_data.get("meta_ac_flow", 0.0)
+        ac_inc = row_data.get("meta_ac_inc", 0.0)
+        
         # Calculate arithmetic proxy for comparison (What it would be without linking)
         arithmetic_proxy = (effect / avg_denom * 100.0) if avg_denom else 0
         interaction_effect = final_contrib - arithmetic_proxy
         
-        formula_tex = r"""
+        # Effect Formula
+        effect_formula_tex = r"""
+        $$
+        \text{Effect} = (\text{End Value} - \text{Start Value}) - \text{Net Flows} + \text{Income}
+        $$
+        """
+        
+        effect_sub_tex = fr"""
+        $$
+        \text{{Effect}} = ({fmt_dollar_clean(ac_end).replace('$', r'\$')} - {fmt_dollar_clean(ac_start).replace('$', r'\$')}) - {fmt_dollar_clean(ac_flow).replace('$', r'\$')} + {fmt_dollar_clean(ac_inc).replace('$', r'\$')}
+        $$
+        """
+        
+        effect_res_tex = fr"""
+        $$
+        = {fmt_dollar_clean(effect).replace('$', r'\$')}
+        $$
+        """
+
+        # Simplified Proxy Formula
+        proxy_formula_tex = r"""
+        $$
+        \text{Proxy} = \frac{\text{Total Effect}}{\text{Avg Capital}}
+        $$
+        """
+        
+        proxy_sub_tex = fr"""
+        $$
+        \text{{Proxy}} = \frac{{{fmt_dollar_clean(effect).replace('$', r'\$')}}}{{{fmt_dollar_clean(avg_denom).replace('$', r'\$')}}} = {arithmetic_proxy:.2f}\%
+        $$
+        """
+
+        # Frongello Linking Formula
+        frongello_formula_tex = r"""
         $$
         C_i = \sum_{t} \left( \frac{\text{Effect}_{i,t}}{\text{Portfolio Value}_{t-1}} \times \text{Link Factor}_t \right)
         $$
@@ -163,9 +237,13 @@ def get_audit_modal_content(request_data):
         )
         
         rows = [
-            html.Tr([html.Td("Total Dollar Effect (Numerator)"), html.Td(fmt_dollar_clean(effect), className="text-end")]),
-            html.Tr([html.Td("Avg Capital Invested (Denominator)"), html.Td(fmt_dollar_clean(avg_denom), className="text-end")]),
-            html.Tr([html.Td("Simple Arithmetic Return (Proxy)"), html.Td(f"{arithmetic_proxy:.2f}%", className="text-end", style={'fontStyle': 'italic', 'color': '#6c757d'})]),
+            html.Tr([html.Td("Start Value"), html.Td(fmt_dollar_clean(ac_start), className="text-end")]),
+            html.Tr([html.Td("End Value"), html.Td(fmt_dollar_clean(ac_end), className="text-end")]),
+            html.Tr([html.Td("Net Flows"), html.Td(fmt_dollar_clean(ac_flow), className="text-end")]),
+            html.Tr([html.Td("Income"), html.Td(fmt_dollar_clean(ac_inc), className="text-end")]),
+            html.Tr([html.Td("Total Dollar Effect", className="fw-bold"), html.Td(fmt_dollar_clean(effect), className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
+            html.Tr([html.Td("Avg Capital Invested"), html.Td(fmt_dollar_clean(avg_denom), className="text-end")]),
+            html.Tr([html.Td("Simple Arithmetic Proxy"), html.Td(f"{arithmetic_proxy:.2f}%", className="text-end", style={'fontStyle': 'italic', 'color': '#6c757d'})]),
             html.Tr([html.Td("Geometric Linking Impact"), html.Td(f"{interaction_effect:+.2f}%", className="text-end", style={'fontStyle': 'italic', 'color': '#6c757d'})]),
             html.Tr([
                 html.Td("Frongello Linked Contribution", className="fw-bold"), 
@@ -175,8 +253,20 @@ def get_audit_modal_content(request_data):
         
         content = [
             html.H4(f"Audit: {ticker} (Frongello)", className="mb-3"),
-            dcc.Markdown(formula_tex, mathjax=True, className="text-body"),
+            
+            html.H6("1. Total Effect Calculation", className="fw-bold mt-3"),
+            dcc.Markdown(effect_formula_tex, mathjax=True, className="text-body"),
+            dcc.Markdown(effect_sub_tex, mathjax=True, className="text-body"),
+            dcc.Markdown(effect_res_tex, mathjax=True, className="text-body"),
+            
+            html.H6("2. Simplified Proxy", className="fw-bold mt-3"),
+            dcc.Markdown(proxy_formula_tex, mathjax=True, className="text-body"),
+            dcc.Markdown(proxy_sub_tex, mathjax=True, className="text-body"),
+            
+            html.H6("3. Frongello Linking", className="fw-bold mt-3"),
+            dcc.Markdown(frongello_formula_tex, mathjax=True, className="text-body"),
             html.P(explanation, className="text-muted small mb-3"),
+            
             dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-2", style={'maxWidth': '450px'})
         ]
         return dbc.ModalBody(content)

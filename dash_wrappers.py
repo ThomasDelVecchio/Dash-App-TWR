@@ -2927,6 +2927,12 @@ def _calculate_frongello_linking(data, start_date=None, end_date=None):
     total_linked_contrib = linked_daily.sum()
     total_effect = effect_daily.sum() # Simple Sum of P/L ($)
     
+    # Calculate Period Aggregates for Audit Modal
+    ac_period_start = start_mv.iloc[0]
+    ac_period_end = end_mv.iloc[-1]
+    ac_period_flow = flows.sum()
+    ac_period_inc = income.sum()
+    
     # 10. Compile Results
     results = []
     for ac in total_linked_contrib.index:
@@ -2937,7 +2943,13 @@ def _calculate_frongello_linking(data, start_date=None, end_date=None):
             
             # Audit Meta
             "meta_frongello_sum_factors": link_factors.sum(),
-            "meta_frongello_avg_denom": denom_p.mean()
+            "meta_frongello_avg_denom": denom_p.mean(),
+            
+            # New Meta for Effect Calculation
+            "meta_ac_start": ac_period_start.get(ac, 0.0),
+            "meta_ac_end": ac_period_end.get(ac, 0.0),
+            "meta_ac_flow": ac_period_flow.get(ac, 0.0),
+            "meta_ac_inc": ac_period_inc.get(ac, 0.0)
         })
         
     df_res = pd.DataFrame(results).sort_values("Contribution (%)", ascending=False)

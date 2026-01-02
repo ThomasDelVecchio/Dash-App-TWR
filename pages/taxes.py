@@ -70,7 +70,7 @@ layout = html.Div([
                 dcc.Loading(html.Div(id="harvest-radar-container"))
             ])
         ]), width=12, lg=6, className="mb-4"),
-    ]),
+    ],),
 
     # --- SIMULATOR ---
     dbc.Row([
@@ -149,12 +149,11 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
 
     # Default Col Def with formatting
     default_col_def = {
-        "flex": 1, 
-        "minWidth": 100, 
-        "sortable": True, 
-        "filter": True, 
+        "sortable": True,
+        "filter": True,
         "resizable": True,
-        "valueFormatter": {"function": "d3.format(',.2f')(params.value) if typeof params.value === 'number' else params.value"}
+        "minWidth": 140,  # Increased from 100 for better mobile readability
+        "flex": 1,
     }
     
     # --- CHATBOT PARAMS ---
@@ -236,8 +235,9 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
                 columnDefs=col_defs,
                 defaultColDef=default_col_def,
                 className=f"{grid_theme} audit-target",
-                columnSize="responsiveSizeToFit",
-                dashGridOptions={"domLayout": "autoHeight"}
+                dashGridOptions={"domLayout": "autoHeight"},
+                style={"height": "400px", "width": "100%"},
+                # Removed columnSize="responsiveSizeToFit" to allow scrolling
             )
         else:
             cliff_grid = html.Div("No lots approaching the 1-year mark.", className="text-success p-2")
@@ -278,8 +278,9 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
                 columnDefs=col_defs,
                 defaultColDef=default_col_def,
                 className=f"{grid_theme} audit-target",
-                columnSize="responsiveSizeToFit",
-                dashGridOptions={"domLayout": "autoHeight"}
+                dashGridOptions={"domLayout": "autoHeight"},
+                style={"height": "400px", "width": "100%"},
+                # Removed columnSize="responsiveSizeToFit" to allow scrolling
             )
         else:
             harvest_grid = html.Div("No unrealized losses found. Great job!", className="text-success p-2")
@@ -319,8 +320,9 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
             columnDefs=col_defs,
             defaultColDef=default_col_def,
             className=f"{grid_theme} audit-target",
-            columnSize="responsiveSizeToFit",
-            dashGridOptions={"domLayout": "autoHeight", "pagination": True, "paginationPageSize": 20}
+            dashGridOptions={"domLayout": "autoHeight", "pagination": True, "paginationPageSize": 20},
+            style={"height": "600px", "width": "100%"},
+            # Removed columnSize="responsiveSizeToFit" to allow scrolling
         )
     else:
         grid_open = html.Div("No open lots.", className="p-3")
@@ -357,8 +359,9 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
             columnDefs=col_defs,
             defaultColDef=default_col_def,
             className=f"{grid_theme} audit-target",
-            columnSize="responsiveSizeToFit",
-            dashGridOptions={"domLayout": "autoHeight", "pagination": True, "paginationPageSize": 20}
+            dashGridOptions={"domLayout": "autoHeight", "pagination": True, "paginationPageSize": 20},
+            style={"height": "600px", "width": "100%"},
+            # Removed columnSize="responsiveSizeToFit" to allow scrolling
         )
     else:
         grid_realized = html.Div("No realized events YTD.", className="p-3")
