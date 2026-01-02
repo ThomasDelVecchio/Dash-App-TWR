@@ -380,6 +380,7 @@ SYNONYMS = {
     "contributions": "flows",
     "net flows": "flows",
     "added": "flows",
+    "net invested": "net_invested",
     "invested": "net_invested",
     "buys": "buys",
     "sells": "sells",
@@ -387,6 +388,14 @@ SYNONYMS = {
     "sales": "sells",
     "transactions": "transactions",
     "trades": "transactions",
+    
+    # Sector Synonyms
+    "tech": "Technology",
+    "technology": "Technology",
+    "comm services": "Communication Services",
+    "financials": "Financials",
+    "healthcare": "Health Care",
+    "consumer": "Consumer Discretionary",
 
     # Entities
     "total portfolio": "portfolio",
@@ -405,14 +414,14 @@ SYNONYMS = {
     "alpha": "excess return",
 
     # Tax Synonyms
-    "owe": "realized tax",
-    "bill": "realized tax",
-    "realized": "realized tax",
-    "irs": "realized tax",
-    "uncle sam": "realized tax",
-    "paid taxes": "realized tax",
-    "tax ytd": "realized tax",
-    "pay": "realized tax",
+    "owe": "tax_realized",
+    "bill": "tax_realized",
+    "realized": "tax_realized",
+    "irs": "tax_realized",
+    "uncle sam": "tax_realized",
+    "paid taxes": "tax_realized",
+    "tax ytd": "tax_realized",
+    "pay": "tax_realized",
     
     "liability": "tax_liability",
     "unrealized tax": "tax_liability",
@@ -440,23 +449,38 @@ SYNONYMS = {
     "write off": "tax_harvest",
     "save tax": "tax_harvest",
     "offset": "tax_harvest",
+    
+    # Natural Language Phrases
+    "how did i do": "return",
+    "how am i doing": "return",
+    "how is my portfolio": "return",
 }
 
-def normalize_text(text):
-    """Normalize synonyms and casual phrasing to canonical terms."""
-    text = text.lower()
+def normalize_text(text, protected_tickers=None):
+    """
+    Normalize synonyms and casual phrasing to canonical terms.
     
-    # PROTECT TICKERS: Don't normalize words that are valid tickers
-    # We'll use a regex to only replace synonyms if they are whole words
-    # and NOT valid tickers.
+    Args:
+        text: The text to normalize
+        protected_tickers: Set of ticker symbols that should NOT be replaced by synonyms
+                          (e.g., 'IT', 'ALL', 'CAN' are valid tickers that are also common words)
+    """
+    text = text.lower()
+    protected_tickers = protected_tickers or set()
+    
+    # Convert to uppercase set for case-insensitive comparison
+    protected_upper = {t.upper() for t in protected_tickers}
     
     # Sort by length descending to match longest phrases first
     sorted_syns = sorted(SYNONYMS.items(), key=lambda x: len(x[0]), reverse=True)
     
     for syn, canonical in sorted_syns:
-        # Use regex for whole-word replacement to avoid partial matches (like 'gld' matching 'gold')
-        # Only replace if the synonym isn't exactly the word we're looking for as a ticker
-        # (Though some tickers are words, 'gold' is an asset class here)
+        # TICKER PROTECTION: Skip replacement if the synonym is a protected ticker
+        # Check if this synonym (uppercase) matches a valid ticker
+        if syn.upper() in protected_upper:
+            continue
+            
+        # Use regex for whole-word replacement to avoid partial matches
         text = re.sub(r"\b" + re.escape(syn) + r"\b", canonical, text)
             
     # Cleanup redundant phrases
@@ -464,6 +488,66 @@ def normalize_text(text):
     text = text.replace("return return", "return")
     text = text.replace("allocation allocation", "allocation")
     
+    return text
+
+
+def _get_all_known_tickers(data):
+    """
+    Returns a set of all known tickers from both current holdings AND transaction history.
+    This enables lookups for closed positions.
+    """
+    tickers = set()
+    
+    # 1. Current holdings
+    sec_current = data.get("sec_table_current") if data else None
+    if sec_current is not None and not sec_current.empty:
+        tickers.update(sec_current["ticker"].unique().tolist())
+    
+    # 2. Transaction history (includes closed positions)
+    tx_raw = data.get("tx_raw") if data else None
+    if tx_raw is not None and not tx_raw.empty:
+        tickers.update(tx_raw["ticker"].str.upper().unique().tolist())
+    
+    # 3. Common benchmark tickers
+    tickers.update(["SPY", "QQQ", "IWM", "ACWI", "AGG", "GLD", "BTC"])
+    
+    # 4. Add common tickers that are also English words (protect these from synonym replacement)
+    # These are real tickers that could be mistakenly replaced by synonym logic
+    common_word_tickers = ["IT", "ALL", "CAN", "A", "C", "V", "F", "T", "K", "X", "LOW", "BIG", "CAT", "FAST", "NOW", "WELL"]
+    tickers.update(common_word_tickers)
+    
+    return tickers
+
+
+def _resolve_pronouns(text, context):
+    """
+    Resolves pronouns like 'it', 'that', 'this' to the last discussed entity.
+    
+    Example: If context has last_entity='AAPL', "Should I sell it?" becomes "Should I sell AAPL?"
+    """
+    if not context:
+        return text
+        
+    last_entity = context.get("last_entity")
+    if not last_entity:
+        return text
+    
+    # Only resolve for ticker entities (not asset classes or sectors)
+    last_entity_type = context.get("last_entity_type")
+    if last_entity_type != "ticker":
+        return text
+    
+    # Pronouns that could refer to a ticker
+    pronouns = [r"\bit\b", r"\bthat\b", r"\bthis one\b", r"\bthis\b", r"\bthe stock\b", r"\bthe ticker\b"]
+    
+    for pronoun in pronouns:
+        # Only replace if it appears in a context suggesting it refers to a security
+        # e.g., "sell it" but not "is it good"
+        action_context = re.search(rf"(sell|buy|hold|keep|dump|add to|reduce)\s+{pronoun}", text)
+        if action_context:
+            text = re.sub(pronoun, last_entity.lower(), text)
+            break
+            
     return text
 
 def parse_horizon(text):
@@ -505,14 +589,14 @@ def extract_metric(text):
     if any(x in text for x in ["sortino"]): return "sortino"
     if any(x in text for x in ["drawdown", "max dd", "underwater"]): return "drawdown"
     if any(x in text for x in ["beta", "sensitivity"]): return "beta"
-    if any(x in text for x in ["tracking error", "active risk", "te"]): return "te"
+    if re.search(r"\bte\b", text) or any(x in text for x in ["tracking error", "active risk"]): return "te"
     
     if any(x in text for x in ["return", "performance", "growth"]): return "return"
-    if any(x in text for x in ["pl", "profit", "loss", "gain", "money made", "p/l"]): return "pl"
+    if re.search(r"\bpl\b", text) or any(x in text for x in ["profit", "loss", "gain", "money made", "p/l"]): return "pl"
     if any(x in text for x in ["allocation", "weight", "portfolio share", "exposure", "position"]): return "allocation"
     if any(x in text for x in ["value", "worth", "balance", "amount"]): return "value"
     if any(x in text for x in ["buys", "sells", "transactions", "trades"]): return "transaction"
-    if any(x in text for x in ["net invested", "net amount", "net in", "total in"]): return "net_invested"
+    if any(x in text for x in ["net invested", "net amount", "net in", "total in", "net_invested"]): return "net_invested"
     if any(x in text for x in ["flows", "deposit", "withdrawal", "net flow"]): return "flows"
     
     # Tax Metrics
@@ -528,15 +612,25 @@ def extract_entity(text, data):
     """
     Identifies if the user is asking about a specific Ticker, Asset Class, or Sector.
     Returns (entity_name, entity_type).
+    
+    IMPORTANT: Searches both current holdings AND transaction history to support
+    queries about closed positions (assets no longer owned).
     """
     text = text.lower()
     sec_current = data.get("sec_table_current")
     if sec_current is None: return None, None
     
-    # 1. Tickers (Exact Match)
-    tickers = sec_current["ticker"].unique().tolist()
-    # Add common benchmark tickers just in case
-    tickers += ["SPY", "QQQ", "IWM", "ACWI", "AGG", "GLD", "BTC"]
+    # 1. Tickers (Exact Match) - Search BOTH current holdings AND transaction history
+    tickers = set(sec_current["ticker"].unique().tolist())
+    
+    # Add tickers from transaction history (closed positions)
+    tx_raw = data.get("tx_raw")
+    if tx_raw is not None and not tx_raw.empty:
+        historical_tickers = tx_raw["ticker"].str.upper().unique().tolist()
+        tickers.update(historical_tickers)
+    
+    # Add common benchmark tickers
+    tickers.update(["SPY", "QQQ", "IWM", "ACWI", "AGG", "GLD", "BTC"])
     
     for t in tickers:
         # Check for word boundary to avoid partial matches
@@ -580,9 +674,25 @@ def extract_entity(text, data):
     sector_df = data.get("sector_df")
     if sector_df is not None and not sector_df.empty:
         sectors = sector_df["Sector"].unique().tolist()
+        
+        # Explicit Sector Mappings (Abbreviations)
+        sector_map = {
+            "tech": "Technology",
+            "comm services": "Communication Services",
+            "finance": "Financials",
+            "healthcare": "Health Care",
+            "consumer": "Consumer Discretionary" # or Staples, but usually Discretionary is implied
+        }
+        
         for s in sectors:
             if s.lower() in text:
                 return s, "sector"
+                
+        for abbr, full in sector_map.items():
+            if re.search(r"\b" + re.escape(abbr) + r"\b", text):
+                # Verify the full name exists in our data
+                if full in sectors:
+                    return full, "sector"
     
     # --- FUZZY MATCHING (Improvement 1) ---
     # If no exact match found, look for close typos.
@@ -591,7 +701,7 @@ def extract_entity(text, data):
     # Build Candidate Map: {lowercase_candidate: (canonical_name, type)}
     candidate_map = {}
     
-    # Tickers
+    # Tickers (both current AND historical for closed position support)
     for t in tickers:
         candidate_map[t.lower()] = (t, "ticker")
         
@@ -616,7 +726,7 @@ def extract_entity(text, data):
         # Skip common short words to avoid noise
         if len(word) < 3: continue
         
-        matches = difflib.get_close_matches(word, all_candidates, n=1, cutoff=0.6)
+        matches = difflib.get_close_matches(word, all_candidates, n=1, cutoff=0.8)
         if matches:
             best_match = matches[0]
             canonical, etype = candidate_map[best_match]
@@ -1113,9 +1223,13 @@ def handle_entity_query(entity_name, entity_type, text, data, horizon, metric=No
 def handle_transaction_query(entity_name, entity_type, text, data, horizon):
     """
     Handles transaction-based queries for a specific entity.
+    Supports BOTH current positions AND closed positions (assets no longer owned).
+    
+    Examples:
     - "What are my buys in VOO"
     - "Show my sells of AAPL"
     - "Net invested in GOOG"
+    - "What did I buy?" (closed position)
     """
     if entity_type != "ticker":
         return f"Transaction data is only available for specific tickers, not for '{entity_name}'."
@@ -1129,12 +1243,21 @@ def handle_transaction_query(entity_name, entity_type, text, data, horizon):
     if ticker_tx.empty:
         return f"No transactions found for **{entity_name}**."
 
+    # Check if this is a closed position (not in current holdings)
+    sec_current = data.get("sec_table_current")
+    is_closed_position = True
+    if sec_current is not None and not sec_current.empty:
+        current_tickers = sec_current["ticker"].unique().tolist()
+        is_closed_position = entity_name.upper() not in [t.upper() for t in current_tickers]
+    
+    closed_note = " *(Closed Position)*" if is_closed_position else ""
+
     # Determine transaction type from the query
     query_type = "all"
     text_lower = text.lower()
-    if "buys" in text_lower or "purchases" in text_lower:
+    if "buys" in text_lower or "purchases" in text_lower or "bought" in text_lower:
         query_type = "buy"
-    elif "sells" in text_lower or "sales" in text_lower:
+    elif "sells" in text_lower or "sales" in text_lower or "sold" in text_lower:
         query_type = "sell"
     elif "net invested" in text_lower or "net amount" in text_lower:
         query_type = "net"
@@ -1144,8 +1267,8 @@ def handle_transaction_query(entity_name, entity_type, text, data, horizon):
     if query_type == "buy":
         buys = ticker_tx[ticker_tx["amount"] < 0]
         if buys.empty:
-            return f"No buy transactions found for **{entity_name}**."
-        response_lines.append(f"**Buy Transactions for {entity_name}**:")
+            return f"No buy transactions found for **{entity_name}**{closed_note}."
+        response_lines.append(f"**Buy Transactions for {entity_name}**{closed_note}:")
         for _, row in buys.iterrows():
             response_lines.append(f"- {row['date'].strftime('%Y-%m-%d')}: **{row['shares']:,.2f} shares** for **${-row['amount']:,.2f}**")
         total_spent = -buys['amount'].sum()
@@ -1154,8 +1277,8 @@ def handle_transaction_query(entity_name, entity_type, text, data, horizon):
     elif query_type == "sell":
         sells = ticker_tx[ticker_tx["amount"] > 0]
         if sells.empty:
-            return f"No sell transactions found for **{entity_name}**."
-        response_lines.append(f"**Sell Transactions for {entity_name}**:")
+            return f"No sell transactions found for **{entity_name}**{closed_note}."
+        response_lines.append(f"**Sell Transactions for {entity_name}**{closed_note}:")
         for _, row in sells.iterrows():
             response_lines.append(f"- {row['date'].strftime('%Y-%m-%d')}: **{row['shares']:,.2f} shares** for **${row['amount']:,.2f}**")
         total_proceeds = sells['amount'].sum()
@@ -1163,10 +1286,10 @@ def handle_transaction_query(entity_name, entity_type, text, data, horizon):
 
     elif query_type == "net":
         net_invested = -ticker_tx["amount"].sum()
-        return f"The net amount invested in **{entity_name}** is **${net_invested:,.2f}**."
+        return f"The net amount invested in **{entity_name}**{closed_note} is **${net_invested:,.2f}**."
 
     else: # "all" transactions
-        response_lines.append(f"**All Transactions for {entity_name}**:")
+        response_lines.append(f"**All Transactions for {entity_name}**{closed_note}:")
         for _, row in ticker_tx.iterrows():
             tx_type = "Buy" if row['amount'] < 0 else "Sell"
             abs_amount = abs(row['amount'])
@@ -1492,10 +1615,17 @@ def handle_benchmark_query(text, data, horizon):
     except Exception as e:
         return f"Error calculating benchmark comparison: {str(e)}"
 
-def handle_rebalancing_query(text, data):
+def handle_rebalancing_query(text, data, context=None):
     """
     Handles rebalancing intents like "what should i buy with $500" or "what can i sell".
+    
+    Supports contextual pronouns (e.g., "Should I sell it?" where "it" refers to
+    the previously discussed ticker from conversation context).
     """
+    # Resolve pronouns if context is provided
+    if context:
+        text = _resolve_pronouns(text, context)
+    
     # 1. Extract Amount
     # Look for $X or X dollars or just numbers if context implies
     amount = 0
@@ -1537,15 +1667,17 @@ def handle_rebalancing_query(text, data):
             
     return "\n".join(response)
 
-def process_data_query(text, context=None):
+def process_data_query(text, context=None, force_history=False):
     """
     Master Dispatcher for Data Queries.
     """
     try:
         data = dw.get_data()
         if not data: return None, "Data is currently unavailable.", context
-            
-        text_norm = normalize_text(text)
+        
+        # Get all known tickers for synonym protection
+        all_tickers = _get_all_known_tickers(data)
+        text_norm = normalize_text(text, all_tickers)
         
         # --- CONTEXT MANAGEMENT (Improvement 2) ---
         context = context or {}
@@ -1571,12 +1703,22 @@ def process_data_query(text, context=None):
         new_metric = extract_metric(text_norm)
         resolved_metric = new_metric if new_metric else last_metric
         
+        # Force Portfolio Context for specific metrics that are usually portfolio-level
+        # even if an entity is mentioned (e.g. "Portfolio Beta vs SPY" -> SPY is benchmark, not subject)
+        if resolved_metric in ["beta", "sharpe", "sortino", "drawdown", "te"]:
+             resolved_entity = None
+             resolved_entity_type = None
+        
         # --- STRATEGIC INTENT BRANCH (NEW) ---
         # Check if this is an advisory/strategic query about a ticker
         is_strategic = any(k in text_norm for k in STRATEGIC_KEYWORDS)
         
         # EXCEPTION: If the user is asking for transactions (buys/sells), it's NOT strategic
         if resolved_metric in ["transaction", "net_invested"]:
+            is_strategic = False
+            
+        # EXCEPTION: If force_history is True (past tense), disable strategic analysis
+        if force_history:
             is_strategic = False
             
         if is_strategic and new_entity and new_entity_type == "ticker":
@@ -1590,6 +1732,7 @@ def process_data_query(text, context=None):
         # Special Case: If resolving to default/context, ensure we don't accidentally
         # apply an entity context to a portfolio-wide query (e.g. "Total value").
         is_portfolio_query = any(x in text_norm for x in ["portfolio", "total", "cash", "account", "flows", "benchmark", "excess return"])
+        
         if is_portfolio_query:
             # If explicitly asking for portfolio, ignore entity context for this query,
             # BUT we might want to keep the context for later? 
@@ -1736,30 +1879,93 @@ def parse_intent(text, pathname=None, context=None):
     try:
         # Pre-process
         raw_text = text.lower().strip()
-        text_norm = normalize_text(raw_text)
         context = context or {}
         
         current_page = pathname.strip("/").lower() if pathname else "overview"
         if not current_page: current_page = "overview"
 
-        # --- PRIORITY 0: REBALANCING (New) ---
-        # Check for "should i buy", "what to buy", "invest", "rebalance"
-        # BUT exclude if a horizon is present (e.g. "what did i buy YTD")
+        # --- GET ALL VALID TICKERS (for synonym protection) ---
+        data = dw.get_data()
+        all_tickers = _get_all_known_tickers(data)
+        
+        # Normalize text AFTER getting tickers (for synonym protection)
+        text_norm = normalize_text(raw_text, all_tickers)
+        
+        # --- PRIORITY 0A: SPECIFIC TAX SIMULATION (Sell 10 AAPL) ---
+        # Check for specific sell commands BEFORE generic rebalancing triggers
+        # Pattern: "sell X TICKER" or "sell TICKER X" with explicit share count
+        specific_sell_match = re.search(
+            r"(?:sell|simulate|dump)\s+(\d+)\s+(?:shares?\s+(?:of\s+)?)?([a-z0-9\-\.]+)", 
+            raw_text
+        ) or re.search(
+            r"(?:sell|simulate|dump)\s+([a-z0-9\-\.]+)\s+(\d+)", 
+            raw_text
+        )
+        if specific_sell_match:
+            # Route to tax simulation, not rebalancing
+            tax_response = handle_tax_query(text_norm)
+            if tax_response:
+                return None, tax_response, context
+
+        # --- PRIORITY 0B: HISTORY vs. REBALANCING INTENT DISAMBIGUATION ---
+        # Past-tense indicators signal HISTORY queries (what did I do?)
+        # Future/advisory indicators signal REBALANCING queries (what should I do?)
+        
+        past_tense_markers = [
+            "did i", "have i", "bought", "sold", "purchased", "history", 
+            "transactions", "trades", "was", "were", "had", "when did",
+            "what did", "how much did", "previously", "last", "ago", "invested"
+        ]
+        
+        future_advisory_markers = [
+            "should i", "what should", "what to", "what can i", "recommend", 
+            "invest", "deploy", "rebalance", "allocate", "advice", "suggestion"
+        ]
+        
+        is_past_tense = any(marker in raw_text for marker in past_tense_markers)
+        is_future_advisory = any(marker in raw_text for marker in future_advisory_markers)
         
         horizon_found = parse_horizon(text)
-        rebal_triggers = ["should i", "what to", "what can i", "invest", "deploy", "rebalance", "allocate", "buy", "sell"]
-        is_rebal_intent = any(x in text_norm for x in rebal_triggers)
         
-        # If it looks like a rebalancing question AND has no specific time horizon (which implies history)
-        if is_rebal_intent and not horizon_found:
-             # Double check for past tense to be safe
-             past_tense = ["did i", "have i", "bought", "sold", "history", "transactions", "trades", "was"]
-             if not any(x in text_norm for x in past_tense):
-                 return None, handle_rebalancing_query(text_norm, dw.get_data()), context
+        # RULE: Past-tense queries ALWAYS take priority over rebalancing
+        # Even if "buy"/"sell" keywords are present (e.g., "what did I buy?")
+        if is_past_tense and not is_future_advisory:
+            # This is a history/transaction query - let it flow to data handlers
+            pass  # Skip rebalancing check
+        elif is_future_advisory and not is_past_tense:
+            # This is a rebalancing/advisory query
+            # Resolve pronoun context for "it" (e.g., "Should I sell it?")
+            resolved_text = _resolve_pronouns(text_norm, context)
+            
+            # EXCEPTION: If a specific ticker is mentioned, prefer Strategic Analysis (process_data_query)
+            # unless it's a clear "what to buy" (rebalancing) query without a ticker.
+            # "Should I sell AAPL?" -> Strategic
+            # "What should I buy?" -> Rebalancing
+            # We check if any known ticker is in the text.
+            has_ticker = False
+            for t in all_tickers:
+                if re.search(r"\b" + re.escape(t.lower()) + r"\b", resolved_text):
+                    has_ticker = True
+                    break
+            
+            if has_ticker:
+                # Let it fall through to process_data_query which handles strategic intent
+                pass
+            else:
+                return None, handle_rebalancing_query(resolved_text, data, context), context
+        elif not is_past_tense and not horizon_found:
+            # Ambiguous but no past markers and no horizon - check for rebal triggers
+            rebal_triggers = ["buy", "sell", "rebalance", "allocate"]
+            if any(x in text_norm for x in rebal_triggers):
+                # Additional check: If there's a specific ticker mentioned without past tense,
+                # and strategic keywords, treat as rebalancing
+                if any(k in text_norm for k in STRATEGIC_KEYWORDS):
+                    resolved_text = _resolve_pronouns(text_norm, context)
+                    return None, handle_rebalancing_query(resolved_text, data, context), context
 
         # --- PRIORITY 1: DATA QUERIES (Numeric Answers) ---
         # We process this first so questions like "portfolio return" get numbers, not definitions.
-        cmd, data_response, updated_context = process_data_query(text, context)
+        cmd, data_response, updated_context = process_data_query(text, context, force_history=is_past_tense)
         if data_response:
             # We must be careful: process_data_query fallthrough is "Portfolio Value".
             # Only return if it actually matched something specific or if it's a clear data query.
