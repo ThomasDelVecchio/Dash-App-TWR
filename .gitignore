@@ -4,6 +4,7 @@ Archive/
 Output/
 __pycache__/
 .vscode/
+.github/
 
 # --- SECRETS ---
 .env
