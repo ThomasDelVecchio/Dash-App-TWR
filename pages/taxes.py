@@ -234,9 +234,8 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy, date_range):
             col_defs = []
             for c in cliff_display.columns:
                 if c == "Ticker":
-                    cd = ticker_col_def.copy()
-                    cd["field"] = c
-                    cd["headerName"] = c
+                    # Unpinned Ticker for Cliff Watch to ensure flex fit
+                    cd = {"field": c, "headerName": c, "sortable": True, "filter": True}
                 else:
                     cd = {"field": c, "headerName": c}
                 
@@ -260,7 +259,6 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy, date_range):
                 rowData=cliff_display.to_dict("records"),
                 columnDefs=col_defs,
                 defaultColDef=default_col_def,
-                columnSize="autoSize",
                 className=f"{grid_theme} audit-target",
                 dashGridOptions={"domLayout": "autoHeight"},
                 style={"height": "400px", "width": "100%"},
