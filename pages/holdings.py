@@ -102,15 +102,18 @@ def update_holdings(signal, theme, filters, chat_cmd, include_exited):
     column_defs = []
     
     for col in df.columns:
+        # Format Header Name: capitalize first letters and replace underscores/hyphens
+        header_name = col.replace('_', ' ').replace('-', ' ').title()
+        
         col_def = {
             "field": col, 
-            "headerName": col, 
+            "headerName": header_name, 
             "comparator": {"function": "MoneyComparator"}
         }
 
-        # Manual Column Sizing (Fix Truncation)
+        # Manual Column Sizing (Match Performance Page)
         if col == "asset_class":
-             col_def["minWidth"] = 180
+             col_def["minWidth"] = 190
         elif col == "market_value":
              col_def["minWidth"] = 150
         elif col in ["first_date", "last_date", "days_held"]:

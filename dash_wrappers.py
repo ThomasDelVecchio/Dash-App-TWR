@@ -1529,7 +1529,9 @@ def get_smart_attribution_chart(data, theme="light"):
         template="plotly_white" if theme == "light" else "plotly_dark",
         margin=dict(l=40, r=40, t=80, b=40), # Increased top margin (t) to 80
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        xaxis_title="Period"
+        xaxis_title="Period",
+        xaxis=dict(type='category'),
+        bargap=0.3
     )
     # Ensure text labels don't clip at the axis edge
     fig.update_traces(selector=dict(type='bar'), cliponaxis=False)

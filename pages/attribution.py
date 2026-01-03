@@ -134,7 +134,7 @@ def update_attribution_detail(click_data, figure, theme):
             id="attribution-drill-grid",
             rowData=breakdown_df.to_dict("records"),
             columnDefs=[
-                {"field": "Asset Class"},
+                {"field": "Asset Class", "minWidth": 185},
                 {"field": "Effect Fmt", "headerName": "Effect ($)", "type": "rightAligned", "sort": "desc", "comparator": {"function": "MoneyComparator"}},
                 {"field": "Contrib Fmt", "headerName": "Contribution (%)", "type": "rightAligned", "comparator": {"function": "MoneyComparator"},
                  "cellStyle": {"styleConditions": [
@@ -226,7 +226,7 @@ def update_si_attribution(signal, theme):
         id="attribution-si-grid",
         rowData=df.to_dict("records"),
         columnDefs=[
-            {"field": "Asset Class"},
+            {"field": "Asset Class", "minWidth": 185},
             {"field": "Effect Fmt", "headerName": "Effect ($)", "type": "rightAligned", "sort": "desc", "comparator": {"function": "MoneyComparator"}},
             {"field": "Contrib Fmt", "headerName": "Contribution (%)", "type": "rightAligned", "comparator": {"function": "MoneyComparator"},
              "cellStyle": {"styleConditions": [

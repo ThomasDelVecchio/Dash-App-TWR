@@ -578,12 +578,9 @@ def update_growth_analysis(signal, theme, dates, selected_ac, chat_cmd, _filters
             for col in table_df.columns:
                 col_def = {"field": col, "headerName": col}
                 
-                # Freeze First Column and ensure mobile readability
+                # Ensure minimum width for first column
                 if col == "Asset Class":
-                    col_def["pinned"] = "left"
                     col_def["minWidth"] = 180
-                    col_def["lockPinned"] = True
-                    col_def["cellClass"] = "lock-pinned"
 
                 # Hide Meta Columns
                 if col.startswith("meta_"):
