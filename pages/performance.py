@@ -291,7 +291,6 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
             rowData=rows,
             columnDefs=ret_column_defs,
             defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
-            columnSize="autoSize",
             className="ag-theme-alpine-dark audit-target",
             dashGridOptions={
                 "domLayout": "autoHeight",
@@ -448,7 +447,6 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
             rowData=pl_table_data,
             columnDefs=pl_column_defs,
             defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
-            columnSize="autoSize",
             className="ag-theme-alpine-dark audit-target",
             dashGridOptions={
                 "domLayout": "autoHeight",
@@ -620,7 +618,6 @@ def update_growth_analysis(signal, theme, dates, selected_ac, chat_cmd, _filters
                     rowData=main_rows,
                     columnDefs=growth_column_defs,
                     defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
-                    columnSize="autoSize",
                     className="ag-theme-alpine-dark audit-target",
                     dashGridOptions={
                         "domLayout": "autoHeight",

@@ -153,16 +153,16 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy, date_range):
         "sortable": True,
         "filter": True,
         "resizable": True,
-        "minWidth": 150,  # Increased from 140 to prevent truncation on mobile
+        "minWidth": 110,
         "flex": 1,
-        "suppressSizeToFit": True, # Ensure minWidth is respected over fitting to container
     }
     
     ticker_col_def = {
         "pinned": "left",
         "lockPinned": True,
         "cellClass": "lock-pinned",
-        "minWidth": 40,
+        "width": 110,
+        "suppressSizeToFit": True,
         "sortable": True,
         "filter": True
     }
@@ -234,10 +234,15 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy, date_range):
             col_defs = []
             for c in cliff_display.columns:
                 if c == "Ticker":
-                    # Unpinned Ticker for Cliff Watch to ensure flex fit
-                    cd = {"field": c, "headerName": c, "sortable": True, "filter": True}
+                    cd = ticker_col_def.copy()
+                    cd["field"] = c
+                    cd["headerName"] = c
+                    cd["pinned"] = None # Ensure unpinned for Cliff Watch
+                    cd["lockPinned"] = False
                 else:
-                    cd = {"field": c, "headerName": c}
+                    # Manual Sizing for Cliff Watch
+                    min_w = 140 if c == "Unrealized P/L" else 110
+                    cd = {"field": c, "headerName": c, "minWidth": min_w}
                 
                 if c in ["Unrealized P/L", "Shares"]:
                     cd["comparator"] = {"function": "MoneyComparator"}
@@ -307,7 +312,6 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy, date_range):
                 rowData=harvest_display.to_dict("records"),
                 columnDefs=col_defs,
                 defaultColDef=default_col_def,
-                columnSize="autoSize",
                 className=f"{grid_theme} audit-target",
                 dashGridOptions={"domLayout": "autoHeight"},
                 style={"height": "400px", "width": "100%"},
@@ -359,7 +363,6 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy, date_range):
             rowData=explorer_df.to_dict("records"),
             columnDefs=col_defs,
             defaultColDef=default_col_def,
-            columnSize="autoSize",
             className=f"{grid_theme} audit-target",
             dashGridOptions={"domLayout": "autoHeight", "pagination": True, "paginationPageSize": 20},
             style={"height": "600px", "width": "100%"},
@@ -404,7 +407,6 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy, date_range):
             rowData=realized_df.to_dict("records"),
             columnDefs=col_defs,
             defaultColDef=default_col_def,
-            columnSize="autoSize",
             className=f"{grid_theme} audit-target",
             dashGridOptions={"domLayout": "autoHeight", "pagination": True, "paginationPageSize": 20},
             style={"height": "600px", "width": "100%"},

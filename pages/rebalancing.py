@@ -389,7 +389,7 @@ def update_deployment(cash_to_deploy, allow_sales, signal, theme, tax_strategy):
     })
     
     column_defs = [
-        {"field": "Ticker", "headerName": "Ticker", "pinned": "left", "minWidth": 40, "lockPinned": True, "cellClass": "lock-pinned"},
+        {"field": "Ticker", "headerName": "Ticker", "pinned": "left", "width": 110, "suppressSizeToFit": True, "lockPinned": True, "cellClass": "lock-pinned"},
         {"field": "Asset_Class", "headerName": "Asset Class", "minWidth": 150},
         {"field": "Current_Pct", "headerName": "Current %", "minWidth": 120},
         {"field": "Target_Pct", "headerName": "Target %", "minWidth": 120},
@@ -431,8 +431,7 @@ def update_deployment(cash_to_deploy, allow_sales, signal, theme, tax_strategy):
         id="deployment-grid",
         rowData=display_df.to_dict("records"),
         columnDefs=column_defs,
-        defaultColDef={"sortable": True, "filter": True, "resizable": True, "flex": 1, "minWidth": 100},
-        columnSize="autoSize",
+        defaultColDef={"sortable": True, "filter": True, "resizable": True, "flex": 1, "minWidth": 110},
         className="ag-theme-alpine-dark audit-target" if theme == "dark" else "ag-theme-alpine audit-target",
         dashGridOptions={"domLayout": "autoHeight"},
         style={"width": "100%"}
@@ -629,21 +628,20 @@ def build_cliff_watch(target_df, theme):
     cliff_df = pd.DataFrame(cliff_data)
     
     column_defs = [
-        {"field": "Ticker", "headerName": "Ticker", "pinned": "left", "minWidth": 40, "lockPinned": True, "cellClass": "lock-pinned"},
+        {"field": "Ticker", "headerName": "Ticker", "pinned": "left", "width": 110, "suppressSizeToFit": True, "lockPinned": True, "cellClass": "lock-pinned"},
         {"field": "Buy_Amount", "headerName": "Investment", "minWidth": 120},
-        {"field": "Shares", "headerName": "Shares", "minWidth": 100},
+        {"field": "Shares", "headerName": "Shares", "minWidth": 110},
         {"field": "Purchase_Date", "headerName": "Buy Date", "minWidth": 120},
         {"field": "LT_Cliff_Date", "headerName": "Long-Term Date", "minWidth": 150,
          "cellStyle": {"color": "#FFD700", "fontWeight": "bold"}},
-        {"field": "Days_to_LT", "headerName": "Days to LT", "minWidth": 100},
+        {"field": "Days_to_LT", "headerName": "Days to LT", "minWidth": 110},
     ]
     
     cliff_table = dag.AgGrid(
         id="cliff-watch-grid",
         rowData=cliff_df.to_dict("records"),
         columnDefs=column_defs,
-        defaultColDef={"sortable": True, "filter": True, "resizable": True, "flex": 1, "minWidth": 100},
-        columnSize="autoSize",
+        defaultColDef={"sortable": True, "filter": True, "resizable": True, "flex": 1, "minWidth": 110},
         className="ag-theme-alpine-dark" if theme == "dark" else "ag-theme-alpine",
         dashGridOptions={"domLayout": "autoHeight"},
         style={"width": "100%"}
