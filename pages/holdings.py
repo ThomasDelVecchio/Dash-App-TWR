@@ -108,6 +108,14 @@ def update_holdings(signal, theme, filters, chat_cmd, include_exited):
             "comparator": {"function": "MoneyComparator"}
         }
         
+        # Freeze First Column and ensure mobile readability
+        if col == "ticker":
+            col_def["headerName"] = "Ticker"
+            col_def["pinned"] = "left"
+            col_def["lockPinned"] = True
+            col_def["cellClass"] = "lock-pinned"
+            col_def["minWidth"] = 40
+        
         # Hide Audit Meta Columns
         if col.startswith("meta_"):
             col_def["hide"] = True
@@ -162,7 +170,7 @@ def update_holdings(signal, theme, filters, chat_cmd, include_exited):
             id="holdings-grid",
             rowData=df_display.to_dict('records'),
             columnDefs=column_defs,
-            defaultColDef={"minWidth": 100, "sortable": True, "filter": True, "resizable": True},
+            defaultColDef={"minWidth": 60, "sortable": True, "filter": True, "resizable": True},
             columnSize="autoSize",
             className="ag-theme-alpine-dark audit-target",
             dashGridOptions={"domLayout": "autoHeight"}

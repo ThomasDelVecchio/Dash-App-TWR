@@ -138,9 +138,10 @@ layout = html.Div([
     [Input("data-signal", "data"),
      Input("theme-store", "data"),
      Input("chatbot-command", "data"),
-     Input("tax-strategy-store", "data")]
+     Input("tax-strategy-store", "data"),
+     Input("date-range-store", "data")]
 )
-def update_tax_dashboard(signal, theme, chat_cmd, strategy):
+def update_tax_dashboard(signal, theme, chat_cmd, strategy, date_range):
     # Load Fresh Data
     strategy = strategy or "FIFO"
     open_lots, realized_events = build_tax_lots(strategy=strategy, signal=signal)
@@ -152,8 +153,18 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
         "sortable": True,
         "filter": True,
         "resizable": True,
-        "minWidth": 140,  # Increased from 100 for better mobile readability
+        "minWidth": 150,  # Increased from 140 to prevent truncation on mobile
         "flex": 1,
+        "suppressSizeToFit": True, # Ensure minWidth is respected over fitting to container
+    }
+    
+    ticker_col_def = {
+        "pinned": "left",
+        "lockPinned": True,
+        "cellClass": "lock-pinned",
+        "minWidth": 40,
+        "sortable": True,
+        "filter": True
     }
     
     # --- CHATBOT PARAMS ---
@@ -161,9 +172,18 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
     chat_target = chat_cmd.get("params", {}).get("target", "").lower() if chat_cmd else ""
 
     # 1. KPIs
+    # Determine reference year from Time Machine (date_range)
+    if date_range and date_range.get("end"):
+        ref_year = pd.to_datetime(date_range["end"]).year
+    else:
+        ref_year = pd.Timestamp.now().year
+
     if not realized_events.empty:
+        # Filter for reference year (YTD)
+        realized_ytd = realized_events[realized_events["Date Sold"].dt.year == ref_year]
+        
         # Sum Tax Impact
-        ytd_bill = realized_events["Tax Impact"].sum()
+        ytd_bill = realized_ytd["Tax Impact"].sum()
     else:
         ytd_bill = 0.0
         
@@ -213,7 +233,13 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
             
             col_defs = []
             for c in cliff_display.columns:
-                cd = {"field": c, "headerName": c}
+                if c == "Ticker":
+                    cd = ticker_col_def.copy()
+                    cd["field"] = c
+                    cd["headerName"] = c
+                else:
+                    cd = {"field": c, "headerName": c}
+                
                 if c in ["Unrealized P/L", "Shares"]:
                     cd["comparator"] = {"function": "MoneyComparator"}
                 
@@ -234,10 +260,10 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
                 rowData=cliff_display.to_dict("records"),
                 columnDefs=col_defs,
                 defaultColDef=default_col_def,
+                columnSize="autoSize",
                 className=f"{grid_theme} audit-target",
                 dashGridOptions={"domLayout": "autoHeight"},
                 style={"height": "400px", "width": "100%"},
-                # Removed columnSize="responsiveSizeToFit" to allow scrolling
             )
         else:
             cliff_grid = html.Div("No lots approaching the 1-year mark.", className="text-success p-2")
@@ -256,7 +282,13 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
             
             col_defs = []
             for c in harvest_display.columns:
-                cd = {"field": c, "headerName": c}
+                if c == "Ticker":
+                    cd = ticker_col_def.copy()
+                    cd["field"] = c
+                    cd["headerName"] = c
+                else:
+                    cd = {"field": c, "headerName": c, "minWidth": 160 if "Unrealized" in c else 150}
+                
                 if c in ["Shares", "Cost Basis", "Market Value", "Unrealized P/L"]:
                     cd["comparator"] = {"function": "MoneyComparator"}
                 
@@ -277,10 +309,10 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
                 rowData=harvest_display.to_dict("records"),
                 columnDefs=col_defs,
                 defaultColDef=default_col_def,
+                columnSize="autoSize",
                 className=f"{grid_theme} audit-target",
                 dashGridOptions={"domLayout": "autoHeight"},
                 style={"height": "400px", "width": "100%"},
-                # Removed columnSize="responsiveSizeToFit" to allow scrolling
             )
         else:
             harvest_grid = html.Div("No unrealized losses found. Great job!", className="text-success p-2")
@@ -299,7 +331,17 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
         col_defs = []
         for c in explorer_df.columns:
             hide = c in cols_hide
-            cd = {"field": c, "headerName": c, "hide": hide}
+            # Ensure currency and long header columns have extra width to prevent truncation
+            min_w = 180 if c in cols_currency or len(c) > 12 else 150
+            
+            if c == "Ticker":
+                cd = ticker_col_def.copy()
+                cd["field"] = c
+                cd["headerName"] = c
+                cd["hide"] = hide
+            else:
+                cd = {"field": c, "headerName": c, "hide": hide, "minWidth": min_w}
+                
             if c in cols_currency:
                 cd["comparator"] = {"function": "MoneyComparator"}
                 cd["valueFormatter"] = {"function": "d3.format('$,.2f')(params.value)"}
@@ -319,10 +361,10 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
             rowData=explorer_df.to_dict("records"),
             columnDefs=col_defs,
             defaultColDef=default_col_def,
+            columnSize="autoSize",
             className=f"{grid_theme} audit-target",
             dashGridOptions={"domLayout": "autoHeight", "pagination": True, "paginationPageSize": 20},
             style={"height": "600px", "width": "100%"},
-            # Removed columnSize="responsiveSizeToFit" to allow scrolling
         )
     else:
         grid_open = html.Div("No open lots.", className="p-3")
@@ -338,7 +380,13 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
         cols_currency = ["Realized P/L", "Tax Impact"]
         col_defs = []
         for c in realized_df.columns:
-            cd = {"field": c, "headerName": c}
+            if c == "Ticker":
+                cd = ticker_col_def.copy()
+                cd["field"] = c
+                cd["headerName"] = c
+            else:
+                cd = {"field": c, "headerName": c}
+                
             if c in cols_currency:
                 cd["comparator"] = {"function": "MoneyComparator"}
                 cd["valueFormatter"] = {"function": "d3.format('$,.2f')(params.value)"}
@@ -358,10 +406,10 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
             rowData=realized_df.to_dict("records"),
             columnDefs=col_defs,
             defaultColDef=default_col_def,
+            columnSize="autoSize",
             className=f"{grid_theme} audit-target",
             dashGridOptions={"domLayout": "autoHeight", "pagination": True, "paginationPageSize": 20},
             style={"height": "600px", "width": "100%"},
-            # Removed columnSize="responsiveSizeToFit" to allow scrolling
         )
     else:
         grid_realized = html.Div("No realized events YTD.", className="p-3")
@@ -372,7 +420,10 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy):
     ], active_tab="tab-open")
 
     # 5. Charts
-    sunburst_fig = dw.get_tax_liability_sunburst(open_lots, realized_events, theme=theme)
+    # Filter realized events for the Sunburst to match the reference year
+    realized_sunburst = realized_events[realized_events["Date Sold"].dt.year == ref_year] if not realized_events.empty else realized_events
+    
+    sunburst_fig = dw.get_tax_liability_sunburst(open_lots, realized_sunburst, theme=theme)
     radar_fig = dw.get_tax_tactical_radar(open_lots, theme=theme)
 
     return (

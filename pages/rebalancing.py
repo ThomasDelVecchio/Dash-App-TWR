@@ -389,28 +389,28 @@ def update_deployment(cash_to_deploy, allow_sales, signal, theme, tax_strategy):
     })
     
     column_defs = [
-        {"field": "Ticker", "headerName": "Ticker", "pinned": "left", "minWidth": 90},
-        {"field": "Asset_Class", "headerName": "Asset Class", "minWidth": 120},
-        {"field": "Current_Pct", "headerName": "Current %", "minWidth": 100},
-        {"field": "Target_Pct", "headerName": "Target %", "minWidth": 100},
-        {"field": "Drift", "headerName": "Drift", "minWidth": 100, 
+        {"field": "Ticker", "headerName": "Ticker", "pinned": "left", "minWidth": 40, "lockPinned": True, "cellClass": "lock-pinned"},
+        {"field": "Asset_Class", "headerName": "Asset Class", "minWidth": 150},
+        {"field": "Current_Pct", "headerName": "Current %", "minWidth": 120},
+        {"field": "Target_Pct", "headerName": "Target %", "minWidth": 120},
+        {"field": "Drift", "headerName": "Drift", "minWidth": 120, 
          "cellStyle": {"styleConditions": [
              {"condition": "params.value.includes('-')", "style": {"color": "#dc3545"}}, # Negative drift
              {"condition": "!params.value.includes('-')", "style": {"color": "#ffc107"}}
          ]}},
-        {"field": "Action", "headerName": "Action", "minWidth": 90,
+        {"field": "Action", "headerName": "Action", "minWidth": 120,
          "cellStyle": {"styleConditions": [
              {"condition": "params.value == 'Buy'", "style": {"color": "#28a745", "fontWeight": "bold"}},
              {"condition": "params.value == 'Sell'", "style": {"color": "#dc3545", "fontWeight": "bold"}}
          ]}},
-        {"field": "Amount", "headerName": "Amount", "minWidth": 120,
+        {"field": "Amount", "headerName": "Amount", "minWidth": 150,
          "cellStyle": {"styleConditions": [
              {"condition": "params.data.meta_amount > 0", "style": {"color": "#28a745"}},
              {"condition": "params.data.meta_amount < 0", "style": {"color": "#dc3545"}}
          ]}},
-        {"field": "Shares", "headerName": "Shares", "minWidth": 100},
-        {"field": "Tax_Impact", "headerName": "Est. Tax", "minWidth": 110},
-        {"field": "ProForma_Pct", "headerName": "Pro-Forma %", "minWidth": 110},
+        {"field": "Shares", "headerName": "Shares", "minWidth": 120},
+        {"field": "Tax_Impact", "headerName": "Est. Tax", "minWidth": 140},
+        {"field": "ProForma_Pct", "headerName": "Pro-Forma %", "minWidth": 140},
         
         # Hidden Meta Columns
         {"field": "meta_amount", "hide": True},
@@ -432,6 +432,7 @@ def update_deployment(cash_to_deploy, allow_sales, signal, theme, tax_strategy):
         rowData=display_df.to_dict("records"),
         columnDefs=column_defs,
         defaultColDef={"sortable": True, "filter": True, "resizable": True, "flex": 1, "minWidth": 100},
+        columnSize="autoSize",
         className="ag-theme-alpine-dark audit-target" if theme == "dark" else "ag-theme-alpine audit-target",
         dashGridOptions={"domLayout": "autoHeight"},
         style={"width": "100%"}
@@ -628,7 +629,7 @@ def build_cliff_watch(target_df, theme):
     cliff_df = pd.DataFrame(cliff_data)
     
     column_defs = [
-        {"field": "Ticker", "headerName": "Ticker", "minWidth": 100},
+        {"field": "Ticker", "headerName": "Ticker", "pinned": "left", "minWidth": 40, "lockPinned": True, "cellClass": "lock-pinned"},
         {"field": "Buy_Amount", "headerName": "Investment", "minWidth": 120},
         {"field": "Shares", "headerName": "Shares", "minWidth": 100},
         {"field": "Purchase_Date", "headerName": "Buy Date", "minWidth": 120},
@@ -642,6 +643,7 @@ def build_cliff_watch(target_df, theme):
         rowData=cliff_df.to_dict("records"),
         columnDefs=column_defs,
         defaultColDef={"sortable": True, "filter": True, "resizable": True, "flex": 1, "minWidth": 100},
+        columnSize="autoSize",
         className="ag-theme-alpine-dark" if theme == "dark" else "ag-theme-alpine",
         dashGridOptions={"domLayout": "autoHeight"},
         style={"width": "100%"}

@@ -243,6 +243,13 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
             "comparator": {"function": "GroupedRowComparator"}
         }
         
+        # Freeze First Column and ensure mobile readability
+        if col == "Asset Class / Ticker":
+            col_def["pinned"] = "left"
+            col_def["minWidth"] = 180
+            col_def["lockPinned"] = True
+            col_def["cellClass"] = "lock-pinned"
+        
         # Chatbot Sort
         if chat_action == "SORT" and is_ret_target:
              target_col = chat_cmd["params"].get("column", "").lower()
@@ -265,6 +272,7 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
         # Enable sorting for Risk Metrics
         if "Sharpe" in col or "Vol" in col:
             col_def["sortable"] = True
+            col_def["minWidth"] = 150 # Increased width for Sharpe/Vol
             
         ret_column_defs.append(col_def)
         
@@ -283,7 +291,7 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
             rowData=rows,
             columnDefs=ret_column_defs,
             defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
-            # columnSize="sizeToFit", # Removed for mobile scrolling
+            columnSize="autoSize",
             className="ag-theme-alpine-dark audit-target",
             dashGridOptions={
                 "domLayout": "autoHeight",
@@ -399,6 +407,13 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
             "comparator": {"function": "GroupedRowComparator"}
         }
         
+        # Freeze First Column and ensure mobile readability
+        if col == "Asset Class / Ticker":
+            col_def["pinned"] = "left"
+            col_def["minWidth"] = 180
+            col_def["lockPinned"] = True
+            col_def["cellClass"] = "lock-pinned"
+        
         # Chatbot Sort
         if chat_action == "SORT" and is_pl_target:
              target_col = chat_cmd["params"].get("column", "").lower()
@@ -433,7 +448,7 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
             rowData=pl_table_data,
             columnDefs=pl_column_defs,
             defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
-            # columnSize="sizeToFit", # Removed for mobile scrolling
+            columnSize="autoSize",
             className="ag-theme-alpine-dark audit-target",
             dashGridOptions={
                 "domLayout": "autoHeight",
@@ -565,6 +580,13 @@ def update_growth_analysis(signal, theme, dates, selected_ac, chat_cmd, _filters
             for col in table_df.columns:
                 col_def = {"field": col, "headerName": col}
                 
+                # Freeze First Column and ensure mobile readability
+                if col == "Asset Class":
+                    col_def["pinned"] = "left"
+                    col_def["minWidth"] = 180
+                    col_def["lockPinned"] = True
+                    col_def["cellClass"] = "lock-pinned"
+
                 # Hide Meta Columns
                 if col.startswith("meta_"):
                     col_def["hide"] = True
@@ -598,7 +620,7 @@ def update_growth_analysis(signal, theme, dates, selected_ac, chat_cmd, _filters
                     rowData=main_rows,
                     columnDefs=growth_column_defs,
                     defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
-                    # columnSize="sizeToFit", # Removed for mobile scrolling
+                    columnSize="autoSize",
                     className="ag-theme-alpine-dark audit-target",
                     dashGridOptions={
                         "domLayout": "autoHeight",

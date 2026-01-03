@@ -156,3 +156,36 @@ mjx-container > svg {
     color: #888;
     margin-top: 1rem;
 }
+
+/* Ensure AgGrid handles horizontal overflow within cards, especially on mobile */
+.card-body .ag-root-wrapper {
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* Optional: Ensure the grid has enough space to show scrollbars if needed */
+.card-body .ag-body-viewport {
+    overflow-x: auto !important;
+}
+
+/* Frozen column styling for visual separation */
+.lock-pinned {
+    background-color: var(--card-bg) !important;
+    border-right: 2px solid rgba(128, 128, 128, 0.3) !important;
+    font-weight: 500;
+}
+
+[data-theme="dark"] .lock-pinned {
+    background-color: #333 !important;
+    border-right: 2px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Ensure AG Grid horizontal scroll is always accessible on small screens */
+@media (max-width: 768px) {
+    .ag-theme-alpine, .ag-theme-alpine-dark {
+        --ag-grid-size: 6px; /* Slightly tighter on mobile */
+    }
+    .ag-header-cell-label {
+        white-space: normal;
+    }
+}
