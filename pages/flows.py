@@ -37,12 +37,11 @@ layout = html.Div([
      Output('internal-flows-table-container', 'children'),
      Output({'type': 'filter-chart', 'index': 'flows-chart'}, 'figure')],
     [Input('data-signal', 'data'),
-     Input('theme-store', 'data'),
      Input('chatbot-command', 'data'),
      Input('filter-store', 'data'),
      Input('include-exited-store', 'data')]
 )
-def update_flows(signal, theme, chat_cmd, _filters, include_exited):
+def update_flows(signal, chat_cmd, _filters, include_exited):
     data = dw.get_data()
     if not data: return "Loading...", "Loading...", {}
     
@@ -217,6 +216,6 @@ def update_flows(signal, theme, chat_cmd, _filters, include_exited):
     )
     
     # Chart
-    fig = dw.get_flows_chart(data, theme)
+    fig = dw.get_flows_chart(data, "dark")
     
     return ext_table, int_table, fig

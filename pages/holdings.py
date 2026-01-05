@@ -33,12 +33,11 @@ layout = html.Div([
      Output({'type': 'filter-chart', 'index': 'ticker-pie-chart'}, 'figure'),
      Output({'type': 'filter-chart', 'index': 'ticker-bar-chart'}, 'figure')],
     [Input('data-signal', 'data'),
-     Input('theme-store', 'data'),
      Input('filter-store', 'data'),
      Input('chatbot-command', 'data'),
      Input('include-exited-store', 'data')]
 )
-def update_holdings(signal, theme, filters, chat_cmd, include_exited):
+def update_holdings(signal, filters, chat_cmd, include_exited):
     data = dw.get_data()
     if not data: return "Loading...", {}, {}
     
@@ -103,7 +102,10 @@ def update_holdings(signal, theme, filters, chat_cmd, include_exited):
     
     for col in df.columns:
         # Format Header Name: capitalize first letters and replace underscores/hyphens
-        header_name = col.replace('_', ' ').replace('-', ' ').title()
+        if col in return_cols:
+            header_name = col
+        else:
+            header_name = col.replace('_', ' ').replace('-', ' ').title()
         
         col_def = {
             "field": col, 
@@ -178,7 +180,7 @@ def update_holdings(signal, theme, filters, chat_cmd, include_exited):
                 df_display[c] = df_display[c].apply(lambda x: fmt_pct_clean(x) if pd.notna(x) else "N/A")
                 
     table = html.Div(
-        dag.AgGrid(
+                dag.AgGrid(
             id="holdings-grid",
             rowData=df_display.to_dict('records'),
             columnDefs=column_defs,
@@ -189,6 +191,6 @@ def update_holdings(signal, theme, filters, chat_cmd, include_exited):
     )
     
     # Charts
-    pie_fig, bar_fig = dw.get_ticker_allocation_charts(data, theme)
+    pie_fig, bar_fig = dw.get_ticker_allocation_charts(data, "dark")
     
     return table, pie_fig, bar_fig

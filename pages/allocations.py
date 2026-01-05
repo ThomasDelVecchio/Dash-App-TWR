@@ -55,11 +55,10 @@ layout = html.Div([
      Output('history-chart', 'figure'),
      Output('sector-data-source-container', 'children')],
     [Input('data-signal', 'data'),
-     Input('theme-store', 'data'),
      Input('chatbot-command', 'data'),
      Input('filter-store', 'data')]
 )
-def update_allocations(signal, theme, chat_cmd, _filters):
+def update_allocations(signal, chat_cmd, _filters):
     data = dw.get_data()
     if not data: return {}, "Loading...", {}, {}
     
@@ -70,7 +69,7 @@ def update_allocations(signal, theme, chat_cmd, _filters):
         chat_action = chat_cmd.get("action")
         chat_target = chat_cmd.get("params", {}).get("target", "").lower()
     
-    _, bar = dw.get_asset_allocation_charts(data, theme)
+    _, bar = dw.get_asset_allocation_charts(data, "dark")
     
     # Asset Class Allocation Table
     asset_class_df = dw.get_asset_class_allocation_table(data)
@@ -131,8 +130,8 @@ def update_allocations(signal, theme, chat_cmd, _filters):
             })
         ])
     
-    sector = dw.get_sector_allocation_chart(data, theme)
-    hist = dw.get_allocation_history_chart(data, theme)
+    sector = dw.get_sector_allocation_chart(data, "dark")
+    hist = dw.get_allocation_history_chart(data, "dark")
     
     # Data Source Badge
     source_summary = dw.get_data_source_summary(data)
@@ -170,17 +169,16 @@ def handle_drilldown_interaction(clickData, back_clicks, current_state):
 @callback(
     Output({'type': 'filter-chart', 'index': 'asset-pie-chart'}, 'figure'),
     [Input('data-signal', 'data'),
-     Input('alloc-drilldown-store', 'data'),
-     Input('theme-store', 'data')]
+     Input('alloc-drilldown-store', 'data')]
 )
-def update_allocations_pie(signal, drilldown_target, theme):
+def update_allocations_pie(signal, drilldown_target):
     data = dw.get_data()
     if not data: return {}
     
     if drilldown_target:
         # Drilldown View
-        return dw.get_asset_drilldown_chart(data, drilldown_target, theme)
+        return dw.get_asset_drilldown_chart(data, drilldown_target, "dark")
     else:
         # Overview View
-        pie, _ = dw.get_asset_allocation_charts(data, theme)
+        pie, _ = dw.get_asset_allocation_charts(data, "dark")
         return pie

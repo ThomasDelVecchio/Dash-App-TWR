@@ -136,17 +136,16 @@ layout = html.Div([
      Output("harvest-radar-container", "children"),
      Output("lot-explorer-container", "children")],
     [Input("data-signal", "data"),
-     Input("theme-store", "data"),
      Input("chatbot-command", "data"),
      Input("tax-strategy-store", "data"),
      Input("date-range-store", "data")]
 )
-def update_tax_dashboard(signal, theme, chat_cmd, strategy, date_range):
+def update_tax_dashboard(signal, chat_cmd, strategy, date_range):
     # Load Fresh Data
     strategy = strategy or "FIFO"
     open_lots, realized_events = build_tax_lots(strategy=strategy, signal=signal)
     
-    grid_theme = "ag-theme-alpine-dark" if theme == "dark" else "ag-theme-alpine"
+    grid_theme = "ag-theme-alpine-dark"
 
     # Default Col Def with formatting
     default_col_def = {
@@ -423,8 +422,8 @@ def update_tax_dashboard(signal, theme, chat_cmd, strategy, date_range):
     # Filter realized events for the Sunburst to match the reference year
     realized_sunburst = realized_events[realized_events["Date Sold"].dt.year == ref_year] if not realized_events.empty else realized_events
     
-    sunburst_fig = dw.get_tax_liability_sunburst(open_lots, realized_sunburst, theme=theme)
-    radar_fig = dw.get_tax_tactical_radar(open_lots, theme=theme)
+    sunburst_fig = dw.get_tax_liability_sunburst(open_lots, realized_sunburst, theme="dark")
+    radar_fig = dw.get_tax_tactical_radar(open_lots, theme="dark")
 
     return (
         kpi_realized, kpi_unrealized, kpi_harvest, kpi_efficiency, 

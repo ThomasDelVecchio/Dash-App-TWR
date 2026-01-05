@@ -79,14 +79,13 @@ layout = html.Div([
      Output('horizon-ret-table-container', 'children'),
      Output('horizon-pl-table-container', 'children')],
     [Input('data-signal', 'data'),
-     Input('theme-store', 'data'),
      Input('date-range-store', 'data'),
      Input('benchmark-store', 'data'),
      Input('chatbot-command', 'data'),
      Input('filter-store', 'data'),
      Input('include-exited-store', 'data')]
 )
-def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, include_exited):
+def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_exited):
     data = dw.get_data()
     if not data: return {}, {}, "Loading...", "Loading...", "N/A", "N/A"
     
@@ -102,8 +101,8 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
     bm_map = benchmarks if benchmarks else {"S&P 500": "SPY"}
     
     # 1. Charts
-    cum_fig = dw.get_cumulative_return_chart(data, start_date, bm_map, theme)
-    exc_fig = dw.get_excess_return_chart(data, bm_map, theme)
+    cum_fig = dw.get_cumulative_return_chart(data, start_date, bm_map, "dark")
+    exc_fig = dw.get_excess_return_chart(data, bm_map, "dark")
     
     # 2. Horizon Returns Table
     # Re-using the horizon analysis function from dash_wrappers which NOW includes Sharpe/Sortino
@@ -150,7 +149,7 @@ def update_performance(signal, theme, dates, benchmarks, chat_cmd, _filters, inc
     else:
          sec_table_display = data['sec_table_current']
     
-    horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "1Y", "SI"]
+    horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
     cols = ["Asset Class / Ticker"] + horizons + ["Sharpe (SI)", "Vol (SI)"] 
     # Using SI because the prompt requested to change 1yr to SI
     # Actually, let's use the Dynamic Risk Profile values.
@@ -527,13 +526,12 @@ def update_growth_dropdown_options(signal):
     [Output('growth-of-capital-chart', 'figure'),
      Output('growth-table-container', 'children')],
     [Input('data-signal', 'data'),
-     Input('theme-store', 'data'),
      Input('date-range-store', 'data'),
      Input('growth-asset-class-filter', 'value'),
      Input('chatbot-command', 'data'),
      Input('filter-store', 'data')]
 )
-def update_growth_analysis(signal, theme, dates, selected_ac, chat_cmd, _filters):
+def update_growth_analysis(signal, dates, selected_ac, chat_cmd, _filters):
     """Update Growth of Invested Capital chart and table."""
     data = dw.get_data()
     if not data:
@@ -553,7 +551,7 @@ def update_growth_analysis(signal, theme, dates, selected_ac, chat_cmd, _filters
     
     # Generate chart
     try:
-        chart_fig = dw.get_growth_of_capital_chart(data, selected_ac, theme, end_date=end_date)
+        chart_fig = dw.get_growth_of_capital_chart(data, selected_ac, "dark", end_date=end_date)
     except Exception as e:
         chart_fig = {}
         print(f"Error generating growth chart: {e}")

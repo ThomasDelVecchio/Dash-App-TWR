@@ -50,9 +50,6 @@ sidebar = html.Div(
         
         # Controls
         html.Div([
-            dbc.Label("Theme"),
-            dbc.Switch(id="theme-switch", label="Dark Mode", value=True, className="mb-2", persistence=True, persistence_type="local"),
-
             dbc.Label("Tax Methodology"),
             dbc.Select(
                 id="tax-strategy-select",
@@ -254,17 +251,16 @@ def render_page_content(pathname):
      Output("data-signal", "data"),
      Output("include-exited-store", "data"),
      Output("tax-strategy-store", "data")],
-    [Input("theme-switch", "value"),
-     Input("date-picker-end", "date"),
+    [Input("date-picker-end", "date"),
      Input("benchmark-dropdown", "value"),
      Input("include-exited-radio", "value"),
      Input("tax-strategy-select", "value")]
 )
-def update_global_state(is_dark, end_date, benchmarks, include_exited, tax_strategy):
+def update_global_state(end_date, benchmarks, include_exited, tax_strategy):
     # Refresh data with new end date
     dw.refresh_data(end_date=end_date)
     
-    theme = "dark" if is_dark else "light"
+    theme = "dark"
     
     dates = {"end": end_date} if end_date else None
     

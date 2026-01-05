@@ -44,23 +44,21 @@ layout = html.Div([
 # 1. Main Chart Callback
 @callback(
     Output('attribution-chart', 'figure'),
-    [Input('data-signal', 'data'),
-     Input('theme-store', 'data')]
+    [Input('data-signal', 'data')]
 )
-def update_attribution_main(signal, theme):
+def update_attribution_main(signal):
     data = dw.get_data()
     if not data: return {}
-    return dw.get_smart_attribution_chart(data, theme=theme)
+    return dw.get_smart_attribution_chart(data, theme="dark")
 
 # 2. Drill-down Callback
 @callback(
     [Output('attribution-detail-container', 'children'),
      Output('attribution-detail-title', 'children')],
     [Input('attribution-chart', 'clickData'),
-     Input('attribution-chart', 'figure'),
-     Input('theme-store', 'data')]
+     Input('attribution-chart', 'figure')]
 )
-def update_attribution_detail(click_data, figure, theme):
+def update_attribution_detail(click_data, figure):
     data = dw.get_data()
     if not data: return "", "Breakdown"
     
@@ -118,7 +116,7 @@ def update_attribution_detail(click_data, figure, theme):
         fig.update_layout(
             title=f"Contribution to Return",
             yaxis_title="Contribution (%)",
-            template="plotly_white" if theme == "light" else "plotly_dark",
+            template="plotly_dark",
             margin=dict(l=40, r=20, t=80, b=40),
             height=400,
             showlegend=False,
@@ -143,7 +141,7 @@ def update_attribution_detail(click_data, figure, theme):
                  ]}}
             ],
             defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "resizable": True},
-            className=("ag-theme-alpine-dark" if theme == "dark" else "ag-theme-alpine") + " audit-target",
+            className="ag-theme-alpine-dark audit-target",
             dashGridOptions={"domLayout": "autoHeight"}
         )
         
@@ -169,10 +167,9 @@ def update_attribution_detail(click_data, figure, theme):
 # 3. SI Attribution Callback
 @callback(
     Output('si-attribution-container', 'children'),
-    [Input('data-signal', 'data'),
-     Input('theme-store', 'data')]
+    [Input('data-signal', 'data')]
 )
-def update_si_attribution(signal, theme):
+def update_si_attribution(signal):
     data = dw.get_data()
     if not data:
         return {}
@@ -211,7 +208,7 @@ def update_si_attribution(signal, theme):
     fig.update_layout(
         title="Lifetime Contribution to Return",
         yaxis_title="Contribution (%)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=40, r=20, t=80, b=40),
         height=400,
         showlegend=False,
@@ -235,7 +232,7 @@ def update_si_attribution(signal, theme):
              ]}}
         ],
         defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "resizable": True},
-        className=("ag-theme-alpine-dark" if theme == "dark" else "ag-theme-alpine") + " audit-target",
+        className="ag-theme-alpine-dark audit-target",
         dashGridOptions={"domLayout": "autoHeight"}
     )
 
@@ -253,10 +250,9 @@ def update_si_attribution(signal, theme):
 @callback(
     Output('active-strategy-table-container', 'children'),
     [Input('data-signal', 'data'),
-     Input('theme-store', 'data'),
      Input('benchmark-store', 'data')]
 )
-def update_active_strategy_table(signal, theme, benchmarks):
+def update_active_strategy_table(signal, benchmarks):
     data = dw.get_data()
     if not data: return html.Div("Loading...", className="p-3")
     
@@ -274,7 +270,7 @@ def update_active_strategy_table(signal, theme, benchmarks):
             {"field": "Tracking Error", "headerName": "Tracking Error (Active Risk)", "type": "rightAligned"}
         ],
         defaultColDef={"flex": 1, "minWidth": 150, "resizable": True},
-        className=("ag-theme-alpine-dark" if theme == "dark" else "ag-theme-alpine"),
+        className="ag-theme-alpine-dark",
         dashGridOptions={"domLayout": "autoHeight"}
     )
     

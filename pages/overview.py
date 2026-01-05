@@ -175,11 +175,10 @@ def update_ai_brief(signal):
      Output('perf-sharpe-val', 'children'),
      Output('perf-sortino-val', 'children')],
     [Input('data-signal', 'data'),
-     Input('theme-store', 'data'),
      Input('chatbot-command', 'data'),
      Input('filter-store', 'data')]
 )
-def update_overview(signal, theme, chat_cmd, _filters):
+def update_overview(signal, chat_cmd, _filters):
     data = dw.get_data()
     if not data:
         return None, "...", "...", "...", "...", {}, "Loading...", "Loading...", "Loading...", "Loading...", "N/A", "N/A"
@@ -250,7 +249,7 @@ def update_overview(signal, theme, chat_cmd, _filters):
     mtd_card = create_kpi_card("MTD Return", mtd, is_positive=mtd_is_positive)
             
     # Chart
-    fig = dw.get_pv_mountain_chart(data, theme)
+    fig = dw.get_pv_mountain_chart(data, "dark")
     
     # 1. Snapshot Table
     snap_df = dw.get_horizon_analysis(data)

@@ -123,10 +123,9 @@ def toggle_swap_target(side):
     [State("trade-ticker", "value"),
      State("trade-side", "value"),
      State("trade-amount", "value"),
-     State("swap-target-ticker", "value"),
-     State("theme-store", "data")]
+     State("swap-target-ticker", "value")]
 )
-def update_trade_lab(n_clicks, ticker, side, amount, swap_target, theme):
+def update_trade_lab(n_clicks, ticker, side, amount, swap_target):
     if not n_clicks:
         return dash.no_update, dash.no_update
         
@@ -304,7 +303,7 @@ def update_trade_lab(n_clicks, ticker, side, amount, swap_target, theme):
         title="Projected Portfolio Value (10 Years)",
         xaxis_title="Years",
         yaxis_title="Portfolio Value ($)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         hovermode="x unified"
     )
     

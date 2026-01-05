@@ -146,16 +146,15 @@ layout = html.Div([
     [Input("cash-to-deploy-input", "value"),
      Input("allow-sales-switch", "value"),
      Input("data-signal", "data"),
-     Input("theme-store", "data"),
      Input("tax-strategy-store", "data")]
 )
-def update_deployment(cash_to_deploy, allow_sales, signal, theme, tax_strategy):
+def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
     """
     Main callback to calculate and display rebalancing recommendations.
     """
     # Default empty returns
     empty_fig = go.Figure()
-    empty_fig.update_layout(template="plotly_dark" if theme == "dark" else "plotly_white")
+    empty_fig.update_layout(template="plotly_dark")
     
     default_return = ("$0", "$0", "Loading...", empty_fig, "Loading...", "Loading...", "")
     
@@ -432,7 +431,7 @@ def update_deployment(cash_to_deploy, allow_sales, signal, theme, tax_strategy):
         rowData=display_df.to_dict("records"),
         columnDefs=column_defs,
         defaultColDef={"sortable": True, "filter": True, "resizable": True, "flex": 1, "minWidth": 110},
-        className="ag-theme-alpine-dark audit-target" if theme == "dark" else "ag-theme-alpine audit-target",
+        className="ag-theme-alpine-dark audit-target",
         dashGridOptions={"domLayout": "autoHeight"},
         style={"width": "100%"}
     )
@@ -441,7 +440,7 @@ def update_deployment(cash_to_deploy, allow_sales, signal, theme, tax_strategy):
     # STEP 4: Build Drift Chart
     # ============================================================
     
-    drift_fig = build_drift_chart(target_df, theme)
+    drift_fig = build_drift_chart(target_df, "dark")
     
     # ============================================================
     # STEP 5: Tax Impact Summary
@@ -453,7 +452,7 @@ def update_deployment(cash_to_deploy, allow_sales, signal, theme, tax_strategy):
     # STEP 6: Cliff Watch
     # ============================================================
     
-    cliff_watch_content = build_cliff_watch(target_df, theme)
+    cliff_watch_content = build_cliff_watch(target_df, "dark")
     
     return (
         fmt_dollar_clean(current_total),
@@ -516,7 +515,7 @@ def build_drift_chart(target_df, theme):
         hovertemplate="<b>%{y}</b><br>Target: %{x:.2f}%<extra></extra>"
     ))
     
-    template = "plotly_dark" if theme == "dark" else "plotly_white"
+    template = "plotly_dark"
     
     fig.update_layout(
         title="Weight Comparison: Current → Pro-Forma",
@@ -642,7 +641,7 @@ def build_cliff_watch(target_df, theme):
         rowData=cliff_df.to_dict("records"),
         columnDefs=column_defs,
         defaultColDef={"sortable": True, "filter": True, "resizable": True, "flex": 1, "minWidth": 110},
-        className="ag-theme-alpine-dark" if theme == "dark" else "ag-theme-alpine",
+        className="ag-theme-alpine-dark",
         dashGridOptions={"domLayout": "autoHeight"},
         style={"width": "100%"}
     )

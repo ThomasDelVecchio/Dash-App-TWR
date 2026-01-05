@@ -151,26 +151,25 @@ layout = html.Div([
      Output('risk-data-source-container', 'children'),
      Output('risk-sector-source-desc', 'children')],
     [Input('data-signal', 'data'),
-     Input('theme-store', 'data'),
      Input('proj-return-slider', 'value'),
      Input('proj-contrib-slider', 'value')]
 )
-def update_risk_page(signal, theme, proj_return, proj_contrib):
+def update_risk_page(signal, proj_return, proj_contrib):
     data = dw.get_data()
     if not data: 
         return {}, {}, {}, {}
     
     # 1. Risk Scatter
-    risk_fig = dw.get_risk_return_chart(data, theme)
+    risk_fig = dw.get_risk_return_chart(data, "dark")
     
     # 2. Correlation Heatmap
-    corr_fig = dw.get_correlation_heatmap(data, theme)
+    corr_fig = dw.get_correlation_heatmap(data, "dark")
     
     # 3. Drawdown Chart
-    dd_fig = dw.get_drawdown_chart(data, theme)
+    dd_fig = dw.get_drawdown_chart(data, "dark")
     
     # 4. Projections
-    proj_fig = dw.get_projections_chart(data, theme, rate_pct=proj_return, monthly_contrib=proj_contrib)
+    proj_fig = dw.get_projections_chart(data, "dark", rate_pct=proj_return, monthly_contrib=proj_contrib)
     
     # Data Source Badge
     source_summary = dw.get_data_source_summary(data)
@@ -279,10 +278,9 @@ def update_slider_value(n_minus, n_plus, current_val):
     [Input('btn-recalculate-sim', 'n_clicks'),
      Input({'type': 'sim-slider', 'index': ALL}, 'value')],
     [State({'type': 'sim-slider', 'index': ALL}, 'id'),
-     State('data-signal', 'data'),
-     State('theme-store', 'data')]
+     State('data-signal', 'data')]
 )
-def update_simulator(n_clicks, slider_values, slider_ids, signal, theme):
+def update_simulator(n_clicks, slider_values, slider_ids, signal):
     """Calculate portfolio statistics based on slider weights."""
     data = dw.get_data()
     
@@ -337,7 +335,7 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal, theme):
     sim_vol = calculate_portfolio_sigma(sim_weights, correlation_matrix, risk_return) * 100.0
             
     # Gauges
-    template = "plotly_dark" if theme == "dark" else "plotly_white"
+    template = "plotly_dark"
     
     # Dynamic Range for Return Gauge (Handle high TTM returns)
     # Ensure minimum range of 0-30 for visibility, or scale up if return is higher

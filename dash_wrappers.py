@@ -769,7 +769,7 @@ def get_correlation_heatmap(data, theme="light"):
 
     fig.update_layout(
         title="90-Day Rolling Correlation (Top Holdings)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=40, r=40, t=40, b=80), # Standardized bottom margin for height matching
         height=500
     )
@@ -968,7 +968,7 @@ def get_pv_mountain_chart(data, theme="light"):
     fig.update_layout(
         
         yaxis_title="Return (%)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=40, r=20, t=40, b=40),
         hovermode="x unified"
     )
@@ -1057,7 +1057,7 @@ def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, t
     fig.update_layout(
         
         yaxis_title="Return (%)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=40, r=20, t=40, b=40),
         hovermode="x unified",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
@@ -1110,12 +1110,12 @@ def get_asset_allocation_charts(data, theme="light"):
         sort=False,
         direction='clockwise',
         rotation=-90,
-        textfont=dict(color='black' if theme == 'light' else 'white'),
+        textfont=dict(color='white'),
         hovertemplate="<b>%{label}</b><br>Value: $%{value:,.2f}<br>Share: %{percent:.2%}<extra></extra>"
     ))
     pie_fig.update_layout(
         
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=20, r=20, t=40, b=20),
         legend=dict(
             orientation="v",
@@ -1151,7 +1151,7 @@ def get_asset_allocation_charts(data, theme="light"):
         
         barmode='group',
         yaxis_title="Percentage (%)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=40, r=20, t=40, b=40)
     )
     
@@ -1184,7 +1184,7 @@ def get_asset_drilldown_chart(data, asset_class, theme="light"):
         # Return empty figure with message
         fig = go.Figure()
         fig.update_layout(
-            template="plotly_white" if theme == "light" else "plotly_dark",
+            template="plotly_dark",
             title=f"No holdings in {full_name}"
         )
         return fig
@@ -1212,13 +1212,13 @@ def get_asset_drilldown_chart(data, asset_class, theme="light"):
         sort=False,
         direction='clockwise',
         rotation=-90,
-        textfont=dict(color='black' if theme == 'light' else 'white'),
+        textfont=dict(color='white'),
         hovertemplate="<b>%{label}</b><br>Value: $%{value:,.2f}<br>Share: %{percent:.2%}<extra></extra>"
     ))
     
     fig.update_layout(
-        title=dict(text=f"{full_name}", x=0.5,y=0.5, xanchor='center', yanchor='middle', font=dict(size=14, color='black' if theme == 'light' else 'white')),
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        title=dict(text=f"{full_name}", x=0.5,y=0.5, xanchor='center', yanchor='middle', font=dict(size=14, color='white')),
+        template="plotly_dark",
         margin=dict(l=20, r=20, t=40, b=20),
         legend=dict(
             orientation="v",
@@ -1252,7 +1252,7 @@ def get_sector_allocation_chart(data, theme="light"):
     fig.update_layout(
         
         xaxis_title="Exposure (%)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=20, r=20, t=40, b=20)
     )
     return fig
@@ -1337,7 +1337,7 @@ def get_allocation_history_chart(data, theme="light"):
     fig.update_layout(
         
         yaxis_title="Allocation (%)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=40, r=20, t=40, b=40),
         hovermode="x unified",
         legend=dict(
@@ -1526,7 +1526,7 @@ def get_smart_attribution_chart(data, theme="light"):
         yaxis=dict(range=[y_min, y_max]), # Focus scale on Performance Gain/Loss
         yaxis2=dict(title="Cumulative Gain ($)", overlaying='y', side='right'),
         barmode='relative',
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=40, r=40, t=80, b=40), # Increased top margin (t) to 80
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         xaxis_title="Period",
@@ -1572,7 +1572,7 @@ def get_risk_return_chart(data, theme="light"):
         
         xaxis_title="Volatility (%)",
         yaxis_title="Expected Return (%)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         showlegend=True,
         height=500,
         margin=dict(l=40, r=40, t=40, b=80), # Standardized margin
@@ -1625,7 +1625,7 @@ def get_drawdown_chart(data, theme="light"):
         
     fig.update_layout(
         yaxis_title="Drawdown (%)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=40, r=40, t=40, b=40),
         hovermode="x unified",
         yaxis=dict(autorange="reversed") # Invert axis so 0 is at top
@@ -1698,7 +1698,7 @@ def get_projections_chart(data, theme="light", rate_pct=None, monthly_contrib=No
         
         xaxis_title="Years",
         yaxis_title="Portfolio Value ($)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         hovermode="x unified"
     )
     return fig
@@ -1726,7 +1726,7 @@ def get_flows_chart(data, theme="light"):
     fig.update_layout(
         
         xaxis_title="Net Flow ($)",
-        template="plotly_white" if theme == "light" else "plotly_dark"
+        template="plotly_dark"
     )
     return fig
 
@@ -1818,7 +1818,7 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
         
         yaxis_title="Excess Return (%)",
         barmode='group',
-        template="plotly_white" if theme == "light" else "plotly_dark"
+        template="plotly_dark"
     )
     return fig
 
@@ -1855,12 +1855,12 @@ def get_ticker_allocation_charts(data, theme="light"):
         sort=False,
         direction='clockwise',
         rotation=-90,
-        textfont=dict(color='black' if theme == 'light' else 'white'),
+        textfont=dict(color='white'),
         hovertemplate="<b>%{label}</b><br>Value: $%{value:,.2f}<br>Share: %{percent:.2%}<extra></extra>"
     ))
     pie_fig.update_layout(
         
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=20, r=20, t=40, b=20),
         legend=dict(
             orientation="v",
@@ -1906,7 +1906,7 @@ def get_ticker_allocation_charts(data, theme="light"):
         
         barmode='group',
         yaxis_title="Percentage (%)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=40, r=20, t=40, b=40)
     )
     
@@ -2380,7 +2380,7 @@ def get_growth_of_capital_chart(data, filter_value="Total", theme="light", end_d
     fig.update_layout( 
         
         yaxis_title="Value ($)",
-        template="plotly_white" if theme == "light" else "plotly_dark",
+        template="plotly_dark",
         margin=dict(l=40, r=20, t=60, b=40),
         hovermode="x unified",
         legend=dict(
@@ -3228,7 +3228,7 @@ def get_tax_liability_sunburst(open_lots, realized_events, theme="light"):
     if ol_pos.empty and re_pos.empty:
         return go.Figure().update_layout(
             title="No Tax Liability Detected", 
-            template="plotly_dark" if theme=="dark" else "plotly_white"
+            template="plotly_dark"
         )
 
     # 2. Aggregate Data
@@ -3310,7 +3310,7 @@ def get_tax_liability_sunburst(open_lots, realized_events, theme="light"):
     ))
 
     fig.update_layout(
-        template="plotly_dark" if theme == "dark" else "plotly_white",
+        template="plotly_dark",
         margin=dict(t=10, l=10, r=10, b=10),
         height=350
     )
@@ -3366,7 +3366,7 @@ def get_tax_tactical_radar(open_lots, theme="light"):
     fig.add_hline(y=0, line_dash="dash", line_color="gray")
 
     fig.update_layout(
-        template="plotly_dark" if theme == "dark" else "plotly_white",
+        template="plotly_dark",
         margin=dict(t=30, l=50, r=30, b=50),
         xaxis_title="Days Held",
         yaxis_title="Unrealized P/L ($)",
