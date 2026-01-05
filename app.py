@@ -7,6 +7,9 @@ import pandas as pd
 # Import wrappers
 import dash_wrappers as dw
 
+# Import Config
+from config import NAV_MODULES
+
 # Import Components
 from components import chatbot
 from components.audit_modal import get_audit_modal_content
@@ -37,20 +40,8 @@ sidebar = html.Div(
         html.Hr(),
         
         dbc.Nav(
-            [
-                dbc.NavLink("Overview", href="/", active="exact"),
-                dbc.NavLink("Performance", href="/performance", active="exact"),
-                dbc.NavLink("Allocations", href="/allocations", active="exact"),
-                dbc.NavLink("Attribution", href="/attribution", active="exact"),
-                dbc.NavLink("Flows", href="/flows", active="exact"),
-                dbc.NavLink("Holdings", href="/holdings", active="exact"),
-                dbc.NavLink("Rebalancing", href="/rebalancing", active="exact"),
-                dbc.NavLink("Risk & Proj", href="/risk", active="exact"),
-                dbc.NavLink("Trade Lab", href="/trade-lab", active="exact"),
-                dbc.NavLink("Tax Authority", href="/taxes", active="exact"),
-                dbc.NavLink("Settings", href="/settings", active="exact"),
-                dbc.NavLink("Help Index", href="/help", active="exact"),
-            ],
+            [],
+            id="sidebar-nav",
             vertical=True,
             pills=True,
         ),
@@ -144,6 +135,7 @@ app.layout = html.Div(
         dcc.Store(id="filter-store", storage_type="memory"),
         dcc.Store(id="include-exited-store", data=False),
         dcc.Store(id="tax-strategy-store", data="FIFO", storage_type="local"),
+        dcc.Store(id="active-modules-store", storage_type="local"),
         
         # Global Audit Store
         dcc.Store(id="audit-request-store"),
@@ -417,6 +409,32 @@ def toggle_audit_modal(request_data, is_open):
     header = dbc.ModalHeader(dbc.ModalTitle("Explain This Number"), close_button=True)
     
     return True, [header, body]
+
+# 7. Sidebar Modules Callback
+@app.callback(
+    Output("sidebar-nav", "children"),
+    Input("active-modules-store", "data")
+)
+def update_sidebar_modules(active_modules_ids):
+    # Fallback: if data is None, show ALL modules (default ON)
+    if active_modules_ids is None:
+        return [
+            dbc.NavLink(m["label"], href=m["href"], active="exact")
+            for m in NAV_MODULES
+        ]
+    
+    # Filter modules
+    # Always include non-toggleable modules (can_toggle=False)
+    # Include toggleable modules only if their ID is in active_modules_ids
+    
+    filtered_links = []
+    for m in NAV_MODULES:
+        if not m["can_toggle"]:
+            filtered_links.append(dbc.NavLink(m["label"], href=m["href"], active="exact"))
+        elif m["id"] in active_modules_ids:
+            filtered_links.append(dbc.NavLink(m["label"], href=m["href"], active="exact"))
+            
+    return filtered_links
 
 if __name__ == "__main__":
     app.run(debug=True)

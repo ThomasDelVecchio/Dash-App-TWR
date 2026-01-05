@@ -57,3 +57,21 @@ GLOBAL_PALETTE = [
     "#F2C200",  # muted gold (accent)
     "#D6B656",  # soft gold-gray
 ]
+
+# ============================================================
+# MODULE CONFIGURATION
+# ============================================================
+NAV_MODULES = [
+    {"label": "Overview", "href": "/", "id": "overview", "can_toggle": False},
+    {"label": "Performance", "href": "/performance", "id": "performance", "can_toggle": True},
+    {"label": "Allocations", "href": "/allocations", "id": "allocations", "can_toggle": True},
+    {"label": "Attribution", "href": "/attribution", "id": "attribution", "can_toggle": True},
+    {"label": "Flows", "href": "/flows", "id": "flows", "can_toggle": True},
+    {"label": "Holdings", "href": "/holdings", "id": "holdings", "can_toggle": True},
+    {"label": "Rebalancing", "href": "/rebalancing", "id": "rebalancing", "can_toggle": True},
+    {"label": "Risk & Proj", "href": "/risk", "id": "risk", "can_toggle": True},
+    {"label": "Trade Lab", "href": "/trade-lab", "id": "trade_lab", "can_toggle": True},
+    {"label": "Tax Authority", "href": "/taxes", "id": "taxes", "can_toggle": True},
+    {"label": "Settings", "href": "/settings", "id": "settings", "can_toggle": False},
+    {"label": "Help Index", "href": "/help", "id": "help", "can_toggle": False},
+]

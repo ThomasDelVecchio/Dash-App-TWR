@@ -4,6 +4,14 @@ import dash_bootstrap_components as dbc
 import dash_wrappers as dw
 import base64
 from datetime import datetime
+from config import NAV_MODULES
+
+# Prepare options for the checklist
+MODULE_OPTIONS = [
+    {"label": m["label"], "value": m["id"]}
+    for m in NAV_MODULES
+    if m["can_toggle"]
+]
 
 layout = html.Div([
     dbc.Row([
@@ -39,8 +47,71 @@ layout = html.Div([
                 html.Div(id='upload-status', className="text-muted")
             ], className="p-3")
         ]), width=6),
+        
+        dbc.Col(dbc.Card([
+            html.H5("Active Modules", className="card-title p-2"),
+            html.Div([
+                html.P("Toggle features to customize your sidebar."),
+                dbc.Checklist(
+                    id="modules-checklist",
+                    options=MODULE_OPTIONS,
+                    value=[], # Populated by callback
+                    switch=True,
+                    persistence=False # We rely on the global store
+                )
+            ], className="p-3")
+        ]), width=6),
     ]),
 ])
+
+# 1. Sync Store -> Checklist (Load)
+@callback(
+    Output("modules-checklist", "value"),
+    Input("active-modules-store", "data")
+)
+def load_modules_settings(store_data):
+    if store_data is None:
+        # Default to all if None
+        return [m["value"] for m in MODULE_OPTIONS]
+    return store_data
+
+# 2. Sync Checklist -> Store (Save)
+@callback(
+    Output("active-modules-store", "data", allow_duplicate=True),
+    Input("modules-checklist", "value"),
+    State("active-modules-store", "data"),
+    prevent_initial_call=True
+)
+def save_modules_settings(selected_modules, current_store):
+    if selected_modules is None:
+        return dash.no_update
+        
+    # Check for equality to break loop
+    # Treat None as empty set for comparison, though usually None means "default to all" in our app logic
+    # But here we are comparing what IS stored vs what IS selected.
+    
+    # If store is None, it means "All". 
+    # If selected_modules is "All", and store is None, should we update store to "All"?
+    # Yes, to make it explicit.
+    
+    current_set = set(current_store) if current_store else set()
+    new_set = set(selected_modules)
+    
+    # Special case: if current_store is None (implicit ALL) and selected_modules is ALL, 
+    # we might want to avoid writing if we want to keep it None. 
+    # But writing the explicit list is safer for consistency.
+    # However, if we write, we trigger the load callback again.
+    
+    # Let's just compare sets.
+    # But we need to handle the "None = All" logic of the store side.
+    if current_store is None:
+        # If store is None, it effectively contains ALL options.
+        current_set = set([m["value"] for m in MODULE_OPTIONS])
+        
+    if current_set == new_set:
+        return dash.no_update
+        
+    return selected_modules
 
 @callback(
     [Output('data-signal', 'data', allow_duplicate=True),
