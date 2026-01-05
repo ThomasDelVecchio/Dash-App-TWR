@@ -2016,9 +2016,12 @@ def get_performance_highlights(data):
         
     rows = []
     
+    # Filter for non-cash tickers for performance highlights
+    perf_universe = sec_table[sec_table["ticker"] != "CASH"]
+    
     # 1M
-    if "1M" in sec_table.columns:
-        valid = sec_table.dropna(subset=["1M"])
+    if "1M" in perf_universe.columns:
+        valid = perf_universe.dropna(subset=["1M"])
         if not valid.empty:
             top = valid.loc[valid["1M"].idxmax()]
             bot = valid.loc[valid["1M"].idxmin()]
@@ -2036,8 +2039,8 @@ def get_performance_highlights(data):
              rows.append({"Metric": "Bottom 1M Performer", "Value": "N/A"})
              
     # 1D
-    if "1D" in sec_table.columns:
-        valid = sec_table.dropna(subset=["1D"])
+    if "1D" in perf_universe.columns:
+        valid = perf_universe.dropna(subset=["1D"])
         if not valid.empty:
             top = valid.loc[valid["1D"].idxmax()]
             bot = valid.loc[valid["1D"].idxmin()]
