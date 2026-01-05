@@ -12,6 +12,7 @@ from config import FMP_API_KEY
 # ============================================================
 HOLDINGS_FILE = "sample holdings.csv"
 CASHFLOWS_FILE = "cashflows.csv"
+COMPOSITE_MAPPING_FILE = "composite_mapping.csv"
 PRICE_LOOKBACK_YEARS = 10
 METADATA_CACHE_FILE = "metadata_cache.json"
 
@@ -178,6 +179,29 @@ def load_holdings(path: str = HOLDINGS_FILE) -> pd.DataFrame:
     if "target_pct" not in df.columns:
         df["target_pct"] = np.nan
 
+    return df
+
+# ------------------------------------------------------------
+# Load Composite Mappings
+# ------------------------------------------------------------
+
+def load_composite_mappings(path: str = COMPOSITE_MAPPING_FILE) -> pd.DataFrame:
+    if not os.path.exists(path):
+        return pd.DataFrame(columns=["composite_name", "ticker"])
+        
+    df = pd.read_csv(path)
+    df.columns = [c.lower().replace(" ", "_") for c in df.columns]
+    
+    # Expected columns: composite_name, ticker
+    required = {"composite_name", "ticker"}
+    if not required.issubset(df.columns):
+        # Fallback if names are slightly different but order is correct? 
+        # Or just return empty to avoid crashing
+        return pd.DataFrame(columns=["composite_name", "ticker"])
+        
+    df["composite_name"] = df["composite_name"].astype(str)
+    df["ticker"] = df["ticker"].astype(str).str.upper()
+    
     return df
 
 

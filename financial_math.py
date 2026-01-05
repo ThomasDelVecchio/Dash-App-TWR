@@ -67,12 +67,13 @@ def build_portfolio_value_series_from_flows(
     holdings: pd.DataFrame,
     prices: pd.DataFrame,
     cashflows_path: str = CASHFLOWS_FILE,
+    cashflows_df: pd.DataFrame = None,
 ) -> pd.Series:
     """
     Build daily portfolio value from flows:
 
       - Start from zero positions and zero cash.
-      - Apply all rows in cashflows.csv in chronological order.
+      - Apply all rows in cashflows.csv (or cashflows_df) in chronological order.
       - Treat CASH rows as pure external cash flows.
       - For each trading day in `prices.index`:
           * PV(t) = cash_before_flows_on_t + Σ shares_i * price_i(t)
@@ -84,7 +85,11 @@ def build_portfolio_value_series_from_flows(
     """
 
     # ----- Load raw cashflows -----
-    raw = pd.read_csv(cashflows_path)
+    if cashflows_df is not None:
+        raw = cashflows_df.copy()
+    else:
+        raw = pd.read_csv(cashflows_path)
+
     raw.columns = [c.lower() for c in raw.columns]
 
     required = {"date", "ticker", "shares", "amount"}
@@ -171,6 +176,8 @@ def build_portfolio_value_series_from_flows(
         # 2. Snapshot PV AFTER today's flows using end-of-day prices
         total = cash_balance
         for t, qty in positions.items():
+            if abs(qty) < 1e-9:
+                continue
             if t not in prices.columns:
                 raise ValueError(
                     f"Missing price data for ticker '{t}' while building PV from flows."
@@ -593,6 +600,21 @@ def modified_dietz_for_ticker_window(
         mask_div = (dividends["date"] > start) & (dividends["date"] <= end)
         total_divs = dividends.loc[mask_div, "amount"].sum()
 
+    # Delayed Entry Logic (GIPS compliance)
+    # If we start with 0 position, but buy later in the window,
+    # we should measure return from the first purchase to avoid denominator dilution.
+    if V0 < 1e-6:
+        # Find first transaction inside the window
+        first_tx_in_window = tx_sorted[(tx_sorted["date"] >= start) & (tx_sorted["date"] <= end)]
+        if not first_tx_in_window.empty:
+            first_date = first_tx_in_window["date"].min()
+            
+            # If the first trade is strictly later than start, shift start
+            if first_date > start:
+                start = first_date
+                total_days = (end - start).days + 1
+                # V0 remains 0.0 (since we didn't hold it before this trade)
+
     # Cashflows inside (start, end]
     # If V0 is 0 (likely inception), we must include flows ON the start date to fund the position
     if V0 < 1e-6:
@@ -747,6 +769,62 @@ def modified_dietz_for_asset_class_window(
             (dividends["date"] <= end)
         )
         total_divs = dividends.loc[mask_div, "amount"].sum()
+
+    # Delayed Entry Logic (GIPS compliance) for Asset Class
+    # If the asset class has 0 value at start, but receives inflows later,
+    # shift start to the first inflow date to avoid denominator dilution.
+    if V0 < 1e-6:
+        # Check for any flows in this asset class >= start
+        first_tx_in_window = tx_all[
+            (tx_all["ticker"].isin(tickers)) &
+            (tx_all["date"] >= start) &
+            (tx_all["date"] <= end)
+        ]
+        if not first_tx_in_window.empty:
+            first_date = first_tx_in_window["date"].min()
+            
+            if first_date > start:
+                start = first_date
+                total_days = (end - start).days + 1
+                # V0 remains 0.0
+
+    # Delayed Entry Logic (GIPS compliance) for Asset Class
+    # If the asset class has 0 value at start, but receives inflows later,
+    # shift start to the first inflow date to avoid denominator dilution.
+    if V0 < 1e-6:
+        # Check for any flows in this asset class >= start
+        first_tx_in_window = tx_all[
+            (tx_all["ticker"].isin(tickers)) &
+            (tx_all["date"] >= start) &
+            (tx_all["date"] <= end)
+        ]
+        if not first_tx_in_window.empty:
+            first_date = first_tx_in_window["date"].min()
+            
+            if first_date > start:
+                start = first_date
+                total_days = (end - start).days + 1
+                # V0 remains 0.0
+
+    # Early Exit Logic (GIPS compliance) for Asset Class
+    # If the asset class is fully liquidated (V1=0) before the end date,
+    # clamp the end date to the last transaction to avoid denominator dilution.
+    if abs(V1) < 1e-6:
+        # Find the last transaction in this window for these tickers
+        tx_in_window = tx_all[
+            (tx_all["ticker"].isin(tickers)) &
+            (tx_all["date"] >= start) &
+            (tx_all["date"] <= end)
+        ]
+        if not tx_in_window.empty:
+            last_date = tx_in_window["date"].max()
+            if last_date < end:
+                # Clamp end to the exit date
+                end = last_date
+                total_days = (end - start).days + 1
+                # Re-check start/end validity
+                if total_days <= 0:
+                    return np.nan
 
     # Aggregate cashflows for the asset class
     # CRITICAL FIX: For SI calculations where V0=0, include flows ON the start date
@@ -1002,12 +1080,34 @@ def compute_security_modified_dietz(
             if dividends is not None and not dividends.empty:
                 divs_t = dividends[dividends["ticker"] == t].copy()
 
+            # Early Exit Logic:
+            # If the position is fully closed (shares=0) at as_of, 
+            # we should calculate return ending on the Last Held Date (exit date)
+            # to avoid diluting the denominator with non-invested time.
+            # This matches GIPS requirements for "measuring performance while invested".
+            
+            effective_end = as_of
+            if abs(net_shares) < 1e-6:
+                # Position is closed. Clamp end to last_held_date.
+                # Only if last_held_date is actually within our potential window (<= as_of)
+                # which it always is by definition of last_tx_date logic above.
+                effective_end = last_held_date
+                
+                # Correction: If last_held_date is BEFORE the horizon start, 
+                # effectively the position didn't exist in this window?
+                # No, "last_held_date" is the ultimate exit.
+                # If we held it Jan-Feb, and now asking for Q4 return...
+                # effective_start = Oct 1. effective_end = Feb? No.
+                # We need to make sure we don't go BACK in time.
+                # If effective_end < effective_start, modified_dietz_for_ticker_window returns NaN.
+                # This is correct/desired.
+
             md_ret = modified_dietz_for_ticker_window(
                 t,
                 price_series,
                 tx_all,
                 effective_start,
-                as_of,
+                effective_end,
                 dividends=divs_t,
                 return_components=True,
             )
