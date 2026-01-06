@@ -299,7 +299,7 @@ mjx-container > svg {
 
 /* Dark mode KPI labels */
 [data-theme="dark"] .kpi-label-print {
-    color: #adb5bd;
+    color: #ffffff;
 }
 
 /* Light/Print Preview mode KPI labels */

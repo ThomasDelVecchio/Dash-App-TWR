@@ -12,7 +12,7 @@ Key Features:
 """
 
 import dash
-from dash import dcc, html, callback, Input, Output, State
+from dash import dcc, html, callback, Input, Output, State, ALL, clientside_callback
 import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import dash_wrappers as dw
@@ -21,6 +21,31 @@ from datetime import datetime
 import pandas as pd
 from tax_engine import build_tax_lots
 from io import BytesIO
+
+# ============================================================
+# CONSTANTS
+# ============================================================
+REPORT_SECTIONS_OPTIONS = [
+    {"label": " Morning AI Summary", "value": "morning_brief"},
+    {"label": " Executive Summary", "value": "summary"},
+    {"label": " Performance Chart", "value": "performance_chart"},
+    {"label": " Horizon Analysis Table", "value": "horizon_table"},
+    {"label": " Asset Allocation", "value": "allocation"},
+    {"label": " Sector Breakdown", "value": "sector"},
+    {"label": " Top Holdings", "value": "holdings"},
+    {"label": " Risk Metrics", "value": "risk"},
+    {"label": " Flows Summary", "value": "flows"},
+    {"label": " Tax Lot Explorer (Open Lots)", "value": "tax_lots"},
+    {"label": " Risk Analysis Charts", "value": "risk_charts"},
+    {"label": " Performance Deep Dive", "value": "perf_deep_dive"},
+    {"label": " Attribution Analysis", "value": "attribution"},
+    {"label": " Asset Class Performance Table", "value": "ac_perf_table"},
+    {"label": " Asset Class P/L Table", "value": "ac_pl_table"},
+]
+
+DEFAULT_SELECTION = ["summary", "performance_chart", "horizon_table", "allocation", "holdings"]
+DEFAULT_ORDER = [opt["value"] for opt in REPORT_SECTIONS_OPTIONS]
+
 
 
 # ============================================================
@@ -43,16 +68,13 @@ layout = html.Div(className="custom-report-page", children=[
         html.P("Configure and generate institutional-quality PDF reports", className="text-muted small mb-3")
     ]),
     
-    dbc.Row([
-        # Left Sidebar: Report Configuration
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader([
-                    html.I(className="bi bi-gear-fill me-2"),
-                    "Report Configuration"
-                ]),
-                dbc.CardBody([
-                    # Report Title
+    # Report Configuration Accordion
+    dbc.Accordion([
+        dbc.AccordionItem([
+            dbc.Row([
+                # Column 1: General Settings
+                dbc.Col([
+                    html.H5("General Settings", className="mb-3"),
                     dbc.Label("Report Title", className="fw-bold"),
                     dbc.Input(
                         id="report-title-input",
@@ -61,8 +83,6 @@ layout = html.Div(className="custom-report-page", children=[
                         placeholder="Enter report title...",
                         className="mb-3"
                     ),
-                    
-                    # Report Date Range
                     dbc.Label("Reporting Period", className="fw-bold"),
                     dbc.Select(
                         id="report-period-select",
@@ -76,51 +96,46 @@ layout = html.Div(className="custom-report-page", children=[
                         value="SI",
                         className="mb-3 text-dark"
                     ),
-                    
-                    html.Hr(),
-                    
-                    # Section Toggles
-                    dbc.Label("Report Sections", className="fw-bold mb-2"),
-                    
+                    dbc.Switch(
+                        id="report-mobile-mode",
+                        label="One Chart Per Page (Mobile)",
+                        value=False,
+                        className="mb-2"
+                    ),
+                ], width=12, md=4),
+                
+                # Column 2: Section Selection
+                dbc.Col([
                     html.Div([
+                        html.H5("Report Sections", className="d-inline-block me-3"),
                         dbc.Button(
                             "Select All",
                             id="toggle-all-sections",
                             color="link",
                             size="sm",
-                            className="p-0 text-decoration-none",
-                            style={"fontSize": "0.8rem"}
+                            className="p-0 text-decoration-none ai-text-accent",
                         )
                     ], className="mb-2"),
                     
-                    dbc.Checklist(
-                        id="report-sections-checklist",
-                        options=[
-                            {"label": " Morning AI Summary", "value": "morning_brief"},
-                            {"label": " Executive Summary", "value": "summary"},
-                            {"label": " Performance Chart", "value": "performance_chart"},
-                            {"label": " Horizon Analysis Table", "value": "horizon_table"},
-                            {"label": " Asset Allocation", "value": "allocation"},
-                            {"label": " Sector Breakdown", "value": "sector"},
-                            {"label": " Top Holdings", "value": "holdings"},
-                            {"label": " Risk Metrics", "value": "risk"},
-                            {"label": " Flows Summary", "value": "flows"},
-                            {"label": " Tax Lot Explorer (Open Lots)", "value": "tax_lots"},
-                            {"label": " Risk Analysis Charts", "value": "risk_charts"},
-                            {"label": " Performance Deep Dive", "value": "perf_deep_dive"},
-                            {"label": " Attribution Analysis", "value": "attribution"},
-                            {"label": " Asset Class Performance Table", "value": "ac_perf_table"},
-                            {"label": " Asset Class P/L Table", "value": "ac_pl_table"},
-                        ],
-                        value=["summary", "performance_chart", "horizon_table", "allocation", "holdings"],
-                        className="mb-3",
-                        labelStyle={"display": "block", "marginBottom": "8px"},
-                        inputStyle={"marginRight": "8px"}
+                    # Stores for Order and Selection
+                    dcc.Store(id="report-order-store", storage_type="local", data=DEFAULT_ORDER),
+                    dcc.Store(id="report-selection-store", storage_type="local", data=DEFAULT_SELECTION),
+
+                    # Draggable Container
+                    html.Div(
+                        id="report-sections-container",
+                        className="list-group report-sections-list",
+                        style={"maxHeight": "400px", "overflowY": "auto", "overflowX": "hidden"}
                     ),
-                    
-                    html.Hr(),
-                    
-                    # Action Buttons
+                    html.Div(
+                        [html.I(className="bi bi-info-circle me-1"), "Drag handles (☰) to reorder sections"], 
+                        className="text-muted small mt-2 text-end"
+                    )
+                ], width=12, md=4),
+                
+                # Column 3: Actions
+                dbc.Col([
+                    html.H5("Actions", className="mb-3"),
                     dbc.Button(
                         [html.I(className="bi bi-arrow-clockwise me-2"), "Refresh Preview"],
                         id="btn-refresh-report",
@@ -141,10 +156,12 @@ layout = html.Div(className="custom-report-page", children=[
                         n_clicks=0
                     ),
                     dcc.Download(id="download-word-report")
-                ])
-            ], className="mb-3 position-sticky", style={"top": "20px"})
-        ], width=3, className="report-config-sidebar d-print-none"),
-        
+                ], width=12, md=4),
+            ])
+        ], title="Report Configuration")
+    ], className="mb-4 d-print-none", start_collapsed=False),
+
+    dbc.Row([
         # Right Panel: Report Preview
         dbc.Col([
             # Report Container (A4 proportions)
@@ -187,7 +204,7 @@ layout = html.Div(className="custom-report-page", children=[
                 ], className="print-footer", id="report-ghost-footer")
                 
             ], id="report-container", className="report-container")
-        ], width=9, className="report-preview-col")
+        ], width=12, className="report-preview-col")
     ]),
     
     # Hidden Print Trigger Script
@@ -199,37 +216,111 @@ layout = html.Div(className="custom-report-page", children=[
 # CALLBACKS
 # ============================================================
 
+# 1. Initialize SortableJS
+clientside_callback(
+    """
+    function(trigger) {
+        return window.dash_clientside.report_sorting.enable_sortable(trigger);
+    }
+    """,
+    Output("report-sections-container", "data-sortable-active"), # Dummy output
+    Input("report-sections-container", "children")
+)
+
+# 2. Update Selection Store (User clicks Checkbox)
 @callback(
-    Output("report-sections-checklist", "value"),
-    Input("toggle-all-sections", "n_clicks"),
-    [State("report-sections-checklist", "value"),
-     State("report-sections-checklist", "options")],
+    Output("report-selection-store", "data", allow_duplicate=True),
+    Input({"type": "section-selector", "index": ALL}, "value"),
+    State({"type": "section-selector", "index": ALL}, "id"),
     prevent_initial_call=True
 )
-def toggle_all_report_sections(n_clicks, current_values, options):
+def update_selection(values, ids):
+    # Filter for True values and extract index from id
+    selected = [id_dict['index'] for val, id_dict in zip(values, ids) if val]
+    return selected
+
+# 3. Render Draggable List
+@callback(
+    Output("report-sections-container", "children"),
+    [Input("report-order-store", "data"),
+     Input("report-selection-store", "data")]
+)
+def render_draggable_list(order_list, selected_list):
+    order_list = order_list or DEFAULT_ORDER
+    selected_list = selected_list or []
+    
+    # Map values to labels
+    label_map = {opt["value"]: opt["label"] for opt in REPORT_SECTIONS_OPTIONS}
+    
+    # Ensure all options are present logic
+    current_values = set(order_list)
+    options_dict = {opt["value"]: opt for opt in REPORT_SECTIONS_OPTIONS}
+    
+    # Filter order list to remove obsolete keys
+    valid_order = [k for k in order_list if k in options_dict]
+    
+    # Find missing keys
+    missing = [k for k in options_dict if k not in current_values]
+    
+    final_order = valid_order + missing
+    
+    children = []
+    for val in final_order:
+        is_selected = val in selected_list
+        label = label_map.get(val, val)
+        
+        item = html.Div([
+            # Drag Handle
+            html.Span(
+                html.I(className="bi bi-grip-vertical"),
+                className="drag-handle me-3 p-2",
+                style={"cursor": "grab", "color": "#666", "fontSize": "1.2rem"}
+            ),
+            # Label
+            html.Div(label, className="flex-grow-1 user-select-none"),
+            # Checkbox
+            dbc.Checkbox(
+                id={"type": "section-selector", "index": val},
+                value=is_selected,
+                className="form-check-input",
+                style={"cursor": "pointer"}
+            )
+        ], className="list-group-item d-flex align-items-center bg-dark text-white border-secondary mb-1", key=val, **{"data-value": val})
+        children.append(item)
+        
+    return children
+
+# 4. Toggle All
+@callback(
+    Output("report-selection-store", "data", allow_duplicate=True),
+    Input("toggle-all-sections", "n_clicks"),
+    State("report-selection-store", "data"),
+    prevent_initial_call=True
+)
+def toggle_all_report_sections(n_clicks, current_selection):
     if n_clicks is None:
         return dash.no_update
     
-    all_values = [opt["value"] for opt in options]
+    all_values = [opt["value"] for opt in REPORT_SECTIONS_OPTIONS]
+    current_selection = current_selection or []
     
     # If not all are selected, select all. Otherwise, deselect all.
-    if len(current_values) < len(all_values):
+    if len(current_selection) < len(all_values):
         return all_values
     return []
 
-
+# 5. Update Toggle Label
 @callback(
     Output("toggle-all-sections", "children"),
-    Input("report-sections-checklist", "value"),
-    State("report-sections-checklist", "options")
+    Input("report-selection-store", "data")
 )
-def update_toggle_button_label(current_values, options):
-    all_values = [opt["value"] for opt in options]
-    if len(current_values) < len(all_values):
+def update_toggle_button_label(current_selection):
+    current_selection = current_selection or []
+    if len(current_selection) < len(REPORT_SECTIONS_OPTIONS):
         return "Select All"
     return "Deselect All"
 
-
+# 6. Generate Report
 @callback(
     [Output("report-header-title", "children"),
      Output("report-header-subtitle", "children"),
@@ -239,11 +330,12 @@ def update_toggle_button_label(current_values, options):
      Output("report-container", "className")],
     [Input("btn-refresh-report", "n_clicks"),
      Input("data-signal", "data"),
-     Input("report-sections-checklist", "value"),
+     Input("report-order-store", "data"),
+     Input("report-selection-store", "data"),
      Input("report-title-input", "value"),
      Input("report-period-select", "value")]
 )
-def update_report(n_clicks, signal, sections, title, period):
+def update_report(n_clicks, signal, order_list, selected_list, title, period):
     print_preview = False # Defaults to dark mode for screen preview
 
     """
@@ -274,228 +366,154 @@ def update_report(n_clicks, signal, sections, title, period):
     date_line = f"Report Date: {now.strftime('%B %d, %Y')}"
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
     
-    # Build report sections
+    # Resolve Section Order
+    order_list = order_list or DEFAULT_ORDER
+    selected_list = selected_list or []
+    
+    current_values = set(order_list)
+    options_dict = {opt["value"]: opt for opt in REPORT_SECTIONS_OPTIONS}
+    missing = [k for k in options_dict if k not in current_values]
+    final_order = [k for k in order_list if k in options_dict] + missing
+    
     report_sections = []
-    sections = sections or []
     
-    # 0. Morning AI Summary
-    if "morning_brief" in sections:
-        # Generate summary text
-        from components.ai_brief import generate_ai_summary
-        summary_text = generate_ai_summary(data)
-        
-        brief_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Morning AI Summary", className="section-title mb-3"),
-                    dcc.Markdown(summary_text, className="text-muted" if print_preview else "text-light")
-                ], width=12)
-            ])
-        ], className="report-section no-break")
-        report_sections.append(brief_section)
-    
-    # 1. Executive Summary
-    if "summary" in sections:
-        metrics = dw.get_snapshot_metrics(data)
-        # Calculate MTD Return if missing
-        mtd_ret = 0.0
-        twr_df = data.get("twr_df", pd.DataFrame())
-        if not twr_df.empty and "Horizon" in twr_df.columns:
-             row = twr_df[twr_df["Horizon"] == "MTD"]
-             if not row.empty:
-                 mtd_ret = row["Return"].iloc[0]
-                 
-        summary_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Executive Summary", className="section-title mb-3"),
-                ], width=12)
-            ]),
-            dbc.Row([
-                dbc.Col([
-                    html.Div([
-                        html.Div("Current Value", className="kpi-label-print"),
-                        html.Div(fmt_dollar_clean(metrics.get('current_mv', 0) if metrics else 0), className="kpi-value-print")
-                    ], className="kpi-box-print")
-                ], width=3),
-                dbc.Col([
-                    html.Div([
-                        html.Div("Total Return (TWR)", className="kpi-label-print"),
-                        html.Div(fmt_pct_clean(metrics.get('twr_si', 0) if metrics else 0), className="kpi-value-print",
-                                 style={"color": "#28a745" if (metrics.get('twr_si', 0) or 0) >= 0 else "#dc3545"})
-                    ], className="kpi-box-print")
-                ], width=3),
-                dbc.Col([
-                    html.Div([
-                        html.Div("Total P/L", className="kpi-label-print"),
-                        html.Div(fmt_dollar_clean(metrics.get('pl_si', 0) if metrics else 0), className="kpi-value-print",
-                                 style={"color": "#28a745" if (metrics.get('pl_si', 0) or 0) >= 0 else "#dc3545"})
-                    ], className="kpi-box-print")
-                ], width=3),
-                dbc.Col([
-                    html.Div([
-                        html.Div("MTD Return", className="kpi-label-print"),
-                        html.Div(fmt_pct_clean(mtd_ret), className="kpi-value-print",
-                                 style={"color": "#28a745" if (mtd_ret or 0) >= 0 else "#dc3545"})
-                    ], className="kpi-box-print")
-                ], width=3),
-            ], className="mb-4"),
+    # Loop through sections in order
+    for section_key in final_order:
+        if section_key not in selected_list:
+            continue
             
-            # Risk Metrics Row
-            dbc.Row([
-                dbc.Col([
-                    html.Div([
-                        html.Div("Max Drawdown", className="kpi-label-print"),
-                        html.Div(fmt_pct_clean(metrics.get('max_dd', 0) if metrics else 0), className="kpi-value-print",
-                                 style={"color": "#dc3545"})
-                    ], className="kpi-box-print")
-                ], width=4),
-                dbc.Col([
-                    html.Div([
-                        html.Div("Sharpe Ratio", className="kpi-label-print"),
-                        html.Div(f"{metrics.get('sharpe', 'N/A'):.2f}" if isinstance(metrics.get('sharpe'), (int, float)) else str(metrics.get('sharpe', 'N/A')), className="kpi-value-print")
-                    ], className="kpi-box-print")
-                ], width=4),
-                dbc.Col([
-                    html.Div([
-                        html.Div("Sortino Ratio", className="kpi-label-print"),
-                        html.Div(f"{metrics.get('sortino', 'N/A'):.2f}" if isinstance(metrics.get('sortino'), (int, float)) else str(metrics.get('sortino', 'N/A')), className="kpi-value-print")
-                    ], className="kpi-box-print")
-                ], width=4),
-            ], className="mb-4"),
-        ], className="report-section no-break")
-        report_sections.append(summary_section)
-    
-    # 2. Performance Chart
-    if "performance_chart" in sections:
-        fig = dw.get_pv_mountain_chart(data, theme)
-        if print_preview:
-            fig = apply_print_theme(fig)
-        fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
-        
-        perf_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Portfolio Performance", className="section-title mb-3"),
-                    dcc.Graph(figure=fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
-                ], width=12)
-            ])
-        ], className="report-section page-break-before")
-        report_sections.append(perf_section)
-    
-    # 3. Horizon Analysis Table
-    if "horizon_table" in sections:
-        horizon_df = dw.get_horizon_analysis(data)
-        
-        # Remove Sharpe/Sortino/Max DD columns if present
-        for col in ['Sharpe', 'Sortino', 'Max DD']:
-            if col in horizon_df.columns:
-                horizon_df = horizon_df.drop(columns=[col])
-        
-        # Format
-        if 'Return' in horizon_df.columns:
-            horizon_df['Return'] = horizon_df['Return'].apply(fmt_pct_clean)
-        if 'P/L' in horizon_df.columns:
-            horizon_df['P/L'] = horizon_df['P/L'].apply(fmt_dollar_clean)
-        
-        # Filter meta columns
-        display_cols = [c for c in horizon_df.columns if not c.startswith('meta_')]
-        
-        grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
-        
-        horizon_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Horizon Analysis", className="section-title mb-3"),
-                    dag.AgGrid(
-                        rowData=horizon_df[display_cols].to_dict('records'),
-                        columnDefs=[{"field": col, "headerName": col, "flex": 1} for col in display_cols],
-                        defaultColDef={"sortable": True, "resizable": True},
-                        className=grid_class,
-                        dashGridOptions={"domLayout": "autoHeight"},
-                        style={"width": "100%"}
-                    )
-                ], width=12)
-            ])
-        ], className="report-section no-break")
-        report_sections.append(horizon_section)
-    
-    # 4. Asset Allocation
-    if "allocation" in sections:
-        pie_fig, bar_fig = dw.get_asset_allocation_charts(data, theme)
-        hist_fig = dw.get_allocation_history_chart(data, theme)
-        
-        if print_preview:
-            pie_fig = apply_print_theme(pie_fig)
-            bar_fig = apply_print_theme(bar_fig)
-            hist_fig = apply_print_theme(hist_fig)
-        
-        pie_fig.update_layout(height=450, margin=dict(l=0, r=0, t=30, b=20), autosize=True)
-        bar_fig.update_layout(height=450, margin=dict(l=0, r=0, t=30, b=20), autosize=True)
-        hist_fig.update_layout(height=500, margin=dict(l=0, r=0, t=40, b=40), autosize=True)
-        
-        alloc_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Asset Allocation", className="section-title mb-3"),
-                ], width=12),
-                dbc.Col([
-                    dcc.Graph(figure=pie_fig, config={'displayModeBar': False}, style={'height': '450px', 'width': '100%'}, responsive=True)
-                ], width=12, className="mb-4"),
-                dbc.Col([
-                    dcc.Graph(figure=bar_fig, config={'displayModeBar': False}, style={'height': '450px', 'width': '100%'}, responsive=True)
-                ], width=12, className="mb-4"),
-                dbc.Col([
-                    html.H5("Allocation History", className="mt-2 mb-2"),
-                    dcc.Graph(figure=hist_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True)
-                ], width=12),
-            ])
-        ], className="report-section page-break-before")
-        report_sections.append(alloc_section)
-    
-    # 5. Sector Breakdown
-    if "sector" in sections:
-        sector_fig = dw.get_sector_allocation_chart(data, theme)
-        if print_preview:
-            sector_fig = apply_print_theme(sector_fig)
-        sector_fig.update_layout(height=500, margin=dict(l=0, r=0, t=40, b=40), autosize=True)
-        
-        sector_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Sector Breakdown", className="section-title mb-3"),
-                    dcc.Graph(figure=sector_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True)
-                ], width=12)
-            ])
-        ], className="report-section no-break")
-        report_sections.append(sector_section)
-    
-    # 6. Top Holdings
-    if "holdings" in sections:
-        sec_table = data.get('sec_table_current', pd.DataFrame())
-        
-        if not sec_table.empty:
-            # Get top 10 by market_value
-            holdings_df = sec_table[sec_table['ticker'] != 'CASH'].nlargest(10, 'market_value').copy()
+        # 0. Morning AI Summary
+        if section_key == "morning_brief":
+            # Generate summary text
+            from components.ai_brief import generate_ai_summary
+            summary_text = generate_ai_summary(data)
             
-            # Calculate weight
-            total_value = sec_table['market_value'].sum()
-            holdings_df['Weight'] = (holdings_df['market_value'] / total_value * 100).round(2).astype(str) + '%'
-            holdings_df['Value'] = holdings_df['market_value'].apply(fmt_dollar_clean)
-            holdings_df['Shares'] = holdings_df['shares'].round(2)
+            brief_section = html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.H4("Morning AI Summary", className="section-title mb-3"),
+                        dcc.Markdown(summary_text, className="text-muted" if print_preview else "text-white")
+                    ], width=12)
+                ])
+            ], className="report-section no-break")
+            report_sections.append(brief_section)
+        
+        # 1. Executive Summary
+        elif section_key == "summary":
+            metrics = dw.get_snapshot_metrics(data)
+            # Calculate MTD Return if missing
+            mtd_ret = 0.0
+            twr_df = data.get("twr_df", pd.DataFrame())
+            if not twr_df.empty and "Horizon" in twr_df.columns:
+                 row = twr_df[twr_df["Horizon"] == "MTD"]
+                 if not row.empty:
+                     mtd_ret = row["Return"].iloc[0]
+                     
+            summary_section = html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.H4("Executive Summary", className="section-title mb-3"),
+                    ], width=12)
+                ]),
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            html.Div("Current Value", className="kpi-label-print text-white"),
+                            html.Div(fmt_dollar_clean(metrics.get('current_mv', 0) if metrics else 0), className="kpi-value-print text-white")
+                        ], className="kpi-box-print")
+                    ], width=3),
+                    dbc.Col([
+                        html.Div([
+                            html.Div("Total Return (TWR)", className="kpi-label-print text-white"),
+                            html.Div(fmt_pct_clean(metrics.get('twr_si', 0) if metrics else 0), className="kpi-value-print",
+                                     style={"color": "#28a745" if (metrics.get('twr_si', 0) or 0) >= 0 else "#dc3545"})
+                        ], className="kpi-box-print")
+                    ], width=3),
+                    dbc.Col([
+                        html.Div([
+                            html.Div("Total P/L", className="kpi-label-print text-white"),
+                            html.Div(fmt_dollar_clean(metrics.get('pl_si', 0) if metrics else 0), className="kpi-value-print",
+                                     style={"color": "#28a745" if (metrics.get('pl_si', 0) or 0) >= 0 else "#dc3545"})
+                        ], className="kpi-box-print")
+                    ], width=3),
+                    dbc.Col([
+                        html.Div([
+                            html.Div("MTD Return", className="kpi-label-print text-white"),
+                            html.Div(fmt_pct_clean(mtd_ret), className="kpi-value-print",
+                                     style={"color": "#28a745" if (mtd_ret or 0) >= 0 else "#dc3545"})
+                        ], className="kpi-box-print")
+                    ], width=3),
+                ], className="mb-4"),
+                
+                # Risk Metrics Row
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            html.Div("Max Drawdown", className="kpi-label-print text-white"),
+                            html.Div(fmt_pct_clean(metrics.get('max_dd', 0) if metrics else 0), className="kpi-value-print",
+                                     style={"color": "#dc3545"})
+                        ], className="kpi-box-print")
+                    ], width=4),
+                    dbc.Col([
+                        html.Div([
+                            html.Div("Sharpe Ratio", className="kpi-label-print text-white"),
+                            html.Div(f"{metrics.get('sharpe', 'N/A'):.2f}" if isinstance(metrics.get('sharpe'), (int, float)) else str(metrics.get('sharpe', 'N/A')), className="kpi-value-print text-white")
+                        ], className="kpi-box-print")
+                    ], width=4),
+                    dbc.Col([
+                        html.Div([
+                            html.Div("Sortino Ratio", className="kpi-label-print text-white"),
+                            html.Div(f"{metrics.get('sortino', 'N/A'):.2f}" if isinstance(metrics.get('sortino'), (int, float)) else str(metrics.get('sortino', 'N/A')), className="kpi-value-print text-white")
+                        ], className="kpi-box-print")
+                    ], width=4),
+                ], className="mb-4"),
+            ], className="report-section no-break")
+            report_sections.append(summary_section)
+        
+        # 2. Performance Chart
+        elif section_key == "performance_chart":
+            fig = dw.get_pv_mountain_chart(data, theme)
+            if print_preview:
+                fig = apply_print_theme(fig)
+            fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
             
-            display_df = holdings_df[['ticker', 'asset_class', 'Shares', 'Value', 'Weight']].copy()
-            display_df.columns = ['Ticker', 'Asset Class', 'Shares', 'Value', 'Weight']
+            perf_section = html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.H4("Portfolio Performance", className="section-title mb-3"),
+                        dcc.Graph(figure=fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                    ], width=12)
+                ])
+            ], className="report-section page-break-before")
+            report_sections.append(perf_section)
+        
+        # 3. Horizon Analysis Table
+        elif section_key == "horizon_table":
+            horizon_df = dw.get_horizon_analysis(data)
+            
+            # Remove Sharpe/Sortino/Max DD columns if present
+            for col in ['Sharpe', 'Sortino', 'Max DD']:
+                if col in horizon_df.columns:
+                    horizon_df = horizon_df.drop(columns=[col])
+            
+            # Format
+            if 'Return' in horizon_df.columns:
+                horizon_df['Return'] = horizon_df['Return'].apply(fmt_pct_clean)
+            if 'P/L' in horizon_df.columns:
+                horizon_df['P/L'] = horizon_df['P/L'].apply(fmt_dollar_clean)
+            
+            # Filter meta columns
+            display_cols = [c for c in horizon_df.columns if not c.startswith('meta_')]
             
             grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
             
-            holdings_section = html.Div([
+            horizon_section = html.Div([
                 dbc.Row([
                     dbc.Col([
-                        html.H4("Top 10 Holdings", className="section-title mb-3"),
+                        html.H4("Horizon Analysis", className="section-title mb-3"),
                         dag.AgGrid(
-                            rowData=display_df.to_dict('records'),
-                            columnDefs=[{"field": col, "headerName": col, "flex": 1} for col in display_df.columns],
+                            rowData=horizon_df[display_cols].to_dict('records'),
+                            columnDefs=[{"field": col, "headerName": col, "flex": 1} for col in display_cols],
                             defaultColDef={"sortable": True, "resizable": True},
                             className=grid_class,
                             dashGridOptions={"domLayout": "autoHeight"},
@@ -504,341 +522,427 @@ def update_report(n_clicks, signal, sections, title, period):
                     ], width=12)
                 ])
             ], className="report-section no-break")
-            report_sections.append(holdings_section)
-    
-    # 7. Risk Metrics
-    if "risk" in sections:
-        risk_df = dw.get_risk_diversification(data)
-        grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
+            report_sections.append(horizon_section)
         
-        risk_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Risk & Diversification", className="section-title mb-3"),
-                    dag.AgGrid(
-                        rowData=risk_df.to_dict('records'),
-                        columnDefs=[
-                            {"field": "Metric", "headerName": "Metric", "flex": 2},
-                            {"field": "Value", "headerName": "Value", "flex": 1}
-                        ],
-                        defaultColDef={"sortable": True, "resizable": True},
-                        className=grid_class,
-                        dashGridOptions={"domLayout": "autoHeight", "headerHeight": 0},
-                        style={"width": "100%"}
-                    )
-                ], width=12)
-            ])
-        ], className="report-section no-break")
-        report_sections.append(risk_section)
-    
-    # 8. Flows Summary
-    if "flows" in sections:
-        flows_df = dw.get_flows_summary_ytd(data)
-        grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
-        
-        flows_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Cash Flow Summary (YTD)", className="section-title mb-3"),
-                    dag.AgGrid(
-                        rowData=flows_df.to_dict('records'),
-                        columnDefs=[
-                            {"field": "Metric", "headerName": "Metric", "flex": 2},
-                            {"field": "Value", "headerName": "Value", "flex": 1}
-                        ],
-                        defaultColDef={"sortable": True, "resizable": True},
-                        className=grid_class,
-                        dashGridOptions={"domLayout": "autoHeight", "headerHeight": 0},
-                        style={"width": "100%"}
-                    )
-                ], width=12)
-            ])
-        ], className="report-section no-break")
-        report_sections.append(flows_section)
-
-    # 9. Tax Lot Explorer (Open Lots)
-    if "tax_lots" in sections:
-        # Calculate tax lots
-        open_lots, _ = build_tax_lots(strategy="FIFO", signal=signal)
-        grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
-        
-        if not open_lots.empty:
-            explorer_df = open_lots.copy()
-            explorer_df["Date Acquired"] = explorer_df["Date Acquired"].dt.strftime("%Y-%m-%d")
+        # 4. Asset Allocation
+        elif section_key == "allocation":
+            pie_fig, bar_fig = dw.get_asset_allocation_charts(data, theme)
+            hist_fig = dw.get_allocation_history_chart(data, theme)
             
-            cols_currency = ["Cost Basis", "Current Price", "Market Value", "Unrealized P/L", "Est Tax Liability"]
-            cols_hide = ["Is Near Cliff", "Days to LT", "Cost Per Share"]
-            col_defs = []
-            for c in explorer_df.columns:
-                hide = c in cols_hide
-                # Ensure currency and long header columns have extra width to prevent truncation
-                min_w = 120 if print_preview else 150
-                if c in cols_currency or len(c) > 12:
-                    min_w = 140 if print_preview else 180
-                
-                cd = {"field": c, "headerName": c, "hide": hide, "minWidth": min_w, "flex": 1}
-                
-                if c in cols_currency:
-                    cd["valueFormatter"] = {"function": "d3.format('$,.2f')(params.value)"}
-                elif c == "Shares":
-                    cd["valueFormatter"] = {"function": "d3.format(',.2f')(params.value)"}
-                
-                col_defs.append(cd)
-                
-            tax_lots_section = html.Div([
+            if print_preview:
+                pie_fig = apply_print_theme(pie_fig)
+                bar_fig = apply_print_theme(bar_fig)
+                hist_fig = apply_print_theme(hist_fig)
+            
+            pie_fig.update_layout(height=450, margin=dict(l=0, r=0, t=30, b=20), autosize=True)
+            bar_fig.update_layout(height=450, margin=dict(l=0, r=0, t=30, b=20), autosize=True)
+            hist_fig.update_layout(height=500, margin=dict(l=0, r=0, t=40, b=40), autosize=True)
+            
+            alloc_section = html.Div([
                 dbc.Row([
                     dbc.Col([
-                        html.H4("Tax Lot Explorer (Open Lots)", className="section-title mb-3"),
+                        html.H4("Asset Allocation", className="section-title mb-3"),
+                    ], width=12),
+                    dbc.Col([
+                        dcc.Graph(figure=pie_fig, config={'displayModeBar': False}, style={'height': '450px', 'width': '100%'}, responsive=True)
+                    ], width=12, className="mb-4"),
+                    dbc.Col([
+                        dcc.Graph(figure=bar_fig, config={'displayModeBar': False}, style={'height': '450px', 'width': '100%'}, responsive=True)
+                    ], width=12, className="mb-4"),
+                    dbc.Col([
+                        html.H5("Allocation History", className="mt-2 mb-2"),
+                        dcc.Graph(figure=hist_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True)
+                    ], width=12),
+                ])
+            ], className="report-section page-break-before")
+            report_sections.append(alloc_section)
+        
+        # 5. Sector Breakdown
+        elif section_key == "sector":
+            sector_fig = dw.get_sector_allocation_chart(data, theme)
+            if print_preview:
+                sector_fig = apply_print_theme(sector_fig)
+            sector_fig.update_layout(height=500, margin=dict(l=0, r=0, t=40, b=40), autosize=True)
+            
+            sector_section = html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.H4("Sector Breakdown", className="section-title mb-3"),
+                        dcc.Graph(figure=sector_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True)
+                    ], width=12)
+                ])
+            ], className="report-section no-break")
+            report_sections.append(sector_section)
+        
+        # 6. Top Holdings
+        elif section_key == "holdings":
+            sec_table = data.get('sec_table_current', pd.DataFrame())
+            
+            if not sec_table.empty:
+                # Get top 10 by market_value
+                holdings_df = sec_table[sec_table['ticker'] != 'CASH'].nlargest(10, 'market_value').copy()
+                
+                # Calculate weight
+                total_value = sec_table['market_value'].sum()
+                holdings_df['Weight'] = (holdings_df['market_value'] / total_value * 100).round(2).astype(str) + '%'
+                holdings_df['Value'] = holdings_df['market_value'].apply(fmt_dollar_clean)
+                holdings_df['Shares'] = holdings_df['shares'].round(2)
+                
+                display_df = holdings_df[['ticker', 'asset_class', 'Shares', 'Value', 'Weight']].copy()
+                display_df.columns = ['Ticker', 'Asset Class', 'Shares', 'Value', 'Weight']
+                
+                grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
+                
+                holdings_section = html.Div([
+                    dbc.Row([
+                        dbc.Col([
+                            html.H4("Top 10 Holdings", className="section-title mb-3"),
+                            dag.AgGrid(
+                                rowData=display_df.to_dict('records'),
+                                columnDefs=[{"field": col, "headerName": col, "flex": 1} for col in display_df.columns],
+                                defaultColDef={"sortable": True, "resizable": True},
+                                className=grid_class,
+                                dashGridOptions={"domLayout": "autoHeight"},
+                                style={"width": "100%"}
+                            )
+                        ], width=12)
+                    ])
+                ], className="report-section no-break")
+                report_sections.append(holdings_section)
+        
+        # 7. Risk Metrics
+        elif section_key == "risk":
+            risk_df = dw.get_risk_diversification(data)
+            grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
+            
+            risk_section = html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.H4("Risk & Diversification", className="section-title mb-3"),
                         dag.AgGrid(
-                            rowData=explorer_df.to_dict("records"),
-                            columnDefs=col_defs,
+                            rowData=risk_df.to_dict('records'),
+                            columnDefs=[
+                                {"field": "Metric", "headerName": "Metric", "flex": 2},
+                                {"field": "Value", "headerName": "Value", "flex": 1}
+                            ],
                             defaultColDef={"sortable": True, "resizable": True},
                             className=grid_class,
-                            dashGridOptions={"domLayout": "autoHeight"},
+                            dashGridOptions={"domLayout": "autoHeight", "headerHeight": 0},
+                            style={"width": "100%"}
+                        )
+                    ], width=12)
+                ])
+            ], className="report-section no-break")
+            report_sections.append(risk_section)
+        
+        # 8. Flows Summary
+        elif section_key == "flows":
+            flows_df = dw.get_flows_summary_ytd(data)
+            grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
+            
+            flows_section = html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.H4("Cash Flow Summary (YTD)", className="section-title mb-3"),
+                        dag.AgGrid(
+                            rowData=flows_df.to_dict('records'),
+                            columnDefs=[
+                                {"field": "Metric", "headerName": "Metric", "flex": 2},
+                                {"field": "Value", "headerName": "Value", "flex": 1}
+                            ],
+                            defaultColDef={"sortable": True, "resizable": True},
+                            className=grid_class,
+                            dashGridOptions={"domLayout": "autoHeight", "headerHeight": 0},
+                            style={"width": "100%"}
+                        )
+                    ], width=12)
+                ])
+            ], className="report-section no-break")
+            report_sections.append(flows_section)
+
+        # 9. Tax Lot Explorer (Open Lots)
+        elif section_key == "tax_lots":
+            # Calculate tax lots
+            open_lots, _ = build_tax_lots(strategy="FIFO", signal=signal)
+            grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
+            
+            if not open_lots.empty:
+                explorer_df = open_lots.copy()
+                explorer_df["Date Acquired"] = explorer_df["Date Acquired"].dt.strftime("%Y-%m-%d")
+                
+                cols_currency = ["Cost Basis", "Current Price", "Market Value", "Unrealized P/L", "Est Tax Liability"]
+                cols_hide = ["Is Near Cliff", "Days to LT", "Cost Per Share"]
+                col_defs = []
+                for c in explorer_df.columns:
+                    hide = c in cols_hide
+                    # Ensure currency and long header columns have extra width to prevent truncation
+                    min_w = 120 if print_preview else 150
+                    if c in cols_currency or len(c) > 12:
+                        min_w = 140 if print_preview else 180
+                    
+                    cd = {"field": c, "headerName": c, "hide": hide, "minWidth": min_w, "flex": 1}
+                    
+                    if c in cols_currency:
+                        cd["valueFormatter"] = {"function": "d3.format('$,.2f')(params.value)"}
+                    elif c == "Shares":
+                        cd["valueFormatter"] = {"function": "d3.format(',.2f')(params.value)"}
+                    
+                    col_defs.append(cd)
+                    
+                tax_lots_section = html.Div([
+                    dbc.Row([
+                        dbc.Col([
+                            html.H4("Tax Lot Explorer (Open Lots)", className="section-title mb-3"),
+                            dag.AgGrid(
+                                rowData=explorer_df.to_dict("records"),
+                                columnDefs=col_defs,
+                                defaultColDef={"sortable": True, "resizable": True},
+                                className=grid_class,
+                                dashGridOptions={"domLayout": "autoHeight"},
+                                style={"width": "100%"}
+                            )
+                        ], width=12)
+                    ])
+                ], className="report-section page-break-before")
+                report_sections.append(tax_lots_section)
+            else:
+                report_sections.append(html.Div([
+                    dbc.Row([
+                        dbc.Col([
+                            html.H4("Tax Lot Explorer (Open Lots)", className="section-title mb-3"),
+                            html.Div("No open lots found.", className="text-muted p-3")
+                        ], width=12)
+                    ])
+                ], className="report-section no-break"))
+
+        # 11. Risk Analysis Charts
+        elif section_key == "risk_charts":
+            risk_fig = dw.get_risk_return_chart(data, theme)
+            corr_fig = dw.get_correlation_heatmap(data, theme)
+            dd_fig = dw.get_drawdown_chart(data, theme)
+            
+            if print_preview:
+                risk_fig = apply_print_theme(risk_fig)
+                corr_fig = apply_print_theme(corr_fig)
+                dd_fig = apply_print_theme(dd_fig)
+                
+            risk_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            corr_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            dd_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+                
+            risk_section = html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.H4("Risk Analysis", className="section-title mb-3"),
+                    ], width=12),
+                    dbc.Col(dcc.Graph(figure=risk_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True), width=12, className="mb-4"),
+                    dbc.Col(dcc.Graph(figure=corr_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True), width=12, className="mb-4"),
+                    dbc.Col(dcc.Graph(figure=dd_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True), width=12)
+                ])
+            ], className="report-section page-break-before")
+            report_sections.append(risk_section)
+
+        # 12. Performance Deep Dive
+        elif section_key == "perf_deep_dive":
+            bm_map = {
+                "S&P 500": "SPY",
+                "Total US Market": "VTI",
+                "Aggressive Alloc": "AOA"
+            }
+            cum_fig = dw.get_cumulative_return_chart(data, None, bm_map, theme)
+            growth_fig = dw.get_growth_of_capital_chart(data, "Total", theme)
+            
+            if print_preview:
+                cum_fig = apply_print_theme(cum_fig)
+                growth_fig = apply_print_theme(growth_fig)
+                
+            cum_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            growth_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+                
+            perf_deep_section = html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.H4("Performance Deep Dive", className="section-title mb-3"),
+                        html.H5("Cumulative Return vs Benchmark", className="mb-2"),
+                        dcc.Graph(figure=cum_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        html.H5("Growth of Invested Capital", className="mt-4 mb-2"),
+                        dcc.Graph(figure=growth_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True)
+                    ], width=12)
+                ])
+            ], className="report-section page-break-before")
+            report_sections.append(perf_deep_section)
+
+        # 13. Attribution Analysis
+        elif section_key == "attribution":
+            attr_fig = dw.get_smart_attribution_chart(data, theme)
+            if print_preview:
+                attr_fig = apply_print_theme(attr_fig)
+            
+            attr_fig.update_layout(height=600, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+                
+            attr_section = html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.H4("Attribution Analysis", className="section-title mb-3"),
+                        dcc.Graph(figure=attr_fig, config={'displayModeBar': False}, style={'height': '600px', 'width': '100%'}, responsive=True)
+                    ], width=12)
+                ])
+            ], className="report-section page-break-before")
+            report_sections.append(attr_section)
+
+        # 14. Asset Class Performance Table
+        elif section_key == "ac_perf_table":
+            class_df = data['class_df']
+            sec_table = data['sec_table_current'] # Default to current holdings
+            horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
+            
+            rows = []
+            # Sort classes
+            ac_rank_map = {ac: i for i, ac in enumerate(class_df['asset_class'].unique())}
+            
+            for _, crow in class_df.iterrows():
+                ac = crow['asset_class']
+                rank = ac_rank_map.get(ac, 999)
+                
+                # Class Row
+                r_vals = {
+                    "Asset Class / Ticker": ac, 
+                    "Type": "Class", 
+                    "_sort_rank": rank
+                }
+                for h in horizons:
+                    val = crow.get(h)
+                    r_vals[h] = fmt_pct_clean(val) if pd.notna(val) else "N/A"
+                rows.append(r_vals)
+                
+                # Ticker Rows
+                tickers = sec_table[sec_table['asset_class'] == ac]
+                for _, trow in tickers.iterrows():
+                    t = trow['ticker']
+                    tr_vals = {
+                        "Asset Class / Ticker": f"  {t}", 
+                        "Type": "Ticker", 
+                        "_sort_rank": rank
+                    }
+                    for h in horizons:
+                        val = trow.get(h)
+                        tr_vals[h] = fmt_pct_clean(val) if pd.notna(val) else "N/A"
+                    rows.append(tr_vals)
+            
+            grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
+            cols = ["Asset Class / Ticker"] + horizons
+            
+            perf_table_section = html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.H4("Asset Class Performance", className="section-title mb-3"),
+                        dag.AgGrid(
+                            rowData=rows,
+                            columnDefs=[
+                                {
+                                    "field": c, 
+                                    "headerName": c, 
+                                    "flex": 1, 
+                                    "pinned": "left" if c == "Asset Class / Ticker" else None, 
+                                    "minWidth": (120 if print_preview else 150) if c == "Asset Class / Ticker" else (60 if print_preview else 80)
+                                } 
+                                for c in cols
+                            ],
+                            defaultColDef={"sortable": False, "resizable": True}, # Disable sort to keep hierarchy
+                            className=grid_class,
+                            dashGridOptions={
+                                "domLayout": "autoHeight",
+                                "getRowStyle": {
+                                    "function": "params.data.Type === 'Class' ? {'fontWeight': 'bold', 'backgroundColor': 'rgba(0,0,0,0.05)'} : {}"
+                                }
+                            },
                             style={"width": "100%"}
                         )
                     ], width=12)
                 ])
             ], className="report-section page-break-before")
-            report_sections.append(tax_lots_section)
-        else:
-            report_sections.append(html.Div([
+            report_sections.append(perf_table_section)
+
+        # 15. Asset Class P/L Table
+        elif section_key == "ac_pl_table":
+            class_df = data['class_df']
+            sec_table = data['sec_table_current']
+            horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
+            
+            # Pre-fetch ticker P/L for all horizons
+            ticker_pl_cache = {}
+            for h in horizons:
+                ticker_pl_cache[h] = dw.get_ticker_pl_df(data, h)
+                
+            rows = []
+            ac_rank_map = {ac: i for i, ac in enumerate(class_df['asset_class'].unique())}
+            
+            for _, crow in class_df.iterrows():
+                ac = crow['asset_class']
+                rank = ac_rank_map.get(ac, 999)
+                
+                # Class Row
+                r_vals = {
+                    "Asset Class / Ticker": ac, 
+                    "Type": "Class", 
+                    "_sort_rank": rank
+                }
+                for h in horizons:
+                    res = dw.get_asset_class_pl(data, ac, h, return_components=False)
+                    r_vals[h] = fmt_dollar_clean(res) if res is not None else "N/A"
+                rows.append(r_vals)
+                
+                # Ticker Rows
+                tickers = sec_table[sec_table['asset_class'] == ac]
+                for _, trow in tickers.iterrows():
+                    t = trow['ticker']
+                    tr_vals = {
+                        "Asset Class / Ticker": f"  {t}", 
+                        "Type": "Ticker", 
+                        "_sort_rank": rank
+                    }
+                    for h in horizons:
+                        pl_df = ticker_pl_cache[h]
+                        if not pl_df.empty and t in pl_df.index:
+                            val = pl_df.loc[t, "pl"]
+                            tr_vals[h] = fmt_dollar_clean(val)
+                        else:
+                            tr_vals[h] = "N/A"
+                    rows.append(tr_vals)
+                    
+            grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
+            cols = ["Asset Class / Ticker"] + horizons
+            
+            pl_table_section = html.Div([
                 dbc.Row([
                     dbc.Col([
-                        html.H4("Tax Lot Explorer (Open Lots)", className="section-title mb-3"),
-                        html.Div("No open lots found.", className="text-muted p-3")
+                        html.H4("Asset Class P/L (Economic)", className="section-title mb-3"),
+                        dag.AgGrid(
+                            rowData=rows,
+                            columnDefs=[
+                                {
+                                    "field": c, 
+                                    "headerName": c, 
+                                    "flex": 1, 
+                                    "pinned": "left" if c == "Asset Class / Ticker" else None, 
+                                    "minWidth": (120 if print_preview else 150) if c == "Asset Class / Ticker" else (60 if print_preview else 80)
+                                } 
+                                for c in cols
+                            ],
+                            defaultColDef={"sortable": False, "resizable": True},
+                            className=grid_class,
+                            dashGridOptions={
+                                "domLayout": "autoHeight",
+                                "getRowStyle": {
+                                    "function": "params.data.Type === 'Class' ? {'fontWeight': 'bold', 'backgroundColor': 'rgba(0,0,0,0.05)'} : {}"
+                                }
+                            },
+                            style={"width": "100%"}
+                        )
                     ], width=12)
                 ])
-            ], className="report-section no-break"))
-
-    # 11. Risk Analysis Charts
-    if "risk_charts" in sections:
-        risk_fig = dw.get_risk_return_chart(data, theme)
-        corr_fig = dw.get_correlation_heatmap(data, theme)
-        dd_fig = dw.get_drawdown_chart(data, theme)
-        
-        if print_preview:
-            risk_fig = apply_print_theme(risk_fig)
-            corr_fig = apply_print_theme(corr_fig)
-            dd_fig = apply_print_theme(dd_fig)
-            
-        risk_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
-        corr_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
-        dd_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
-            
-        risk_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Risk Analysis", className="section-title mb-3"),
-                ], width=12),
-                dbc.Col(dcc.Graph(figure=risk_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True), width=12, className="mb-4"),
-                dbc.Col(dcc.Graph(figure=corr_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True), width=12, className="mb-4"),
-                dbc.Col(dcc.Graph(figure=dd_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True), width=12)
-            ])
-        ], className="report-section page-break-before")
-        report_sections.append(risk_section)
-
-    # 12. Performance Deep Dive
-    if "perf_deep_dive" in sections:
-        bm_map = {
-            "S&P 500": "SPY",
-            "Total US Market": "VTI",
-            "Aggressive Alloc": "AOA"
-        }
-        cum_fig = dw.get_cumulative_return_chart(data, None, bm_map, theme)
-        growth_fig = dw.get_growth_of_capital_chart(data, "Total", theme)
-        
-        if print_preview:
-            cum_fig = apply_print_theme(cum_fig)
-            growth_fig = apply_print_theme(growth_fig)
-            
-        cum_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
-        growth_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
-            
-        perf_deep_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Performance Deep Dive", className="section-title mb-3"),
-                    html.H5("Cumulative Return vs Benchmark", className="mb-2"),
-                    dcc.Graph(figure=cum_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
-                    html.H5("Growth of Invested Capital", className="mt-4 mb-2"),
-                    dcc.Graph(figure=growth_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True)
-                ], width=12)
-            ])
-        ], className="report-section page-break-before")
-        report_sections.append(perf_deep_section)
-
-    # 13. Attribution Analysis
-    if "attribution" in sections:
-        attr_fig = dw.get_smart_attribution_chart(data, theme)
-        if print_preview:
-            attr_fig = apply_print_theme(attr_fig)
-        
-        attr_fig.update_layout(height=600, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
-            
-        attr_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Attribution Analysis", className="section-title mb-3"),
-                    dcc.Graph(figure=attr_fig, config={'displayModeBar': False}, style={'height': '600px', 'width': '100%'}, responsive=True)
-                ], width=12)
-            ])
-        ], className="report-section page-break-before")
-        report_sections.append(attr_section)
-
-    # 14. Asset Class Performance Table
-    if "ac_perf_table" in sections:
-        class_df = data['class_df']
-        sec_table = data['sec_table_current'] # Default to current holdings
-        horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
-        
-        rows = []
-        # Sort classes
-        ac_rank_map = {ac: i for i, ac in enumerate(class_df['asset_class'].unique())}
-        
-        for _, crow in class_df.iterrows():
-            ac = crow['asset_class']
-            rank = ac_rank_map.get(ac, 999)
-            
-            # Class Row
-            r_vals = {
-                "Asset Class / Ticker": ac, 
-                "Type": "Class", 
-                "_sort_rank": rank
-            }
-            for h in horizons:
-                val = crow.get(h)
-                r_vals[h] = fmt_pct_clean(val) if pd.notna(val) else "N/A"
-            rows.append(r_vals)
-            
-            # Ticker Rows
-            tickers = sec_table[sec_table['asset_class'] == ac]
-            for _, trow in tickers.iterrows():
-                t = trow['ticker']
-                tr_vals = {
-                    "Asset Class / Ticker": f"  {t}", 
-                    "Type": "Ticker", 
-                    "_sort_rank": rank
-                }
-                for h in horizons:
-                    val = trow.get(h)
-                    tr_vals[h] = fmt_pct_clean(val) if pd.notna(val) else "N/A"
-                rows.append(tr_vals)
-        
-        grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
-        cols = ["Asset Class / Ticker"] + horizons
-        
-        perf_table_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Asset Class Performance", className="section-title mb-3"),
-                    dag.AgGrid(
-                        rowData=rows,
-                        columnDefs=[
-                            {
-                                "field": c, 
-                                "headerName": c, 
-                                "flex": 1, 
-                                "pinned": "left" if c == "Asset Class / Ticker" else None, 
-                                "minWidth": (120 if print_preview else 150) if c == "Asset Class / Ticker" else (60 if print_preview else 80)
-                            } 
-                            for c in cols
-                        ],
-                        defaultColDef={"sortable": False, "resizable": True}, # Disable sort to keep hierarchy
-                        className=grid_class,
-                        dashGridOptions={
-                            "domLayout": "autoHeight",
-                            "getRowStyle": {
-                                "function": "params.data.Type === 'Class' ? {'fontWeight': 'bold', 'backgroundColor': 'rgba(0,0,0,0.05)'} : {}"
-                            }
-                        },
-                        style={"width": "100%"}
-                    )
-                ], width=12)
-            ])
-        ], className="report-section page-break-before")
-        report_sections.append(perf_table_section)
-
-    # 15. Asset Class P/L Table
-    if "ac_pl_table" in sections:
-        class_df = data['class_df']
-        sec_table = data['sec_table_current']
-        horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
-        
-        # Pre-fetch ticker P/L for all horizons
-        ticker_pl_cache = {}
-        for h in horizons:
-            ticker_pl_cache[h] = dw.get_ticker_pl_df(data, h)
-            
-        rows = []
-        ac_rank_map = {ac: i for i, ac in enumerate(class_df['asset_class'].unique())}
-        
-        for _, crow in class_df.iterrows():
-            ac = crow['asset_class']
-            rank = ac_rank_map.get(ac, 999)
-            
-            # Class Row
-            r_vals = {
-                "Asset Class / Ticker": ac, 
-                "Type": "Class", 
-                "_sort_rank": rank
-            }
-            for h in horizons:
-                res = dw.get_asset_class_pl(data, ac, h, return_components=False)
-                r_vals[h] = fmt_dollar_clean(res) if res is not None else "N/A"
-            rows.append(r_vals)
-            
-            # Ticker Rows
-            tickers = sec_table[sec_table['asset_class'] == ac]
-            for _, trow in tickers.iterrows():
-                t = trow['ticker']
-                tr_vals = {
-                    "Asset Class / Ticker": f"  {t}", 
-                    "Type": "Ticker", 
-                    "_sort_rank": rank
-                }
-                for h in horizons:
-                    pl_df = ticker_pl_cache[h]
-                    if not pl_df.empty and t in pl_df.index:
-                        val = pl_df.loc[t, "pl"]
-                        tr_vals[h] = fmt_dollar_clean(val)
-                    else:
-                        tr_vals[h] = "N/A"
-                rows.append(tr_vals)
-                
-        grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
-        cols = ["Asset Class / Ticker"] + horizons
-        
-        pl_table_section = html.Div([
-            dbc.Row([
-                dbc.Col([
-                    html.H4("Asset Class P/L (Economic)", className="section-title mb-3"),
-                    dag.AgGrid(
-                        rowData=rows,
-                        columnDefs=[
-                            {
-                                "field": c, 
-                                "headerName": c, 
-                                "flex": 1, 
-                                "pinned": "left" if c == "Asset Class / Ticker" else None, 
-                                "minWidth": (120 if print_preview else 150) if c == "Asset Class / Ticker" else (60 if print_preview else 80)
-                            } 
-                            for c in cols
-                        ],
-                        defaultColDef={"sortable": False, "resizable": True},
-                        className=grid_class,
-                        dashGridOptions={
-                            "domLayout": "autoHeight",
-                            "getRowStyle": {
-                                "function": "params.data.Type === 'Class' ? {'fontWeight': 'bold', 'backgroundColor': 'rgba(0,0,0,0.05)'} : {}"
-                            }
-                        },
-                        style={"width": "100%"}
-                    )
-                ], width=12)
-            ])
-        ], className="report-section page-break-before")
-        report_sections.append(pl_table_section)
+            ], className="report-section page-break-before")
+            report_sections.append(pl_table_section)
     
     return report_title, subtitle, date_line, timestamp, report_sections, container_class
 
@@ -852,18 +956,33 @@ def update_report(n_clicks, signal, sections, title, period):
      Output("download-status-alert", "color"),
      Output("download-status-alert", "is_open")],
     Input("btn-download-word", "n_clicks"),
-    State("report-sections-checklist", "value"),
+    State("report-order-store", "data"), # Changed
+    State("report-selection-store", "data"), # Changed
     State("report-title-input", "value"),
     State("report-period-select", "value"),
+    State("report-mobile-mode", "value"),
     prevent_initial_call=True
 )
-def download_word_report(n_clicks, sections, title, period):
+def download_word_report(n_clicks, order_list, selected_list, title, period, mobile_mode):
     if not n_clicks:
         return dash.no_update, dash.no_update, dash.no_update, False
         
     data = dw.get_data()
-    sections = sections or []
+    
+    # Resolve Sections Logic
+    order_list = order_list or DEFAULT_ORDER
+    selected_list = selected_list or []
+    current_values = set(order_list)
+    options_dict = {opt["value"]: opt for opt in REPORT_SECTIONS_OPTIONS}
+    missing = [k for k in options_dict if k not in current_values]
+    final_order = [k for k in order_list if k in options_dict] + missing
+    
+    # Generate ordered sections list for Word Report
+    sections = [k for k in final_order if k in selected_list]
+    
     title = title or "Portfolio Value Report"
+    
+
     
     period_labels = {
         "SI": "Since Inception",
@@ -879,14 +998,15 @@ def download_word_report(n_clicks, sections, title, period):
         if not data:
             return dash.no_update, "No data available. Please load the portfolio first.", "warning", True
             
-        doc = generate_word_report(data, sections, title, subtitle, period)
+        doc = generate_word_report(data, sections, title, subtitle, period, mobile_mode=mobile_mode)
         
         # Save to buffer
         buffer = BytesIO()
         doc.save(buffer)
         buffer.seek(0)
-        
-        return dcc.send_bytes(buffer.getvalue(), filename=f"Investment_Report_{datetime.now().strftime('%Y%m%d')}.docx"), "Report generated successfully!", "success", True
+
+        filename_prefix = "Investment_Report_Mobile_" if mobile_mode else "Investment_Report_"
+        return dcc.send_bytes(buffer.getvalue(), filename=f"{filename_prefix}{datetime.now().strftime('%Y%m%d')}.docx"), "Report generated successfully!", "success", True
     except Exception as e:
         # In case of error (e.g. kaleido issue), maybe return a text file with error?
         # Or just let Dash handle it (it will show error in debug mode)

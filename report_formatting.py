@@ -60,10 +60,12 @@ def add_header(doc, text, level=1):
     # Keep with next paragraph (the table or chart)
     p.paragraph_format.keep_with_next = True
 
-def add_paragraph_centered(doc, text, bold=False):
+def add_paragraph_centered(doc, text, bold=False, keep_after=False):
     """Adds a centered paragraph."""
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    if keep_after:
+        p.paragraph_format.keep_with_next = True
     run = p.add_run(text)
     if bold:
         run.bold = True
@@ -203,12 +205,26 @@ def add_figure_to_doc(doc, fig, width_inches=7.5, height_inches=4.5):
 # Main Generator
 # =====================================================================
 
-def generate_word_report(data, sections, report_title, subtitle, period_label):
+def generate_word_report(data, sections, report_title, subtitle, period_label, mobile_mode=False):
     """
     Generates a Word Document based on selected sections.
+    Args:
+        mobile_mode (bool): If True, forces 1 chart per page and full width for readability.
     """
     doc = Document()
     set_narrow_margins(doc)
+    
+    # Helper to manage layout changes
+    def check_break():
+        if mobile_mode:
+            add_page_break(doc)
+
+    # Standard width is 7.5" (8.5 page - 1.0 margins). 
+    # In split mode (desktop default), we use 6" for side-by-side feel or smaller figs.
+    # In mobile mode, we use full 7.5" for everything.
+    w_full = 7.5
+    w_split = 7.5 if mobile_mode else 6.0
+    h_std = 5.0 if mobile_mode else 4.5
     
     # Title Page / Header
     add_header(doc, report_title, level=1)
@@ -218,360 +234,383 @@ def generate_word_report(data, sections, report_title, subtitle, period_label):
     add_paragraph_centered(doc, f"Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}")
     doc.add_paragraph() # Spacer
 
-    # -----------------------------------------------------------------
-    # 0. Morning AI Summary (Optional)
-    # -----------------------------------------------------------------
-    if "morning_brief" in sections:
-        # Avoid circular import at top level
-        try:
-             # Try absolute import which might work if not circular, but safe to keep as is
-             from components.ai_brief import generate_ai_summary
-        except:
-             pass 
+    # =================================================================
+    # Dynamic Section Loop
+    # =================================================================
+    for section_key in sections:
+    
+        # -----------------------------------------------------------------
+        # 0. Morning AI Summary (Optional)
+        # -----------------------------------------------------------------
+        if section_key == "morning_brief":
+            # Avoid circular import at top level
+            try:
+                 # Try absolute import which might work if not circular, but safe to keep as is
+                 from components.ai_brief import generate_ai_summary
+            except:
+                 pass 
 
-        # If data is missing or we need to calculate specific brief data:
-        summary_text = generate_ai_summary(data) if 'generate_ai_summary' in locals() else "AI Summary not available."
-        
-        add_header(doc, "Morning AI Summary", level=2)
-        add_markdown_paragraph(doc, summary_text)
-        doc.add_paragraph() # Spacer
-
-    # -----------------------------------------------------------------
-    # 1. Executive Summary
-    # -----------------------------------------------------------------
-    if "summary" in sections:
-        add_header(doc, "Executive Summary", level=2)
-        
-        metrics = dw.get_snapshot_metrics(data)
-        metrics2 = data.get("snapshot_metrics", {})
-        
-        # Calculate MTD return from twr_df if available
-        mtd_ret = 0.0
-        twr_df = data.get("twr_df", pd.DataFrame())
-        if not twr_df.empty and "Horizon" in twr_df.columns:
-            row = twr_df[twr_df["Horizon"] == "MTD"]
-            if not row.empty:
-                mtd_ret = row["Return"].iloc[0]
-
-        # Get Current Value (PV)
-        pv = data.get("pv", pd.Series())
-        curr_val = pv.iloc[-1] if not pv.empty else 0.0
-        
-        kpis = [
-            ["Metric", "Value"],
-            ["Total P/L (SI)", fmt_dollar_clean(metrics.get('pl_si'))],
-            ["Cumulative Return (SI)", fmt_pct_clean(metrics.get('twr_si'))],
-            ["Current Value", fmt_dollar_clean(curr_val)],
-            ["MTD Return", fmt_pct_clean(mtd_ret)],
-            ["Max Drawdown", fmt_pct_clean(metrics.get('max_dd'))],
-            ["Sharpe Ratio", f"{metrics.get('sharpe', 'N/A'):.2f}" if isinstance(metrics.get('sharpe'), (int, float)) else str(metrics.get('sharpe', 'N/A'))],
-            ["Sortino Ratio", f"{metrics.get('sortino', 'N/A'):.2f}" if isinstance(metrics.get('sortino'), (int, float)) else str(metrics.get('sortino', 'N/A'))],
-        ]
-        add_table(doc, kpis[0], kpis[1:], right_align=[1])
-
-    # -----------------------------------------------------------------
-    # 2. Performance Chart
-    # -----------------------------------------------------------------
-    if "performance_chart" in sections:
-        add_header(doc, "Portfolio Performance", level=2)
-        fig = dw.get_pv_mountain_chart(data, theme='light') 
-        add_figure_to_doc(doc, fig)
-
-    # -----------------------------------------------------------------
-    # 3. Horizon Analysis Table
-    # -----------------------------------------------------------------
-    if "horizon_table" in sections:
-        add_header(doc, "Horizon Analysis", level=2)
-        
-        horizon_df = dw.get_horizon_analysis(data)
-        if not horizon_df.empty:
-            headers = ["Horizon", "Return", "P/L ($)"]
-            # Convert DF to list of lists including index
-            rows = []
-            for idx, row in horizon_df.iterrows():
-                rows.append([
-                    row.get('Horizon', str(idx)),
-                    fmt_pct_clean(row.get('Return', 0)),
-                    fmt_dollar_clean(row.get('P/L', 0))
-                ])
-            add_table(doc, headers, rows, right_align=[1, 2])
-
-    # -----------------------------------------------------------------
-    # 4. Asset Allocation
-    # -----------------------------------------------------------------
-    if "allocation" in sections:
-        add_page_break(doc)
-        add_header(doc, "Asset Allocation", level=2)
-        
-        # Unpack tuple
-        res = dw.get_asset_allocation_charts(data, theme='light')
-        if res:
-            pie_fig = res[0] # Pie is first
-            add_figure_to_doc(doc, pie_fig, width_inches=6, height_inches=4)
+            # If data is missing or we need to calculate specific brief data:
+            summary_text = generate_ai_summary(data) if 'generate_ai_summary' in locals() else "AI Summary not available."
             
-            bar_fig = res[1] 
-            add_figure_to_doc(doc, bar_fig, width_inches=6, height_inches=4)
+            check_break()
+            add_header(doc, "Morning AI Summary", level=2)
+            add_markdown_paragraph(doc, summary_text)
+            doc.add_paragraph() # Spacer
 
-    # -----------------------------------------------------------------
-    # 5. Sector Breakdown
-    # -----------------------------------------------------------------
-    if "sector" in sections:
-        add_header(doc, "Sector Breakdown", level=2)
-        sector_fig = dw.get_sector_allocation_chart(data, theme='light')
-        add_figure_to_doc(doc, sector_fig)
+        # -----------------------------------------------------------------
+        # 1. Executive Summary
+        # -----------------------------------------------------------------
+        elif section_key == "summary":
+            check_break()
+            add_header(doc, "Executive Summary", level=2)
+            
+            metrics = dw.get_snapshot_metrics(data)
+            metrics2 = data.get("snapshot_metrics", {})
+            
+            # Calculate MTD return from twr_df if available
+            mtd_ret = 0.0
+            twr_df = data.get("twr_df", pd.DataFrame())
+            if not twr_df.empty and "Horizon" in twr_df.columns:
+                row = twr_df[twr_df["Horizon"] == "MTD"]
+                if not row.empty:
+                    mtd_ret = row["Return"].iloc[0]
 
-    # -----------------------------------------------------------------
-    # 6. Top Holdings
-    # -----------------------------------------------------------------
-    if "holdings" in sections:
-        add_header(doc, "Top Holdings", level=2)
-        sec_table = data.get('sec_table_current', pd.DataFrame()).copy()
-        if not sec_table.empty:
-            # Sort by weight if possible, else market value
-            if 'weight' in sec_table.columns:
-                sort_col = 'weight'
+            # Get Current Value (PV)
+            pv = data.get("pv", pd.Series())
+            curr_val = pv.iloc[-1] if not pv.empty else 0.0
+            
+            kpis = [
+                ["Metric", "Value"],
+                ["Total P/L (SI)", fmt_dollar_clean(metrics.get('pl_si'))],
+                ["Cumulative Return (SI)", fmt_pct_clean(metrics.get('twr_si'))],
+                ["Current Value", fmt_dollar_clean(curr_val)],
+                ["MTD Return", fmt_pct_clean(mtd_ret)],
+                ["Max Drawdown", fmt_pct_clean(metrics.get('max_dd'))],
+                ["Sharpe Ratio", f"{metrics.get('sharpe', 'N/A'):.2f}" if isinstance(metrics.get('sharpe'), (int, float)) else str(metrics.get('sharpe', 'N/A'))],
+                ["Sortino Ratio", f"{metrics.get('sortino', 'N/A'):.2f}" if isinstance(metrics.get('sortino'), (int, float)) else str(metrics.get('sortino', 'N/A'))],
+            ]
+            add_table(doc, kpis[0], kpis[1:], right_align=[1])
+
+        # -----------------------------------------------------------------
+        # 2. Performance Chart
+        # -----------------------------------------------------------------
+        elif section_key == "performance_chart":
+            check_break()
+            add_header(doc, "Portfolio Performance", level=2)
+            fig = dw.get_pv_mountain_chart(data, theme='light') 
+            add_figure_to_doc(doc, fig, width_inches=w_full, height_inches=h_std)
+
+        # -----------------------------------------------------------------
+        # 3. Horizon Analysis Table
+        # -----------------------------------------------------------------
+        elif section_key == "horizon_table":
+            check_break()
+            add_header(doc, "Horizon Analysis", level=2)
+            
+            horizon_df = dw.get_horizon_analysis(data)
+            if not horizon_df.empty:
+                headers = ["Horizon", "Return", "P/L ($)"]
+                # Convert DF to list of lists including index
+                rows = []
+                for idx, row in horizon_df.iterrows():
+                    rows.append([
+                        row.get('Horizon', str(idx)),
+                        fmt_pct_clean(row.get('Return', 0)),
+                        fmt_dollar_clean(row.get('P/L', 0))
+                    ])
+                add_table(doc, headers, rows, right_align=[1, 2])
+
+        # -----------------------------------------------------------------
+        # 4. Asset Allocation
+        # -----------------------------------------------------------------
+        elif section_key == "allocation":
+            add_page_break(doc)
+            add_header(doc, "Asset Allocation", level=2)
+            
+            # Unpack tuple
+            res = dw.get_asset_allocation_charts(data, theme='light')
+            if res:
+                pie_fig = res[0] # Pie is first
+                add_figure_to_doc(doc, pie_fig, width_inches=w_split, height_inches=h_std)
+                
+                check_break()
+
+                bar_fig = res[1] 
+                add_figure_to_doc(doc, bar_fig, width_inches=w_split, height_inches=h_std)
+
+        # -----------------------------------------------------------------
+        # 5. Sector Breakdown
+        # -----------------------------------------------------------------
+        elif section_key == "sector":
+            check_break()
+            add_header(doc, "Sector Breakdown", level=2)
+            sector_fig = dw.get_sector_allocation_chart(data, theme='light')
+            add_figure_to_doc(doc, sector_fig, width_inches=w_full, height_inches=h_std)
+
+        # -----------------------------------------------------------------
+        # 6. Top Holdings
+        # -----------------------------------------------------------------
+        elif section_key == "holdings":
+            check_break()
+            add_header(doc, "Top Holdings", level=2)
+            sec_table = data.get('sec_table_current', pd.DataFrame()).copy()
+            if not sec_table.empty:
+                # Sort by weight if possible, else market value
+                if 'weight' in sec_table.columns:
+                    sort_col = 'weight'
+                else:
+                    sort_col = 'market_value'
+                    
+                sec_table = sec_table.sort_values(sort_col, ascending=False).head(10)
+                
+                headers = ["Ticker", "Asset Class", "Shares", "Value", "Weight"]
+                rows = []
+                for _, row in sec_table.iterrows():
+                    rows.append([
+                        str(row.get('ticker','')),
+                        str(row.get('asset_class','')),
+                        f"{row.get('shares', 0):,.2f}",
+                        fmt_dollar_clean(row.get('market_value',0)),
+                        fmt_pct_clean(row.get('weight',0))
+                    ])
+                    
+                add_table(doc, headers, rows, right_align=[2, 3, 4])
+
+        # -----------------------------------------------------------------
+        # 7. Risk Metrics
+        # -----------------------------------------------------------------
+        elif section_key == "risk":
+            check_break()
+            add_header(doc, "Risk Metrics", level=2)
+            risk_df = dw.get_risk_diversification(data) 
+            if not risk_df.empty:
+                 headers = ["Metric", "Value"]
+                 rows = []
+                 for _, row in risk_df.iterrows():
+                     rows.append([
+                         str(row.get('Metric', '')),
+                         str(row.get('Value', ''))
+                     ])
+                 add_table(doc, headers, rows, right_align=[1])
+
+        # -----------------------------------------------------------------
+        # 8. Net Flows
+        # -----------------------------------------------------------------
+        elif section_key == "flows":
+            check_break()
+            add_header(doc, "Net Flows", level=2)
+            flows_df = dw.get_flows_summary_ytd(data)
+            if not flows_df.empty:
+                 headers = ["Metric", "Value"] # Match keys from diff
+                 rows = []
+                 # YTD summary returns keys like: "Start Value", "Net Inflow", "End Value" in 'Metric' col
+                 for _, row in flows_df.iterrows():
+                     rows.append([
+                         str(row.get('Metric', '')),
+                         str(row.get('Value', '')) # Value is already formatted in get_flows_summary_ytd probably, or we check
+                     ])
+                 # Check if we need formatting? 
+                 # Looking at dash_wrappers.py get_flows_summary_ytd, it returns formatted strings?
+                 # Let's assume it matches the UI which handles formatted strings or raw. 
+                 # Actually, looking at custom_report.py Section 8:
+                 # dag.AgGrid(rowData=flows_df.to_dict('records')...)
+                 # It displays exactly what's in the DF. So we just dump str(Value).
+                 
+                 add_table(doc, headers, rows, right_align=[1])
+
+        # -----------------------------------------------------------------
+        # 9. Tax Lot Explorer (Open Lots)
+        # -----------------------------------------------------------------
+        elif section_key == "tax_lots":
+            check_break()
+            add_header(doc, "Tax Lot Explorer (Open Lots)", level=2)
+            # Use simple FIFO strat since we don't have signal easy access
+            open_lots, _ = build_tax_lots(strategy="FIFO")
+            
+            if not open_lots.empty:
+                # Ensure Date formatting
+                if "Date Acquired" in open_lots.columns:
+                    open_lots["Date Acquired"] = pd.to_datetime(open_lots["Date Acquired"]).dt.strftime("%Y-%m-%d")
+
+                # Filter columns to match UI (hiding technical ones)
+                cols_hide = ["Is Near Cliff", "Days to LT", "Cost Per Share"]
+                display_cols = [c for c in open_lots.columns if c not in cols_hide]
+                
+                # Format rows
+                rows = []
+                # Max width constraint - limit columns if too many
+                # For Word, keep core columns
+                core_cols = ["Ticker", "Date Acquired", "Shares", "Cost Basis", "Market Value", "Unrealized P/L", "Term"]
+                # Fallback if names differ
+                final_cols = [c for c in core_cols if c in display_cols]
+                if not final_cols: final_cols = display_cols[:7]
+                
+                for _, row in open_lots[final_cols].iterrows():
+                    r_vals = []
+                    for col in final_cols:
+                        val = row[col]
+                        # Apply formatting based on column name
+                        if col in ["Cost Basis", "Current Price", "Market Value", "Unrealized P/L", "Est Tax Liability"]:
+                            r_vals.append(fmt_dollar_clean(val))
+                        elif col == "Shares":
+                            r_vals.append(f"{val:,.2f}")
+                        else:
+                            r_vals.append(str(val))
+                    rows.append(r_vals)
+                    
+                # Assume last few columns are numeric and should be right-aligned
+                add_table(doc, final_cols, rows)
             else:
-                sort_col = 'market_value'
-                
-            sec_table = sec_table.sort_values(sort_col, ascending=False).head(10)
+                 doc.add_paragraph("No open tax lots found.")
+
+        # -----------------------------------------------------------------
+        # 10. Risk Analysis Charts
+        # -----------------------------------------------------------------
+        elif section_key == "risk_charts":
+            add_page_break(doc)
+            add_header(doc, "Risk Analysis Charts", level=2)
             
-            headers = ["Ticker", "Asset Class", "Shares", "Value", "Weight"]
+            # Risk Return
+            add_paragraph_centered(doc, "Risk vs Return Profile", keep_after=True)
+            fig_risk = dw.get_risk_return_chart(data, theme='light')
+            add_figure_to_doc(doc, fig_risk, height_inches=h_std)
+            
+            check_break()
+
+            # Correlation
+            add_paragraph_centered(doc, "Correlation Matrix", keep_after=True)
+            fig_corr = dw.get_correlation_heatmap(data, theme='light')
+            add_figure_to_doc(doc, fig_corr, height_inches=h_std)
+            
+            check_break()
+            
+            # Drawdown
+            if not mobile_mode: add_page_break(doc)
+            add_paragraph_centered(doc, "Drawdown Analysis", keep_after=True)
+            fig_dd = dw.get_drawdown_chart(data, theme='light')
+            add_figure_to_doc(doc, fig_dd, height_inches=h_std)
+
+        # -----------------------------------------------------------------
+        # 11. Performance Deep Dive
+        # -----------------------------------------------------------------
+        elif section_key == "perf_deep_dive":
+            add_page_break(doc)
+            add_header(doc, "Performance Deep Dive", level=2)
+            
+            bm_map = {
+                "S&P 500": "SPY",
+                "Total US Market": "VTI",
+                "Aggressive Alloc": "AOA"
+            }
+            add_paragraph_centered(doc, "Cumulative Return vs Benchmark", keep_after=True)
+            cum_fig = dw.get_cumulative_return_chart(data, None, bm_map, theme='light')
+            add_figure_to_doc(doc, cum_fig, height_inches=h_std)
+            
+            check_break()
+
+            add_paragraph_centered(doc, "Growth of Invested Capital", keep_after=True)
+            growth_fig = dw.get_growth_of_capital_chart(data, "Total", theme='light')
+            add_figure_to_doc(doc, growth_fig, height_inches=h_std)
+
+        # -----------------------------------------------------------------
+        # 12. Attribution Analysis
+        # -----------------------------------------------------------------
+        elif section_key == "attribution":
+            check_break()
+            add_header(doc, "Attribution Analysis", level=2)
+            attr_fig = dw.get_smart_attribution_chart(data, theme='light')
+            add_figure_to_doc(doc, attr_fig, height_inches=5)
+
+        # -----------------------------------------------------------------
+        # 13. Asset Class Performance Table
+        # -----------------------------------------------------------------
+        elif section_key == "ac_perf_table":
+            add_page_break(doc)
+            add_header(doc, "Asset Class Performance", level=2)
+            
+            class_df = data.get('class_df', pd.DataFrame())
+            sec_table = data.get('sec_table_current', pd.DataFrame())
+            # Full list of horizons to match App
+            horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
+            
+            headers = ["Asset Class / Ticker"] + horizons
             rows = []
-            for _, row in sec_table.iterrows():
-                rows.append([
-                    str(row.get('ticker','')),
-                    str(row.get('asset_class','')),
-                    f"{row.get('shares', 0):,.2f}",
-                    fmt_dollar_clean(row.get('market_value',0)),
-                    fmt_pct_clean(row.get('weight',0))
-                ])
+            
+            # Unique classes from class_df
+            unique_classes = class_df['asset_class'].unique() if not class_df.empty else []
+            
+            for ac in unique_classes:
+                # 1. Class Row
+                crow_df = class_df[class_df['asset_class'] == ac]
+                if crow_df.empty: continue
+                crow = crow_df.iloc[0]
                 
-            add_table(doc, headers, rows, right_align=[2, 3, 4])
-
-    # -----------------------------------------------------------------
-    # 7. Risk Metrics
-    # -----------------------------------------------------------------
-    if "risk" in sections:
-        add_header(doc, "Risk Metrics", level=2)
-        risk_df = dw.get_risk_diversification(data) 
-        if not risk_df.empty:
-             headers = ["Metric", "Value"]
-             rows = []
-             for _, row in risk_df.iterrows():
-                 rows.append([
-                     str(row.get('Metric', '')),
-                     str(row.get('Value', ''))
-                 ])
-             add_table(doc, headers, rows, right_align=[1])
-
-    # -----------------------------------------------------------------
-    # 8. Net Flows
-    # -----------------------------------------------------------------
-    if "flows" in sections:
-        add_header(doc, "Net Flows", level=2)
-        flows_df = dw.get_flows_summary_ytd(data)
-        if not flows_df.empty:
-             headers = ["Metric", "Value"] # Match keys from diff
-             rows = []
-             # YTD summary returns keys like: "Start Value", "Net Inflow", "End Value" in 'Metric' col
-             for _, row in flows_df.iterrows():
-                 rows.append([
-                     str(row.get('Metric', '')),
-                     str(row.get('Value', '')) # Value is already formatted in get_flows_summary_ytd probably, or we check
-                 ])
-             # Check if we need formatting? 
-             # Looking at dash_wrappers.py get_flows_summary_ytd, it returns formatted strings?
-             # Let's assume it matches the UI which handles formatted strings or raw. 
-             # Actually, looking at custom_report.py Section 8:
-             # dag.AgGrid(rowData=flows_df.to_dict('records')...)
-             # It displays exactly what's in the DF. So we just dump str(Value).
-             
-             add_table(doc, headers, rows, right_align=[1])
-
-    # -----------------------------------------------------------------
-    # 9. Tax Lot Explorer (Open Lots)
-    # -----------------------------------------------------------------
-    if "tax_lots" in sections:
-        add_header(doc, "Tax Lot Explorer (Open Lots)", level=2)
-        # Use simple FIFO strat since we don't have signal easy access
-        open_lots, _ = build_tax_lots(strategy="FIFO")
-        
-        if not open_lots.empty:
-            # Ensure Date formatting
-            if "Date Acquired" in open_lots.columns:
-                open_lots["Date Acquired"] = pd.to_datetime(open_lots["Date Acquired"]).dt.strftime("%Y-%m-%d")
-
-            # Filter columns to match UI (hiding technical ones)
-            cols_hide = ["Is Near Cliff", "Days to LT", "Cost Per Share"]
-            display_cols = [c for c in open_lots.columns if c not in cols_hide]
-            
-            # Format rows
-            rows = []
-            # Max width constraint - limit columns if too many
-            # For Word, keep core columns
-            core_cols = ["Ticker", "Date Acquired", "Shares", "Cost Basis", "Market Value", "Unrealized P/L", "Term"]
-            # Fallback if names differ
-            final_cols = [c for c in core_cols if c in display_cols]
-            if not final_cols: final_cols = display_cols[:7]
-            
-            for _, row in open_lots[final_cols].iterrows():
-                r_vals = []
-                for col in final_cols:
-                    val = row[col]
-                    # Apply formatting based on column name
-                    if col in ["Cost Basis", "Current Price", "Market Value", "Unrealized P/L", "Est Tax Liability"]:
-                        r_vals.append(fmt_dollar_clean(val))
-                    elif col == "Shares":
-                        r_vals.append(f"{val:,.2f}")
-                    else:
-                        r_vals.append(str(val))
+                r_vals = [ac]
+                for h in horizons:
+                    val = crow.get(h)
+                    r_vals.append(fmt_pct_clean(val))
                 rows.append(r_vals)
                 
-            # Assume last few columns are numeric and should be right-aligned
-            add_table(doc, final_cols, rows)
-        else:
-             doc.add_paragraph("No open tax lots found.")
+                # 2. Ticker Rows
+                if not sec_table.empty:
+                    tickers = sec_table[sec_table['asset_class'] == ac]
+                    for _, trow in tickers.iterrows():
+                        t = trow.get('ticker', '')
+                        tr_vals = [f"    {t}"] # Indent
+                        for h in horizons:
+                            val = trow.get(h)
+                            tr_vals.append(fmt_pct_clean(val))
+                        rows.append(tr_vals)
+                        
+            add_table(doc, headers, rows, right_align=list(range(1, len(headers))))
 
-    # -----------------------------------------------------------------
-    # 10. Risk Analysis Charts
-    # -----------------------------------------------------------------
-    if "risk_charts" in sections:
-        add_page_break(doc)
-        add_header(doc, "Risk Analysis Charts", level=2)
-        
-        # Risk Return
-        add_paragraph_centered(doc, "Risk vs Return Profile")
-        fig_risk = dw.get_risk_return_chart(data, theme='light')
-        add_figure_to_doc(doc, fig_risk, height_inches=4)
-        
-        # Correlation
-        add_paragraph_centered(doc, "Correlation Matrix")
-        fig_corr = dw.get_correlation_heatmap(data, theme='light')
-        add_figure_to_doc(doc, fig_corr, height_inches=4)
-        
-        # Drawdown
-        add_page_break(doc)
-        add_paragraph_centered(doc, "Drawdown Analysis")
-        fig_dd = dw.get_drawdown_chart(data, theme='light')
-        add_figure_to_doc(doc, fig_dd, height_inches=4)
-
-    # -----------------------------------------------------------------
-    # 11. Performance Deep Dive
-    # -----------------------------------------------------------------
-    if "perf_deep_dive" in sections:
-        add_page_break(doc)
-        add_header(doc, "Performance Deep Dive", level=2)
-        
-        bm_map = {
-            "S&P 500": "SPY",
-            "Total US Market": "VTI",
-            "Aggressive Alloc": "AOA"
-        }
-        add_paragraph_centered(doc, "Cumulative Return vs Benchmark")
-        cum_fig = dw.get_cumulative_return_chart(data, None, bm_map, theme='light')
-        add_figure_to_doc(doc, cum_fig, height_inches=4)
-        
-        add_paragraph_centered(doc, "Growth of Invested Capital")
-        growth_fig = dw.get_growth_of_capital_chart(data, "Total", theme='light')
-        add_figure_to_doc(doc, growth_fig, height_inches=4)
-
-    # -----------------------------------------------------------------
-    # 12. Attribution Analysis
-    # -----------------------------------------------------------------
-    if "attribution" in sections:
-        add_header(doc, "Attribution Analysis", level=2)
-        attr_fig = dw.get_smart_attribution_chart(data, theme='light')
-        add_figure_to_doc(doc, attr_fig, height_inches=5)
-
-    # -----------------------------------------------------------------
-    # 13. Asset Class Performance Table
-    # -----------------------------------------------------------------
-    if "ac_perf_table" in sections:
-        add_page_break(doc)
-        add_header(doc, "Asset Class Performance", level=2)
-        
-        class_df = data.get('class_df', pd.DataFrame())
-        sec_table = data.get('sec_table_current', pd.DataFrame())
-        # Full list of horizons to match App
-        horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
-        
-        headers = ["Asset Class / Ticker"] + horizons
-        rows = []
-        
-        # Unique classes from class_df
-        unique_classes = class_df['asset_class'].unique() if not class_df.empty else []
-        
-        for ac in unique_classes:
-            # 1. Class Row
-            crow_df = class_df[class_df['asset_class'] == ac]
-            if crow_df.empty: continue
-            crow = crow_df.iloc[0]
+        # -----------------------------------------------------------------
+        # 14. Asset Class P/L Table
+        # -----------------------------------------------------------------
+        elif section_key == "ac_pl_table":
+            add_header(doc, "Asset Class P/L (Economic)", level=2)
             
-            r_vals = [ac]
+            class_df = data.get('class_df', pd.DataFrame())
+            sec_table = data.get('sec_table_current', pd.DataFrame())
+            horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
+            
+            # Pre-fetch ticker P/L for all horizons to avoid re-calc in loop
+            ticker_pl_cache = {}
             for h in horizons:
-                val = crow.get(h)
-                r_vals.append(fmt_pct_clean(val))
-            rows.append(r_vals)
+                try:
+                    ticker_pl_cache[h] = dw.get_ticker_pl_df(data, h)
+                except:
+                    ticker_pl_cache[h] = pd.DataFrame() # Fallback
+                
+            rows = []
+            headers = ["Asset Class / Ticker"] + horizons
             
-            # 2. Ticker Rows
-            if not sec_table.empty:
-                tickers = sec_table[sec_table['asset_class'] == ac]
-                for _, trow in tickers.iterrows():
-                    t = trow.get('ticker', '')
-                    tr_vals = [f"    {t}"] # Indent
-                    for h in horizons:
-                        val = trow.get(h)
-                        tr_vals.append(fmt_pct_clean(val))
-                    rows.append(tr_vals)
-                    
-        add_table(doc, headers, rows, right_align=list(range(1, len(headers))))
-
-    # -----------------------------------------------------------------
-    # 14. Asset Class P/L Table
-    # -----------------------------------------------------------------
-    if "ac_pl_table" in sections:
-        add_header(doc, "Asset Class P/L (Economic)", level=2)
-        
-        class_df = data.get('class_df', pd.DataFrame())
-        sec_table = data.get('sec_table_current', pd.DataFrame())
-        horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
-        
-        # Pre-fetch ticker P/L for all horizons to avoid re-calc in loop
-        ticker_pl_cache = {}
-        for h in horizons:
-            try:
-                ticker_pl_cache[h] = dw.get_ticker_pl_df(data, h)
-            except:
-                ticker_pl_cache[h] = pd.DataFrame() # Fallback
+            # Determine order of asset classes (can rely on class_df order)
+            unique_classes = class_df['asset_class'].unique() if not class_df.empty else []
             
-        rows = []
-        headers = ["Asset Class / Ticker"] + horizons
-        
-        # Determine order of asset classes (can rely on class_df order)
-        unique_classes = class_df['asset_class'].unique() if not class_df.empty else []
-        
-        for ac in unique_classes:
-            # 1. Class Row
-            r_vals = [ac]
-            for h in horizons:
-                res = dw.get_asset_class_pl(data, ac, h, return_components=False)
-                r_vals.append(fmt_dollar_clean(res))
-            rows.append(r_vals)
-            
-            # 2. Ticker Rows belonging to this class
-            if not sec_table.empty:
-                tickers = sec_table[sec_table['asset_class'] == ac]
-                for _, trow in tickers.iterrows():
-                    t = trow['ticker']
-                    tr_vals = [f"    {t}"] # Indent
-                    for h in horizons:
-                        pl_df = ticker_pl_cache.get(h)
-                        val = None
-                        if pl_df is not None and not pl_df.empty and t in pl_df.index:
-                            val = pl_df.loc[t, "pl"]
-                        tr_vals.append(fmt_dollar_clean(val))
-                    rows.append(tr_vals)
-                    
-        add_table(doc, headers, rows, right_align=list(range(1, len(headers))))
+            for ac in unique_classes:
+                # 1. Class Row
+                r_vals = [ac]
+                for h in horizons:
+                    res = dw.get_asset_class_pl(data, ac, h, return_components=False)
+                    r_vals.append(fmt_dollar_clean(res))
+                rows.append(r_vals)
+                
+                # 2. Ticker Rows belonging to this class
+                if not sec_table.empty:
+                    tickers = sec_table[sec_table['asset_class'] == ac]
+                    for _, trow in tickers.iterrows():
+                        t = trow['ticker']
+                        tr_vals = [f"    {t}"] # Indent
+                        for h in horizons:
+                            pl_df = ticker_pl_cache.get(h)
+                            val = None
+                            if pl_df is not None and not pl_df.empty and t in pl_df.index:
+                                val = pl_df.loc[t, "pl"]
+                            tr_vals.append(fmt_dollar_clean(val))
+                        rows.append(tr_vals)
+                        
+            add_table(doc, headers, rows, right_align=list(range(1, len(headers))))
 
     return doc
