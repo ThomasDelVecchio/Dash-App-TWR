@@ -392,7 +392,9 @@ layout = html.Div(className="custom-report-page", children=[
                         type="text",
                         value="Portfolio Performance Report",
                         placeholder="Enter report title...",
-                        className="mb-3"
+                        className="mb-3",
+                        persistence=True,
+                        persistence_type="session"
                     ),
                     dbc.Label("Reporting Period", className="fw-bold"),
                     dbc.Select(
@@ -405,13 +407,17 @@ layout = html.Div(className="custom-report-page", children=[
                             {"label": "Last Month", "value": "1M"},
                         ],
                         value="SI",
-                        className="mb-3 text-dark"
+                        className="mb-3 text-dark",
+                        persistence=True,
+                        persistence_type="session"
                     ),
                     dbc.Switch(
                         id="report-mobile-mode",
                         label="One Chart Per Page (Mobile)",
                         value=False,
-                        className="mb-2"
+                        className="mb-2",
+                        persistence=True,
+                        persistence_type="session"
                     ),
                 ], width=12, md=4),
                 
@@ -429,8 +435,8 @@ layout = html.Div(className="custom-report-page", children=[
                     ], className="mb-2"),
                     
                     # Stores for Order and Selection
-                    dcc.Store(id="report-order-store", storage_type="local", data=DEFAULT_ORDER),
-                    dcc.Store(id="report-selection-store", storage_type="local", data=DEFAULT_SELECTION),
+                    dcc.Store(id="report-order-store", storage_type="session", data=DEFAULT_ORDER),
+                    dcc.Store(id="report-selection-store", storage_type="session", data=DEFAULT_SELECTION),
 
                     # Draggable Container
                     html.Div(
@@ -756,12 +762,19 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                     # 1. Calculate Period Return (TWR)
                     twr_curve = dw._get_daily_twr_curve(data)
                     
-                    # Find base value (value just before start_date)
-                    mask_prior = twr_curve.index < start_date
-                    if mask_prior.any():
-                        base_val = twr_curve[mask_prior].iloc[-1]
+                    # Align with Overview/Math logic: Anchor to Start Date Close
+                    # (Exclude Start Date's return from the calculation)
+                    if start_date in twr_curve.index:
+                        base_val = twr_curve.loc[start_date]
+                    elif not twr_curve.empty:
+                        # Fallback for robustness
+                        mask = twr_curve.index <= start_date
+                        if mask.any():
+                            base_val = twr_curve[mask].iloc[-1]
+                        else:
+                            base_val = twr_curve.iloc[0]
                     else:
-                        base_val = 1.0 # Before inception
+                        base_val = 1.0
                         
                     current_val = twr_curve.iloc[-1] if not twr_curve.empty else 1.0
                     period_return = (current_val / base_val) - 1
@@ -770,14 +783,10 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                     twr_label = f"Period Return ({period})"
                     
                     # 2. Calculate Stats (Sharpe, Sortino, Max DD) on sliced curve
-                    # Include the last point prior to start_date to ensure the first day's return/drawdown is captured
-                    mask_prior = twr_curve.index < start_date
-                    if mask_prior.any():
-                        anchor_idx = twr_curve[mask_prior].index[-1]
-                        # Filter for >= anchor but <= end_date (if end_date set)
-                        sub_curve = twr_curve[(twr_curve.index >= anchor_idx) & (twr_curve.index <= end_date)]
-                    else:
-                        sub_curve = twr_curve[(twr_curve.index >= start_date) & (twr_curve.index <= end_date)]
+                    # Standard behavior: Start slice at start_date. 
+                    # pct_change() in efficiency metrics will drop the first point, 
+                    # correctly starting metrics from start_date+1
+                    sub_curve = twr_curve[(twr_curve.index >= start_date) & (twr_curve.index <= end_date)]
 
                     if not sub_curve.empty:
                         # Efficiency
@@ -789,7 +798,7 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                         _, dd_val, _ = dw.compute_drawdown_series(sub_curve)
                         metrics['max_dd'] = dd_val / 100.0
                         
-                    # 3. Calculate Period P/L
+                    # 3. Calculate Period P/L (Aligned with PortfolioEngine)
                     # P/L = End_MV - Start_MV - Net_Flows(Start to End)
                     pv = data.get("pv", pd.Series())
                     cf = data.get("cf_ext", pd.DataFrame())
@@ -798,15 +807,23 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                         # End Value
                         end_mv = pv.iloc[-1]
                         
-                        # Start Value (PV just before start_date)
-                        pv_prior = pv[pv.index < start_date]
-                        start_mv = pv_prior.iloc[-1] if not pv_prior.empty else 0.0
+                        # Start Value
+                        # Align: Start from Close of start_date
+                        if start_date in pv.index:
+                            start_mv = pv.loc[start_date]
+                        elif not pv.empty:
+                            mask = pv.index <= start_date
+                            if mask.any():
+                                start_mv = pv[mask].iloc[-1]
+                            else:
+                                start_mv = 0.0 
+                        else:
+                            start_mv = 0.0
                         
-                        # Flows (inclusive of start_date if it was used as start boundary)
-                        # We use >= start_date because these frames are daily. 
-                        # Start date is e.g. Jan 1. 
+                        # Flows
+                        # Align: Flows strictly > start_date (exclude start date flows as they are in start_mv)
                         if not cf.empty:
-                            mask_flows = (cf["date"] >= start_date) & (cf["date"] <= end_date)
+                            mask_flows = (cf["date"] > start_date) & (cf["date"] <= end_date)
                             period_flows = cf.loc[mask_flows, "amount"].sum()
                         else:
                             period_flows = 0.0

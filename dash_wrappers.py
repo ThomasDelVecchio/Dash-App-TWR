@@ -783,9 +783,9 @@ def get_correlation_heatmap(data, theme="light"):
     fig.update_traces(hovertemplate="<b>%{x}</b> vs <b>%{y}</b><br>Correlation: %{z:.2f}<extra></extra>")
 
     fig.update_layout(
-        title="90-Day Rolling Correlation (Top Holdings)",
+        # title="90-Day Rolling Correlation (Top Holdings)", # Removed to avoid duplicate title in UI
         template="plotly_dark",
-        margin=dict(l=40, r=40, t=40, b=80), # Standardized bottom margin for height matching
+        margin=dict(l=20, r=20, t=10, b=40), # Reduced margins to maximize chart area
         height=500
     )
     return fig
