@@ -72,6 +72,7 @@ NAV_MODULES = [
     {"label": "Risk & Proj", "href": "/risk", "id": "risk", "can_toggle": True},
     {"label": "Trade Lab", "href": "/trade-lab", "id": "trade_lab", "can_toggle": True},
     {"label": "Tax Authority", "href": "/taxes", "id": "taxes", "can_toggle": True},
+    {"label": "Custom Report", "href": "/custom-report", "id": "custom_report", "can_toggle": True},
     {"label": "Settings", "href": "/settings", "id": "settings", "can_toggle": False},
     {"label": "Help Index", "href": "/help", "id": "help", "can_toggle": False},
 ]

@@ -457,13 +457,28 @@ def get_snapshot_metrics(data):
     twr_curve = _get_daily_twr_curve(data)
     eff = calculate_efficiency_metrics(twr_curve)
     
+    # Calculate Max Drawdown
+    _, max_dd, _ = compute_drawdown_series(twr_curve)
+    max_dd = max_dd / 100.0 # Convert back to decimal for formatting
+    
+    # Calculate Position Count (excluding CASH)
+    sec_table = data.get("sec_table_current", pd.DataFrame())
+    if not sec_table.empty:
+        # Filter out CASH and ensure we only count real positions
+        pos_df = sec_table[sec_table["ticker"] != "CASH"]
+        position_count = len(pos_df)
+    else:
+        position_count = 0
+    
     return {
         "current_mv": current_mv,
         "twr_si": twr_si,
         "pl_si": data["pl_si"],
         "mtd_ret": mtd_ret,
         "sharpe": eff["sharpe"],
-        "sortino": eff["sortino"]
+        "sortino": eff["sortino"],
+        "max_dd": max_dd,
+        "position_count": position_count
     }
 
 def get_horizon_analysis(data):
