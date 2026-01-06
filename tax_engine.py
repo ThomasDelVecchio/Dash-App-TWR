@@ -52,7 +52,7 @@ def _days_to_long_term(date_acquired):
 # ============================================================
 
 @lru_cache(maxsize=32)
-def build_tax_lots(strategy="FIFO", signal=None):
+def build_tax_lots(strategy="FIFO", signal=None, as_of_date=None):
     """
     Reconstructs the tax lot history from raw transactions using specified strategy.
     Includes Wash Sale detection.
@@ -60,6 +60,7 @@ def build_tax_lots(strategy="FIFO", signal=None):
     Args:
         strategy (str): 'FIFO', 'LIFO', or 'HIFO'. Default 'FIFO'.
         signal (str): Optional data timestamp to invalidate cache when data changes.
+        as_of_date (str/datetime): Optional cutoff date for the analysis.
         
     Returns:
         open_lots_df (pd.DataFrame): Currently held lots.
@@ -71,6 +72,12 @@ def build_tax_lots(strategy="FIFO", signal=None):
         
     # 1. Data Hygiene
     raw_tx["date"] = pd.to_datetime(raw_tx["date"])
+
+    # NEW: Filter by as_of_date if provided
+    if as_of_date:
+        cutoff = pd.Timestamp(as_of_date)
+        raw_tx = raw_tx[raw_tx["date"] <= cutoff]
+
     raw_tx["ticker"] = raw_tx["ticker"].apply(normalize_ticker)
     
     open_lots = []      # List of {ticker, date_acquired, shares, cost_basis, cost_per_share}
@@ -235,9 +242,15 @@ def build_tax_lots(strategy="FIFO", signal=None):
         unique_tickers = open_lots_df["Ticker"].unique().tolist()
         try:
             prices = fetch_price_history(unique_tickers)
-            latest_prices = prices.iloc[-1]
+            if as_of_date:
+                cutoff = pd.Timestamp(as_of_date)
+                # Find last price on or before cutoff
+                prices_hist = prices[prices.index <= cutoff]
+                latest_prices = prices_hist.iloc[-1] if not prices_hist.empty else pd.Series(dtype=float)
+            else:
+                latest_prices = prices.iloc[-1]
         except Exception:
-            latest_prices = pd.Series()
+            latest_prices = pd.Series(dtype=float)
             
         def get_market_metrics(row):
             ticker = row["Ticker"]

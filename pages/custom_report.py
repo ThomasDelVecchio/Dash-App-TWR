@@ -19,7 +19,11 @@ import dash_wrappers as dw
 from report_formatting import fmt_pct_clean, fmt_dollar_clean, generate_word_report
 from datetime import datetime
 import pandas as pd
-from tax_engine import build_tax_lots
+from tax_engine import build_tax_lots, normalize_ticker
+from data_loader import load_transactions_raw, fetch_price_history
+from financial_math import get_portfolio_horizon_start, modified_dietz_for_ticker_window, annualize_return
+from config import TAX_RATE_ST, TAX_RATE_LT, GLOBAL_PALETTE
+import numpy as np
 from io import BytesIO
 
 # ============================================================
@@ -47,6 +51,313 @@ DEFAULT_SELECTION = ["summary", "performance_chart", "horizon_table", "allocatio
 DEFAULT_ORDER = [opt["value"] for opt in REPORT_SECTIONS_OPTIONS]
 
 
+
+# ============================================================
+# LOCAL REPORTING LOGIC (ISOLATED)
+# ============================================================
+
+# --- Local Helpers for Tax Logic ---
+# (Removed: Now using tax_engine.build_tax_lots with as_of_date support)
+
+# --- Local Helpers for Flows Logic ---
+def _get_flows_summary_period(data, start_date=None, end_date=None):
+    """
+    Local implementation of flows summary that respects specific period.
+    Replaces get_flows_summary_ytd logic.
+    """
+    # NOTE: 'data' dict usually contains 'pv', 'cf_ext', 'tx_raw', 'dividends'
+    
+    pv = data.get("pv")
+    cf_ext = data.get("cf_ext")
+    tx_raw = data.get("tx_raw")
+    dividends = data.get("dividends")
+    
+    if pv is None or pv.empty: 
+        return pd.DataFrame(), f"N/A thru N/A"
+
+    # Determine Bounds
+    # If no start_date provided, assume Inception ("SI")
+    # If no end_date provided, assume As Of "Now"
+    
+    max_date = pv.index.max()
+    eff_end = pd.Timestamp(end_date) if end_date else max_date
+    eff_start = pd.Timestamp(start_date) if start_date else pv.index.min()
+    
+    period_label = f"{eff_start.strftime('%Y-%m-%d')} thru {eff_end.strftime('%Y-%m-%d')}"
+    if not start_date: 
+        period_label = f"Inception thru {eff_end.strftime('%Y-%m-%d')}"
+
+    # Filter Data
+    def filter_df(df, date_col="date"):
+        if df is None or df.empty: return df
+        mask = (df[date_col] >= eff_start) & (df[date_col] <= eff_end)
+        return df[mask]
+
+    flows_ext = filter_df(cf_ext)
+    tx_period = filter_df(tx_raw)
+    div_period = filter_df(dividends)
+    
+    # 1. External Flows
+    deposits = 0.0
+    withdrawals = 0.0
+    net_ext = 0.0
+    most_recent_ext = None
+    
+    if flows_ext is not None and not flows_ext.empty:
+        deposits = flows_ext.loc[flows_ext["amount"] > 0, "amount"].sum()
+        withdrawals = flows_ext.loc[flows_ext["amount"] < 0, "amount"].sum()
+        net_ext = flows_ext["amount"].sum()
+        most_recent_ext = flows_ext["date"].max()
+        
+    # 2. Internal Activity
+    buys = 0.0
+    sells = 0.0
+    most_recent_tx = None
+    
+    if tx_period is not None and not tx_period.empty:
+        buys = tx_period.loc[tx_period["amount"] < 0, "amount"].sum()
+        sells = tx_period.loc[tx_period["amount"] > 0, "amount"].sum()
+        most_recent_tx = tx_period["date"].max()
+        
+    # 3. Income
+    income = 0.0
+    most_recent_div = None
+    if div_period is not None and not div_period.empty:
+        income = div_period["amount"].sum()
+        most_recent_div = div_period["date"].max()
+        
+    net_internal = buys + sells + income
+    
+    # Recent Date
+    dates = [d for d in [most_recent_ext, most_recent_tx, most_recent_div] if d is not pd.NaT and d is not None]
+    most_recent_any = max(dates).strftime("%Y-%m-%d") if dates else "N/A"
+
+    rows = [
+        {"Metric": "Net External Flows", "Value": fmt_dollar_clean(net_ext)},
+        {"Metric": "• Deposits", "Value": fmt_dollar_clean(deposits)},
+        {"Metric": "• Withdrawals", "Value": fmt_dollar_clean(withdrawals)},
+        {"Metric": "Net Internal Activity", "Value": fmt_dollar_clean(net_internal)},
+        {"Metric": "• Buys (Cash Out)", "Value": fmt_dollar_clean(buys)},
+        {"Metric": "• Sells (Cash In)", "Value": fmt_dollar_clean(sells)},
+        {"Metric": "• Income (Divs)", "Value": fmt_dollar_clean(income)},
+        {"Metric": "Most Recent Flow", "Value": most_recent_any},
+    ]
+    return pd.DataFrame(rows), period_label
+
+# --- Local Helpers for AI Summary Logic ---
+def _generate_ai_summary_period(data, start_date=None, end_date=None):
+    """
+    Local implementation of AI Brief that respects specific period.
+    Mimics structure of components/ai_brief.py but tailored for time-ranges.
+    """
+    if not data:
+        return "Portfolio data is currently initializing..."
+    
+    # 1. Get TWR Curve for calculation
+    twr_curve = dw._get_daily_twr_curve(data) # Helper is reusable as it returns full curve
+    if twr_curve.empty:
+        return "Insufficient data for summary."
+        
+    # Define Bounds
+    eff_end = pd.Timestamp(end_date) if end_date else twr_curve.index.max()
+    eff_start = pd.Timestamp(start_date) if start_date else twr_curve.index.min()
+    
+    # --- 1. PERIOD RETURN ---
+    period_ret = 0.0
+    
+    # Find closest index <= eff_end
+    end_locs = twr_curve.index[twr_curve.index <= eff_end]
+    if not end_locs.empty:
+        idx_end = end_locs[-1]
+        val_end = twr_curve.loc[idx_end]
+        
+        # Determine Base Value (val_start)
+        # 1. If eff_start is the Inception Date (Day 0), Base is 1.0 (to capture Day 0 return)
+        # 2. Otherwise, Base is the Curve Value ON eff_start (capture return from T+1 onwards)
+        #    This aligns with Overview/Financial Math which treats 'start' as the anchor T0.
+        
+        if eff_start <= twr_curve.index.min():
+            val_start = 1.0
+        else:
+            # Use asof to safe-guard against weekends/holidays
+            val_start = twr_curve.asof(eff_start)
+            if pd.isna(val_start): val_start = 1.0
+
+        period_ret = (val_end / val_start) - 1.0
+        
+    # --- 2. PERIOD P/L (DOLLAR) ---
+    pv = data.get("pv")
+    cf_ext = data.get("cf_ext")
+    period_pl = 0.0
+    
+    if pv is not None and not pv.empty:
+        # End MV
+        end_locs_pv = pv.index[pv.index <= eff_end]
+        if not end_locs_pv.empty:
+            idx_end_pv = end_locs_pv[-1]
+            end_mv = pv.loc[idx_end_pv]
+        else:
+            end_mv = 0.0
+            
+        # Start MV
+        start_locs_pv = pv.index[pv.index < eff_start]
+        if not start_locs_pv.empty:
+            idx_start_pv = start_locs_pv[-1]
+            start_mv = pv.loc[idx_start_pv]
+        else:
+            start_mv = 0.0
+            
+        # Net Flows in Window [start, end]
+        flows_sum = 0.0
+        if cf_ext is not None and not cf_ext.empty:
+            mask = (cf_ext["date"] >= eff_start) & (cf_ext["date"] <= eff_end)
+            flows_sum = cf_ext.loc[mask, "amount"].sum()
+            
+        period_pl = end_mv - start_mv - flows_sum
+
+    pl_str = fmt_dollar_clean(period_pl)
+    if period_pl > 0: pl_str = "+" + pl_str
+
+    # --- 3. MARKET CONTEXT (S&P 500) ---
+    spy_txt = ""
+    try:
+        spy_hist = fetch_price_history(["SPY"], use_adj_close=True)
+        if not spy_hist.empty and "SPY" in spy_hist.columns:
+            spy_prices = spy_hist["SPY"].dropna()
+            
+            # Find bounds in SPY data
+            spy_end_locs = spy_prices.index[spy_prices.index <= eff_end]
+            spy_start_locs = spy_prices.index[spy_prices.index < eff_start]
+            
+            if not spy_end_locs.empty:
+                spy_end_val = spy_prices.loc[spy_end_locs[-1]]
+                # Start val: if strictly < start exists, use it. Else use start date itself.
+                if not spy_start_locs.empty:
+                    spy_start_val = spy_prices.loc[spy_start_locs[-1]]
+                else:
+                    # Try to get value AT start date
+                    at_start = spy_prices.index[spy_prices.index <= eff_start]
+                    spy_start_val = spy_prices.loc[at_start[-1]] if not at_start.empty else spy_end_val
+                
+                spy_ret = (spy_end_val / spy_start_val) - 1.0
+                
+                diff = period_ret - spy_ret
+                if diff > 0.001:
+                    spy_txt = f", outperforming the S&P 500 ({spy_ret*100:+.2f}%)"
+                elif diff < -0.001:
+                    spy_txt = f", trailing the S&P 500 ({spy_ret*100:+.2f}%)"
+                else:
+                    spy_txt = f", tracking the S&P 500 ({spy_ret*100:+.2f}%)"
+    except Exception:
+        pass
+
+    # --- 4. TOP MOVERS (MODIFIED DIETZ) ---
+    best_stock, best_ret, worst_stock, worst_ret = "N/A", 0, "N/A", 0
+    try:
+        # Use Modified Dietz (Position Performance) to align with Performance Page tables
+        held_tickers = data["sec_table_current"]["ticker"].unique()
+        tx_raw = data.get("tx_raw")
+        dividends = data.get("dividends")
+        prices = data.get("prices")
+        
+        # Fallback if prices missing
+        if prices is None or prices.empty:
+            prices = fetch_price_history(list(held_tickers))
+
+        if not prices.empty:
+            # Pre-group for speed
+            tx_grouped = tx_raw.groupby("ticker") if tx_raw is not None and not tx_raw.empty else {}
+            div_grouped = dividends.groupby("ticker") if dividends is not None and not dividends.empty else {}
+
+            perf_records = []
+            for tik in held_tickers:
+                # Get Ticker Data
+                tx_t = tx_grouped.get_group(tik) if (isinstance(tx_grouped, pd.core.groupby.DataFrameGroupBy) and tik in tx_grouped.groups) else pd.DataFrame(columns=["date", "shares", "amount"])
+                div_t = div_grouped.get_group(tik) if (isinstance(div_grouped, pd.core.groupby.DataFrameGroupBy) and tik in div_grouped.groups) else pd.DataFrame(columns=["date", "amount"])
+                
+                if tik in prices.columns:
+                    price_t = prices[tik]
+                    # Calculate Modified Dietz for this specific window
+                    md = modified_dietz_for_ticker_window(tik, price_t, tx_t, eff_start, eff_end, div_t)
+                    if not pd.isna(md):
+                        # Apply Annualization if > 1.0 years (Aligned with App Logic)
+                        md_ann = annualize_return(md, eff_start, eff_end)
+                        perf_records.append({"ticker": tik, "ret": md_ann})
+            
+            if perf_records:
+                perf_df = pd.DataFrame(perf_records)
+                top_gainers = perf_df.sort_values("ret", ascending=False).head(1)
+                top_losers = perf_df.sort_values("ret", ascending=True).head(1)
+                
+                if not top_gainers.empty:
+                    best_stock = top_gainers.iloc[0]["ticker"]
+                    best_ret = top_gainers.iloc[0]["ret"]
+                if not top_losers.empty:
+                    worst_stock = top_losers.iloc[0]["ticker"]
+                    worst_ret = top_losers.iloc[0]["ret"]
+
+    except Exception as e:
+        # print(f"Error in AI Summary Top Movers: {e}") 
+        pass
+
+    # --- 5. ASSET ALLOCATION DRIFT ---
+    # Note: This is a SNAPSHOT at end_date (typically 'Now')
+    sec_current = data["sec_table_current"]
+    holdings = data["holdings"]
+    
+    max_over = 0
+    over_ac = ""
+    max_under = 0
+    under_ac = ""
+    
+    if not sec_current.empty:
+        ac_weights = sec_current.groupby("asset_class")["weight"].sum() * 100
+        targets = holdings.groupby("asset_class")["target_pct"].sum()
+        
+        for ac, w in ac_weights.items():
+            t = targets.get(ac, 0)
+            drift = w - t
+            if drift > 0 and drift > max_over:
+                max_over = drift
+                over_ac = ac
+            if drift < 0 and drift < max_under:
+                max_under = drift
+                under_ac = ac
+
+    # --- 6. CONSTRUCT NARRATIVE ---
+    
+    # Sentence 1: Sentiment & Performance
+    period_label = "the period"
+    sentiment = "steady"
+    if abs(period_ret) > 0.05: sentiment = "volatile"
+    if period_ret > 0.10: sentiment = "robust"
+    if period_ret < -0.10: sentiment = "challenging"
+    
+    intro = (
+        f"Performance over this period has been **{sentiment}**, with the portfolio returning "
+        f"**{period_ret*100:+.2f}%** (**{pl_str}**){spy_txt}. "
+    )
+    
+    # Sentence 2: Drivers
+    drivers = ""
+    if best_stock != "N/A":
+        drivers = (
+            f"Leading the charge was **{best_stock}** (**{best_ret*100:+.2f}%**), "
+            f"while **{worst_stock}** (**{worst_ret*100:+.2f}%**) proved to be drag on performance."
+        )
+        
+    # Sentence 3: Allocation
+    alloc_txt = ""
+    alloc_points = []
+    if max_over > 5.0:
+        alloc_points.append(f"overweight **{over_ac}** (+{max_over:.1f}%)")
+    if abs(max_under) > 5.0:
+        alloc_points.append(f"underallocated in **{under_ac}** ({max_under:.1f}%)")
+        
+    if alloc_points:
+        alloc_txt = " Positioning currently shows you are " + ", and ".join(alloc_points) + "."
+        
+    return intro + drivers + alloc_txt
 
 # ============================================================
 # HELPER: Apply Light Theme to Figure
@@ -352,6 +663,41 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
     # Header content
     report_title = title or "Portfolio Performance Report"
     
+    # Date line
+    now = datetime.now()
+    date_line = f"Report Date: {now.strftime('%B %d, %Y')}"
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+
+    # =========================================================
+    # 1. Determine Start Date and Handle Short History
+    pv = data.get("pv")
+    start_date = None
+    is_short_history = False
+
+    if pv is not None and not pv.empty:
+        end_date = pv.index.max()
+        inception = data.get("inception_date", pv.index.min())
+
+        horizon_map = {
+            "YTD": "YTD",
+            "12M": "1Y", # Standardize to financial_math labelling
+            "3M": "3M",
+            "1M": "1M"
+        }
+        
+        target_h = horizon_map.get(period)
+        if target_h:
+            # use centralized logic to find EXACT matching trading day
+            calc_start = get_portfolio_horizon_start(pv, inception, target_h)
+            if calc_start is not None:
+                start_date = calc_start
+            elif period != "SI":
+                # If target horizon requested but calc_start is None -> Short History
+                # Fallback to SI behavior so we don't return partial weird data
+                is_short_history = True
+                period = "SI"
+        # If SI or calc_start is None (for SI), start_date remains None (Inception)
+
     period_labels = {
         "SI": "Since Inception",
         "YTD": "Year-to-Date",
@@ -359,12 +705,11 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
         "3M": "Last Quarter",
         "1M": "Last Month"
     }
-    subtitle = f"{period_labels.get(period, 'Since Inception')} Analysis"
     
-    # Date line
-    now = datetime.now()
-    date_line = f"Report Date: {now.strftime('%B %d, %Y')}"
-    timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+    base_subtitle = period_labels.get(period, 'Since Inception')
+    if is_short_history:
+        base_subtitle += " (Short History)"
+    subtitle = f"{base_subtitle} Analysis"
     
     # Resolve Section Order
     order_list = order_list or DEFAULT_ORDER
@@ -384,14 +729,13 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
             
         # 0. Morning AI Summary
         if section_key == "morning_brief":
-            # Generate summary text
-            from components.ai_brief import generate_ai_summary
-            summary_text = generate_ai_summary(data)
+            # Generate summary text using local, period-aware logic
+            summary_text = _generate_ai_summary_period(data, start_date=start_date, end_date=end_date)
             
             brief_section = html.Div([
                 dbc.Row([
                     dbc.Col([
-                        html.H4("Morning AI Summary", className="section-title mb-3"),
+                        html.H4("Summary", className="section-title mb-3"),
                         dcc.Markdown(summary_text, className="text-muted" if print_preview else "text-white")
                     ], width=12)
                 ])
@@ -401,6 +745,79 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
         # 1. Executive Summary
         elif section_key == "summary":
             metrics = dw.get_snapshot_metrics(data)
+            
+            # Default Labels
+            twr_label = "Total Return (TWR)"
+            pl_label = "Total P/L"
+            
+            # Override if specific period selected and not SI
+            if period != "SI" and start_date:
+                try:
+                    # 1. Calculate Period Return (TWR)
+                    twr_curve = dw._get_daily_twr_curve(data)
+                    
+                    # Find base value (value just before start_date)
+                    mask_prior = twr_curve.index < start_date
+                    if mask_prior.any():
+                        base_val = twr_curve[mask_prior].iloc[-1]
+                    else:
+                        base_val = 1.0 # Before inception
+                        
+                    current_val = twr_curve.iloc[-1] if not twr_curve.empty else 1.0
+                    period_return = (current_val / base_val) - 1
+                    
+                    metrics['twr_si'] = period_return
+                    twr_label = f"Period Return ({period})"
+                    
+                    # 2. Calculate Stats (Sharpe, Sortino, Max DD) on sliced curve
+                    # Include the last point prior to start_date to ensure the first day's return/drawdown is captured
+                    mask_prior = twr_curve.index < start_date
+                    if mask_prior.any():
+                        anchor_idx = twr_curve[mask_prior].index[-1]
+                        # Filter for >= anchor but <= end_date (if end_date set)
+                        sub_curve = twr_curve[(twr_curve.index >= anchor_idx) & (twr_curve.index <= end_date)]
+                    else:
+                        sub_curve = twr_curve[(twr_curve.index >= start_date) & (twr_curve.index <= end_date)]
+
+                    if not sub_curve.empty:
+                        # Efficiency
+                        eff = dw.calculate_efficiency_metrics(sub_curve)
+                        metrics['sharpe'] = eff['sharpe']
+                        metrics['sortino'] = eff['sortino']
+                        
+                        # Drawdown
+                        _, dd_val, _ = dw.compute_drawdown_series(sub_curve)
+                        metrics['max_dd'] = dd_val / 100.0
+                        
+                    # 3. Calculate Period P/L
+                    # P/L = End_MV - Start_MV - Net_Flows(Start to End)
+                    pv = data.get("pv", pd.Series())
+                    cf = data.get("cf_ext", pd.DataFrame())
+                    
+                    if not pv.empty:
+                        # End Value
+                        end_mv = pv.iloc[-1]
+                        
+                        # Start Value (PV just before start_date)
+                        pv_prior = pv[pv.index < start_date]
+                        start_mv = pv_prior.iloc[-1] if not pv_prior.empty else 0.0
+                        
+                        # Flows (inclusive of start_date if it was used as start boundary)
+                        # We use >= start_date because these frames are daily. 
+                        # Start date is e.g. Jan 1. 
+                        if not cf.empty:
+                            mask_flows = (cf["date"] >= start_date) & (cf["date"] <= end_date)
+                            period_flows = cf.loc[mask_flows, "amount"].sum()
+                        else:
+                            period_flows = 0.0
+                            
+                        metrics['pl_si'] = end_mv - start_mv - period_flows
+                        pl_label = f"Period P/L ({period})"
+                
+                except Exception as e:
+                    # Fallback to defaults or print error
+                    print(f"Error calculating Custom Report period metrics: {e}")
+
             # Calculate MTD Return if missing
             mtd_ret = 0.0
             twr_df = data.get("twr_df", pd.DataFrame())
@@ -424,14 +841,14 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                     ], width=3),
                     dbc.Col([
                         html.Div([
-                            html.Div("Total Return (TWR)", className="kpi-label-print text-white"),
+                            html.Div(twr_label, className="kpi-label-print text-white"),
                             html.Div(fmt_pct_clean(metrics.get('twr_si', 0) if metrics else 0), className="kpi-value-print",
                                      style={"color": "#28a745" if (metrics.get('twr_si', 0) or 0) >= 0 else "#dc3545"})
                         ], className="kpi-box-print")
                     ], width=3),
                     dbc.Col([
                         html.Div([
-                            html.Div("Total P/L", className="kpi-label-print text-white"),
+                            html.Div(pl_label, className="kpi-label-print text-white"),
                             html.Div(fmt_dollar_clean(metrics.get('pl_si', 0) if metrics else 0), className="kpi-value-print",
                                      style={"color": "#28a745" if (metrics.get('pl_si', 0) or 0) >= 0 else "#dc3545"})
                         ], className="kpi-box-print")
@@ -475,6 +892,11 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
             fig = dw.get_pv_mountain_chart(data, theme)
             if print_preview:
                 fig = apply_print_theme(fig)
+            
+            # Zoom if period selected
+            if start_date:
+                fig.update_xaxes(range=[start_date, end_date])
+
             fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
             
             perf_section = html.Div([
@@ -534,6 +956,9 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                 bar_fig = apply_print_theme(bar_fig)
                 hist_fig = apply_print_theme(hist_fig)
             
+            if start_date:
+                hist_fig.update_xaxes(range=[start_date, end_date])
+
             pie_fig.update_layout(height=450, margin=dict(l=0, r=0, t=30, b=20), autosize=True)
             bar_fig.update_layout(height=450, margin=dict(l=0, r=0, t=30, b=20), autosize=True)
             hist_fig.update_layout(height=500, margin=dict(l=0, r=0, t=40, b=40), autosize=True)
@@ -637,13 +1062,14 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
         
         # 8. Flows Summary
         elif section_key == "flows":
-            flows_df = dw.get_flows_summary_ytd(data)
+            # Use local period-aware flows logic
+            flows_df, flow_subtitle = _get_flows_summary_period(data, start_date=start_date, end_date=end_date)
             grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
             
             flows_section = html.Div([
                 dbc.Row([
                     dbc.Col([
-                        html.H4("Cash Flow Summary (YTD)", className="section-title mb-3"),
+                        html.H4(f"Cash Flow Summary ({flow_subtitle})", className="section-title mb-3"),
                         dag.AgGrid(
                             rowData=flows_df.to_dict('records'),
                             columnDefs=[
@@ -662,9 +1088,14 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
 
         # 9. Tax Lot Explorer (Open Lots)
         elif section_key == "tax_lots":
-            # Calculate tax lots
-            open_lots, _ = build_tax_lots(strategy="FIFO", signal=signal)
+            # Calculate tax lots using optimized Engine Logic (Time Machine supported)
+            # If no specific period, use As Of Now (default behavior)
+            as_of_dt = end_date if end_date else datetime.now()
+            
+            open_lots, _ = build_tax_lots(strategy="FIFO", as_of_date=as_of_dt)
             grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
+            
+            title_suffix = f" (As of {as_of_dt.strftime('%Y-%m-%d')})" if end_date else ""
             
             if not open_lots.empty:
                 explorer_df = open_lots.copy()
@@ -692,7 +1123,7 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                 tax_lots_section = html.Div([
                     dbc.Row([
                         dbc.Col([
-                            html.H4("Tax Lot Explorer (Open Lots)", className="section-title mb-3"),
+                            html.H4(f"Tax Lot Explorer{title_suffix}", className="section-title mb-3"),
                             dag.AgGrid(
                                 rowData=explorer_df.to_dict("records"),
                                 columnDefs=col_defs,
@@ -725,6 +1156,9 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                 risk_fig = apply_print_theme(risk_fig)
                 corr_fig = apply_print_theme(corr_fig)
                 dd_fig = apply_print_theme(dd_fig)
+            
+            if start_date:
+                dd_fig.update_xaxes(range=[start_date, end_date])
                 
             risk_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
             corr_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
@@ -749,12 +1183,16 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                 "Total US Market": "VTI",
                 "Aggressive Alloc": "AOA"
             }
-            cum_fig = dw.get_cumulative_return_chart(data, None, bm_map, theme)
+            # Pass start_date if available, otherwise it defaults to None (inception)
+            cum_fig = dw.get_cumulative_return_chart(data, start_date, bm_map, theme)
             growth_fig = dw.get_growth_of_capital_chart(data, "Total", theme)
             
             if print_preview:
                 cum_fig = apply_print_theme(cum_fig)
                 growth_fig = apply_print_theme(growth_fig)
+            
+            if start_date:
+                growth_fig.update_xaxes(range=[start_date, end_date])
                 
             cum_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
             growth_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
@@ -778,6 +1216,9 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
             if print_preview:
                 attr_fig = apply_print_theme(attr_fig)
             
+            if start_date:
+                attr_fig.update_xaxes(range=[start_date, end_date])
+
             attr_fig.update_layout(height=600, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
                 
             attr_section = html.Div([
@@ -950,6 +1391,43 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
 # ============================================================
 # WORD REPORT GENERATION CALLBACK
 # ============================================================
+
+def _clip_data(data, start_date=None, end_date=None):
+    """
+    Creates a shallow copy of the data dictionary with time-series filtered
+    to the [start_date, end_date] window. Matches 'as_of' logic for snapshot data where possible.
+    """
+    if not start_date:
+        return data 
+        
+    clipped = data.copy()
+    eff_start = pd.Timestamp(start_date)
+    eff_end = pd.Timestamp(end_date) if end_date else pd.Timestamp.now()
+    
+    # Filter Function
+    def _filter_ts(df, date_col=None):
+        if df is None or df.empty: return df
+        if date_col:
+            mask = (df[date_col] >= eff_start) & (df[date_col] <= eff_end)
+            return df[mask]
+        else: # index based
+            mask = (df.index >= eff_start) & (df.index <= eff_end)
+            return df[mask]
+
+    if "pv" in clipped: clipped["pv"] = _filter_ts(clipped["pv"])
+    if "cf_ext" in clipped: clipped["cf_ext"] = _filter_ts(clipped["cf_ext"], "date")
+    if "cf_all" in clipped: clipped["cf_all"] = _filter_ts(clipped["cf_all"], "date")
+    if "tx_raw" in clipped: clipped["tx_raw"] = _filter_ts(clipped["tx_raw"], "date")
+    if "dividends" in clipped: clipped["dividends"] = _filter_ts(clipped["dividends"], "date")
+    if "prices" in clipped: clipped["prices"] = _filter_ts(clipped["prices"])
+    
+    # TWR Curve: We want the curve segment, but careful about the anchor point.
+    # If we cut strictly >= start, the first point is T+1 return relative to start.
+    # This is generally what charts expect (they index from start).
+    if "twr_curve" in clipped: clipped["twr_curve"] = _filter_ts(clipped["twr_curve"])
+    
+    return clipped
+
 @callback(
     [Output("download-word-report", "data"),
      Output("download-status-alert", "children"),
@@ -997,8 +1475,25 @@ def download_word_report(n_clicks, order_list, selected_list, title, period, mob
     try:
         if not data:
             return dash.no_update, "No data available. Please load the portfolio first.", "warning", True
+        
+        # Determine Report Horizon
+        end_date = datetime.now() # Default effective date
+
+        # CLIP DATA FOR REPORT ACCURACY
+        if period and period != "SI":
+            # MAP UI LABEL TO MATH LABEL (Crucial: 12M -> 1Y)
+            math_period = "1Y" if period == "12M" else period
             
-        doc = generate_word_report(data, sections, title, subtitle, period, mobile_mode=mobile_mode)
+            pv = data.get("pv")
+            if pv is not None and not pv.empty:
+                inception_date = pv.index.min()
+                start_date = get_portfolio_horizon_start(pv, inception_date, math_period)
+                if start_date:
+                    data = _clip_data(data, start_date=start_date, end_date=end_date)
+            
+        p_label = period_labels.get(period, period)
+        # Pass end_date to ensure consistent Time Machine logic in sub-generators (Tax Lots)
+        doc = generate_word_report(data, sections, title, subtitle, p_label, mobile_mode=mobile_mode, end_date=end_date)
         
         # Save to buffer
         buffer = BytesIO()

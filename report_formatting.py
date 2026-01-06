@@ -205,10 +205,11 @@ def add_figure_to_doc(doc, fig, width_inches=7.5, height_inches=4.5):
 # Main Generator
 # =====================================================================
 
-def generate_word_report(data, sections, report_title, subtitle, period_label, mobile_mode=False):
+def generate_word_report(data, sections, report_title, subtitle, period_label, mobile_mode=False, end_date=None):
     """
     Generates a Word Document based on selected sections.
     Args:
+        end_date (datetime): Time Machine cutoff for tax lot calculations.
         mobile_mode (bool): If True, forces 1 chart per page and full width for readability.
     """
     doc = Document()
@@ -217,7 +218,12 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
     # Helper to manage layout changes
     def check_break():
         if mobile_mode:
-            add_page_break(doc)
+            # Continuous scroll effect for mobile (Spacer instead of Break)
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.add_run("─" * 20).bold = True # Horizontal rule
+            doc.add_paragraph() # Extra spacer
+        # Note: Desktop layout relies on explicit breaks or flow as designed previously.
 
     # Standard width is 7.5" (8.5 page - 1.0 margins). 
     # In split mode (desktop default), we use 6" for side-by-side feel or smaller figs.
@@ -424,9 +430,15 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
         # -----------------------------------------------------------------
         elif section_key == "tax_lots":
             check_break()
-            add_header(doc, "Tax Lot Explorer (Open Lots)", level=2)
+            title_text = "Tax Lot Explorer (Open Lots)"
+            if end_date:
+                title_text += f"\n(As of {pd.Timestamp(end_date).strftime('%Y-%m-%d')})"
+            add_header(doc, title_text, level=2)
+            
             # Use simple FIFO strat since we don't have signal easy access
-            open_lots, _ = build_tax_lots(strategy="FIFO")
+            # NOW SUPPORTS TIME MACHINE VIA end_date
+            calc_date = end_date if end_date else pd.Timestamp.now()
+            open_lots, _ = build_tax_lots(strategy="FIFO", as_of_date=calc_date)
             
             if not open_lots.empty:
                 # Ensure Date formatting
