@@ -16,7 +16,9 @@ from dash import dcc, html, callback, Input, Output, State, ALL, clientside_call
 import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import dash_wrappers as dw
+from dash_wrappers import send_to_drive
 from report_formatting import fmt_pct_clean, fmt_dollar_clean, generate_word_report
+from components.ai_brief import generate_ai_summary_period
 from datetime import datetime
 import pandas as pd
 from tax_engine import build_tax_lots, normalize_ticker
@@ -144,221 +146,6 @@ def _get_flows_summary_period(data, start_date=None, end_date=None):
     ]
     return pd.DataFrame(rows), period_label
 
-# --- Local Helpers for AI Summary Logic ---
-def _generate_ai_summary_period(data, start_date=None, end_date=None):
-    """
-    Local implementation of AI Brief that respects specific period.
-    Mimics structure of components/ai_brief.py but tailored for time-ranges.
-    """
-    if not data:
-        return "Portfolio data is currently initializing..."
-    
-    # 1. Get TWR Curve for calculation
-    twr_curve = dw._get_daily_twr_curve(data) # Helper is reusable as it returns full curve
-    if twr_curve.empty:
-        return "Insufficient data for summary."
-        
-    # Define Bounds
-    eff_end = pd.Timestamp(end_date) if end_date else twr_curve.index.max()
-    eff_start = pd.Timestamp(start_date) if start_date else twr_curve.index.min()
-    
-    # --- 1. PERIOD RETURN ---
-    period_ret = 0.0
-    
-    # Find closest index <= eff_end
-    end_locs = twr_curve.index[twr_curve.index <= eff_end]
-    if not end_locs.empty:
-        idx_end = end_locs[-1]
-        val_end = twr_curve.loc[idx_end]
-        
-        # Determine Base Value (val_start)
-        # 1. If eff_start is the Inception Date (Day 0), Base is 1.0 (to capture Day 0 return)
-        # 2. Otherwise, Base is the Curve Value ON eff_start (capture return from T+1 onwards)
-        #    This aligns with Overview/Financial Math which treats 'start' as the anchor T0.
-        
-        if eff_start <= twr_curve.index.min():
-            val_start = 1.0
-        else:
-            # Use asof to safe-guard against weekends/holidays
-            val_start = twr_curve.asof(eff_start)
-            if pd.isna(val_start): val_start = 1.0
-
-        period_ret = (val_end / val_start) - 1.0
-        
-    # --- 2. PERIOD P/L (DOLLAR) ---
-    pv = data.get("pv")
-    cf_ext = data.get("cf_ext")
-    period_pl = 0.0
-    
-    if pv is not None and not pv.empty:
-        # End MV
-        end_locs_pv = pv.index[pv.index <= eff_end]
-        if not end_locs_pv.empty:
-            idx_end_pv = end_locs_pv[-1]
-            end_mv = pv.loc[idx_end_pv]
-        else:
-            end_mv = 0.0
-            
-        # Start MV
-        start_locs_pv = pv.index[pv.index < eff_start]
-        if not start_locs_pv.empty:
-            idx_start_pv = start_locs_pv[-1]
-            start_mv = pv.loc[idx_start_pv]
-        else:
-            start_mv = 0.0
-            
-        # Net Flows in Window [start, end]
-        flows_sum = 0.0
-        if cf_ext is not None and not cf_ext.empty:
-            mask = (cf_ext["date"] >= eff_start) & (cf_ext["date"] <= eff_end)
-            flows_sum = cf_ext.loc[mask, "amount"].sum()
-            
-        period_pl = end_mv - start_mv - flows_sum
-
-    pl_str = fmt_dollar_clean(period_pl)
-    if period_pl > 0: pl_str = "+" + pl_str
-
-    # --- 3. MARKET CONTEXT (S&P 500) ---
-    spy_txt = ""
-    try:
-        spy_hist = fetch_price_history(["SPY"], use_adj_close=True)
-        if not spy_hist.empty and "SPY" in spy_hist.columns:
-            spy_prices = spy_hist["SPY"].dropna()
-            
-            # Find bounds in SPY data
-            spy_end_locs = spy_prices.index[spy_prices.index <= eff_end]
-            spy_start_locs = spy_prices.index[spy_prices.index < eff_start]
-            
-            if not spy_end_locs.empty:
-                spy_end_val = spy_prices.loc[spy_end_locs[-1]]
-                # Start val: if strictly < start exists, use it. Else use start date itself.
-                if not spy_start_locs.empty:
-                    spy_start_val = spy_prices.loc[spy_start_locs[-1]]
-                else:
-                    # Try to get value AT start date
-                    at_start = spy_prices.index[spy_prices.index <= eff_start]
-                    spy_start_val = spy_prices.loc[at_start[-1]] if not at_start.empty else spy_end_val
-                
-                spy_ret = (spy_end_val / spy_start_val) - 1.0
-                
-                diff = period_ret - spy_ret
-                if diff > 0.001:
-                    spy_txt = f", outperforming the S&P 500 ({spy_ret*100:+.2f}%)"
-                elif diff < -0.001:
-                    spy_txt = f", trailing the S&P 500 ({spy_ret*100:+.2f}%)"
-                else:
-                    spy_txt = f", tracking the S&P 500 ({spy_ret*100:+.2f}%)"
-    except Exception:
-        pass
-
-    # --- 4. TOP MOVERS (MODIFIED DIETZ) ---
-    best_stock, best_ret, worst_stock, worst_ret = "N/A", 0, "N/A", 0
-    try:
-        # Use Modified Dietz (Position Performance) to align with Performance Page tables
-        held_tickers = data["sec_table_current"]["ticker"].unique()
-        tx_raw = data.get("tx_raw")
-        dividends = data.get("dividends")
-        prices = data.get("prices")
-        
-        # Fallback if prices missing
-        if prices is None or prices.empty:
-            prices = fetch_price_history(list(held_tickers))
-
-        if not prices.empty:
-            # Pre-group for speed
-            tx_grouped = tx_raw.groupby("ticker") if tx_raw is not None and not tx_raw.empty else {}
-            div_grouped = dividends.groupby("ticker") if dividends is not None and not dividends.empty else {}
-
-            perf_records = []
-            for tik in held_tickers:
-                # Get Ticker Data
-                tx_t = tx_grouped.get_group(tik) if (isinstance(tx_grouped, pd.core.groupby.DataFrameGroupBy) and tik in tx_grouped.groups) else pd.DataFrame(columns=["date", "shares", "amount"])
-                div_t = div_grouped.get_group(tik) if (isinstance(div_grouped, pd.core.groupby.DataFrameGroupBy) and tik in div_grouped.groups) else pd.DataFrame(columns=["date", "amount"])
-                
-                if tik in prices.columns:
-                    price_t = prices[tik]
-                    # Calculate Modified Dietz for this specific window
-                    md = modified_dietz_for_ticker_window(tik, price_t, tx_t, eff_start, eff_end, div_t)
-                    if not pd.isna(md):
-                        # Apply Annualization if > 1.0 years (Aligned with App Logic)
-                        md_ann = annualize_return(md, eff_start, eff_end)
-                        perf_records.append({"ticker": tik, "ret": md_ann})
-            
-            if perf_records:
-                perf_df = pd.DataFrame(perf_records)
-                top_gainers = perf_df.sort_values("ret", ascending=False).head(1)
-                top_losers = perf_df.sort_values("ret", ascending=True).head(1)
-                
-                if not top_gainers.empty:
-                    best_stock = top_gainers.iloc[0]["ticker"]
-                    best_ret = top_gainers.iloc[0]["ret"]
-                if not top_losers.empty:
-                    worst_stock = top_losers.iloc[0]["ticker"]
-                    worst_ret = top_losers.iloc[0]["ret"]
-
-    except Exception as e:
-        # print(f"Error in AI Summary Top Movers: {e}") 
-        pass
-
-    # --- 5. ASSET ALLOCATION DRIFT ---
-    # Note: This is a SNAPSHOT at end_date (typically 'Now')
-    sec_current = data["sec_table_current"]
-    holdings = data["holdings"]
-    
-    max_over = 0
-    over_ac = ""
-    max_under = 0
-    under_ac = ""
-    
-    if not sec_current.empty:
-        ac_weights = sec_current.groupby("asset_class")["weight"].sum() * 100
-        targets = holdings.groupby("asset_class")["target_pct"].sum()
-        
-        for ac, w in ac_weights.items():
-            t = targets.get(ac, 0)
-            drift = w - t
-            if drift > 0 and drift > max_over:
-                max_over = drift
-                over_ac = ac
-            if drift < 0 and drift < max_under:
-                max_under = drift
-                under_ac = ac
-
-    # --- 6. CONSTRUCT NARRATIVE ---
-    
-    # Sentence 1: Sentiment & Performance
-    period_label = "the period"
-    sentiment = "steady"
-    if abs(period_ret) > 0.05: sentiment = "volatile"
-    if period_ret > 0.10: sentiment = "robust"
-    if period_ret < -0.10: sentiment = "challenging"
-    
-    intro = (
-        f"Performance over this period has been **{sentiment}**, with the portfolio returning "
-        f"**{period_ret*100:+.2f}%** (**{pl_str}**){spy_txt}. "
-    )
-    
-    # Sentence 2: Drivers
-    drivers = ""
-    if best_stock != "N/A":
-        drivers = (
-            f"Leading the charge was **{best_stock}** (**{best_ret*100:+.2f}%**), "
-            f"while **{worst_stock}** (**{worst_ret*100:+.2f}%**) proved to be drag on performance."
-        )
-        
-    # Sentence 3: Allocation
-    alloc_txt = ""
-    alloc_points = []
-    if max_over > 5.0:
-        alloc_points.append(f"overweight **{over_ac}** (+{max_over:.1f}%)")
-    if abs(max_under) > 5.0:
-        alloc_points.append(f"underallocated in **{under_ac}** ({max_under:.1f}%)")
-        
-    if alloc_points:
-        alloc_txt = " Positioning currently shows you are " + ", and ".join(alloc_points) + "."
-        
-    return intro + drivers + alloc_txt
-
 # ============================================================
 # HELPER: Apply Light Theme to Figure
 # ============================================================
@@ -469,9 +256,17 @@ layout = html.Div(className="custom-report-page", children=[
                         [html.I(className="bi bi-file-earmark-word me-2"), "Download Word Report"],
                         id="btn-download-word",
                         color="success",
+                        className="w-100 mb-2",
+                        n_clicks=0
+                    ),
+                    dbc.Button(
+                        [html.I(className="bi bi-google me-2"), "Export to Drive"],
+                        id="btn-export-drive",
+                        color="warning",
                         className="w-100",
                         n_clicks=0
                     ),
+                    html.Div(id="drive-export-feedback", className="mt-2 text-center small fw-bold"),
                     dcc.Download(id="download-word-report")
                 ], width=12, md=4),
             ])
@@ -735,13 +530,13 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
             
         # 0. Morning AI Summary
         if section_key == "morning_brief":
-            # Generate summary text using local, period-aware logic
-            summary_text = _generate_ai_summary_period(data, start_date=start_date, end_date=end_date)
+            # Generate summary text using unified period-aware logic
+            summary_text = generate_ai_summary_period(data, start_date=start_date, end_date=end_date)
             
             brief_section = html.Div([
                 dbc.Row([
                     dbc.Col([
-                        html.H4("Summary", className="section-title mb-3"),
+                        html.H4("Period Performance Summary", className="section-title mb-3"),
                         dcc.Markdown(summary_text, className="text-muted" if print_preview else "text-white")
                     ], width=12)
                 ])
@@ -1495,6 +1290,7 @@ def download_word_report(n_clicks, order_list, selected_list, title, period, mob
         
         # Determine Report Horizon
         end_date = datetime.now() # Default effective date
+        start_date = None
 
         # CLIP DATA FOR REPORT ACCURACY
         if period and period != "SI":
@@ -1510,7 +1306,8 @@ def download_word_report(n_clicks, order_list, selected_list, title, period, mob
             
         p_label = period_labels.get(period, period)
         # Pass end_date to ensure consistent Time Machine logic in sub-generators (Tax Lots)
-        doc = generate_word_report(data, sections, title, subtitle, p_label, mobile_mode=mobile_mode, end_date=end_date)
+        doc = generate_word_report(data, sections, title, subtitle, p_label, 
+                                   mobile_mode=mobile_mode, start_date=start_date, end_date=end_date)
         
         # Save to buffer
         buffer = BytesIO()
@@ -1525,3 +1322,93 @@ def download_word_report(n_clicks, order_list, selected_list, title, period, mob
         # For now, simplistic error handling
         print(f"Error generating report: {e}")
         return dash.no_update, f"Error: {str(e)}", "danger", True
+
+# ============================================================
+# CALLBACK: GOOGLE DRIVE EXPORT
+# ============================================================
+@callback(
+    Output("drive-export-feedback", "children"),
+    Input("btn-export-drive", "n_clicks"),
+    State("report-order-store", "data"),
+    State("report-selection-store", "data"),
+    State("report-title-input", "value"),
+    State("report-period-select", "value"),
+    State("report-mobile-mode", "value"),
+    prevent_initial_call=True
+)
+def export_word_to_drive(n_clicks, order_list, selected_list, title, period, mobile_mode):
+    """
+    Exports the Word Report (.docx) to Google Drive.
+    """
+    if not n_clicks:
+        return ""
+    
+    msg = "⏳ Generating & Exporting..."
+    try:
+        data = dw.get_data()
+        if not data:
+            return "❌ No data to export."
+            
+        # 1. Resolve Sections Logic (Mirrors download_word_report)
+        order_list = order_list or DEFAULT_ORDER
+        selected_list = selected_list or []
+        current_values = set(order_list)
+        options_dict = {opt["value"]: opt for opt in REPORT_SECTIONS_OPTIONS}
+        missing = [k for k in options_dict if k not in current_values]
+        final_order = [k for k in order_list if k in options_dict] + missing
+        
+        # Generate ordered sections list
+        sections = [k for k in final_order if k in selected_list]
+        
+        title = title or "Portfolio Value Report"
+        
+        period_labels = {
+            "SI": "Since Inception",
+            "YTD": "Year-to-Date",
+            "12M": "Trailing 12 Months",
+            "3M": "Last Quarter",
+            "1M": "Last Month"
+        }
+        subtitle = f"{period_labels.get(period, 'Since Inception')} Analysis"
+
+        # 2. Determine Report Horizon & Clip Data
+        end_date = datetime.now() # Default effective date
+        start_date = None
+
+        if period and period != "SI":
+            math_period = "1Y" if period == "12M" else period
+            pv = data.get("pv")
+            if pv is not None and not pv.empty:
+                inception_date = pv.index.min()
+                start_date = get_portfolio_horizon_start(pv, inception_date, math_period)
+                if start_date:
+                    data = _clip_data(data, start_date=start_date, end_date=end_date)
+            
+        p_label = period_labels.get(period, period)
+        
+        # 3. Generate Word Document
+        doc = generate_word_report(data, sections, title, subtitle, p_label, 
+                                   mobile_mode=mobile_mode, start_date=start_date, end_date=end_date)
+        
+        # 4. Save to buffer
+        buffer = BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        
+        # 5. Define Filename
+        filename_prefix = "Investment_Report_Mobile_" if mobile_mode else "Investment_Report_"
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{filename_prefix}{timestamp}.docx"
+        
+        # 6. Upload to Drive
+        # MIME type for docx: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+        result_msg = send_to_drive(
+            buffer.getvalue(), 
+            filename, 
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+        return result_msg
+        
+    except Exception as e:
+        print(f"Error exporting to drive: {e}") 
+        return f"❌ Error: {str(e)}"

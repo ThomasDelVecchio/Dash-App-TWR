@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from report_formatting import fmt_pct_clean, fmt_dollar_clean
-from financial_math import get_portfolio_horizon_start
+from financial_math import get_portfolio_horizon_start, modified_dietz_for_ticker_window, annualize_return
 from data_loader import fetch_price_history
 
 def generate_ai_summary(data):
@@ -166,3 +166,166 @@ def generate_ai_summary(data):
     summary = f"{intro}\n\n{drivers}\n\n{alloc}{flows_txt}"
     
     return summary
+
+def generate_ai_summary_period(data, start_date=None, end_date=None):
+    """
+    Generates a natural-language executive summary that respects a specific period.
+    Supports Time Machine analysis via start_date and end_date.
+    Annualizes returns only if duration > 1 year (handled by financial_math.annualize_return).
+    """
+    import dash_wrappers as dw
+    if not data:
+        return "Portfolio data is currently initializing..."
+    
+    # 1. Get TWR Curve for calculation
+    twr_curve = dw._get_daily_twr_curve(data) 
+    if twr_curve.empty:
+        return "Insufficient data for summary."
+        
+    # Define Bounds
+    eff_end = pd.Timestamp(end_date) if end_date else twr_curve.index.max()
+    eff_start = pd.Timestamp(start_date) if start_date else twr_curve.index.min()
+    
+    # --- 1. PERIOD RETURN ---
+    period_ret = 0.0
+    
+    # Find closest index <= eff_end
+    end_locs = twr_curve.index[twr_curve.index <= eff_end]
+    if not end_locs.empty:
+        idx_end = end_locs[-1]
+        val_end = twr_curve.loc[idx_end]
+        
+        # Determine Base Value (val_start)
+        val_start = twr_curve.asof(eff_start) if eff_start > twr_curve.index.min() else 1.0
+        if pd.isna(val_start): val_start = 1.0
+
+        period_ret_cum = (val_end / val_start) - 1.0
+        # Apply Annualization logic (>= 1yr in financial_math)
+        period_ret = annualize_return(period_ret_cum, eff_start, eff_end)
+        
+    # --- 2. PERIOD P/L (DOLLAR) ---
+    pv = data.get("pv")
+    cf_ext = data.get("cf_ext")
+    period_pl = 0.0
+    
+    if pv is not None and not pv.empty:
+        # End MV
+        end_locs_pv = pv.index[pv.index <= eff_end]
+        if not end_locs_pv.empty:
+            idx_end_pv = end_locs_pv[-1]
+            end_mv = pv.loc[idx_end_pv]
+        else:
+            end_mv = 0.0
+            
+        # Start MV
+        start_locs_pv = pv.index[pv.index < eff_start]
+        if not start_locs_pv.empty:
+            idx_start_pv = start_locs_pv[-1]
+            start_mv = pv.loc[idx_start_pv]
+        else:
+            start_mv = 0.0
+            
+        # Net Flows in Window [start, end]
+        flows_sum = 0.0
+        if cf_ext is not None and not cf_ext.empty:
+            mask = (cf_ext["date"] >= eff_start) & (cf_ext["date"] <= eff_end)
+            flows_sum = cf_ext.loc[mask, "amount"].sum()
+            
+        period_pl = end_mv - start_mv - flows_sum
+
+    pl_str = fmt_dollar_clean(period_pl)
+    if period_pl > 0: pl_str = "+" + pl_str
+
+    # --- 3. MARKET CONTEXT (S&P 500) ---
+    spy_txt = ""
+    try:
+        spy_hist = fetch_price_history(["SPY"], use_adj_close=True)
+        if not spy_hist.empty and "SPY" in spy_hist.columns:
+            spy_prices = spy_hist["SPY"].dropna()
+            
+            # GIPS COMPLIANCE FIX: MATCH ANCHOR DATE LOGIC
+            # If SI: use last price before inception to capture day 1. 
+            # Otherwise use price ON start date (capturing return from close onwards).
+            base_price = None
+            market_start = data.get("inception_date", twr_curve.index.min())
+
+            if eff_start <= market_start:
+                 # Inception Logic: Look for price strictly before start
+                 history_before = spy_prices[spy_prices.index < eff_start]
+                 if not history_before.empty:
+                      base_price = float(history_before.iloc[-1])
+            
+            # Fallback to .asof(eff_start) if mid-horizon or no pre-inception data
+            if base_price is None:
+                 base_price = spy_prices.asof(eff_start)
+            
+            end_price = spy_prices.asof(eff_end)
+            
+            if base_price and end_price:
+                spy_ret = (end_price / base_price) - 1.0
+                
+                diff = period_ret - spy_ret
+                if diff > 0.001:
+                    spy_txt = f", outperforming the S&P 500 ({spy_ret*100:+.2f}%)"
+                elif diff < -0.001:
+                    spy_txt = f", trailing the S&P 500 ({spy_ret*100:+.2f}%)"
+                else:
+                    spy_txt = f", tracking the S&P 500 ({spy_ret*100:+.2f}%)"
+    except Exception: pass
+
+    # --- 4. TOP MOVERS (MODIFIED DIETZ) ---
+    best_stock, best_ret, worst_stock, worst_ret = "N/A", 0, "N/A", 0
+    try:
+        # Optimization: use pre-calculated sec_table_current if available for tickers
+        held_tickers = data["sec_table_current"]["ticker"].unique()
+        tx_raw = data.get("tx_raw")
+        dividends = data.get("dividends")
+        prices = data.get("prices") or fetch_price_history(list(held_tickers))
+
+        if not prices.empty:
+            tx_grouped = tx_raw.groupby("ticker") if tx_raw is not None and not tx_raw.empty else {}
+            div_grouped = dividends.groupby("ticker") if dividends is not None and not dividends.empty else {}
+
+            perf_records = []
+            for tik in held_tickers:
+                if tik == 'CASH': continue
+                tx_t = tx_grouped.get_group(tik) if (isinstance(tx_grouped, pd.core.groupby.DataFrameGroupBy) and tik in tx_grouped.groups) else pd.DataFrame(columns=["date", "shares", "amount"])
+                div_t = div_grouped.get_group(tik) if (isinstance(div_grouped, pd.core.groupby.DataFrameGroupBy) and tik in div_grouped.groups) else pd.DataFrame(columns=["date", "amount"])
+                
+                if tik in prices.columns:
+                    md = modified_dietz_for_ticker_window(tik, prices[tik], tx_t, eff_start, eff_end, div_t)
+                    if not pd.isna(md):
+                        # Apply Annualization logic (>= 1yr in financial_math)
+                        md_ann = annualize_return(md, eff_start, eff_end)
+                        perf_records.append({"ticker": tik, "ret": md_ann})
+            
+            if perf_records:
+                perf_df = pd.DataFrame(perf_records)
+                top_gainers = perf_df.nlargest(1, "ret")
+                top_losers = perf_df.nsmallest(1, "ret")
+                if not top_gainers.empty:
+                    best_stock, best_ret = top_gainers.iloc[0]["ticker"], top_gainers.iloc[0]["ret"]
+                if not top_losers.empty:
+                    worst_stock, worst_ret = top_losers.iloc[0]["ticker"], top_losers.iloc[0]["ret"]
+    except Exception: pass
+
+    # --- 5. ASSET ALLOCATION DRIFT ---
+    sec_current, holdings = data.get("sec_table_current", pd.DataFrame()), data.get("holdings", pd.DataFrame())
+    max_over, over_ac, max_under, under_ac = 0, "", 0, ""
+    if not sec_current.empty and not holdings.empty:
+        ac_weights, targets = sec_current.groupby("asset_class")["weight"].sum() * 100, holdings.groupby("asset_class")["target_pct"].sum()
+        for ac, w in ac_weights.items():
+            drift = w - targets.get(ac, 0)
+            if drift > max_over: max_over, over_ac = drift, ac
+            if drift < max_under: max_under, under_ac = drift, ac
+
+    # --- 6. NARRATIVE ---
+    sentiment = "robust" if period_ret > 0.10 else "challenging" if period_ret < -0.10 else "steady"
+    intro = f"Performance over this period has been **{sentiment}**, with the portfolio returning **{period_ret*100:+.2f}%** (**{pl_str}**){spy_txt}. "
+    drivers = f"Leading the charge was **{best_stock}** (**{best_ret*100:+.2f}%**), while **{worst_stock}** (**{worst_ret*100:+.2f}%**) proved to be drag on performance." if best_stock != "N/A" else ""
+    alloc_points = []
+    if max_over > 5.0: alloc_points.append(f"overweight **{over_ac}** (+{max_over:.1f}%)")
+    if abs(max_under) > 5.0: alloc_points.append(f"underallocated in **{under_ac}** ({max_under:.1f}%)")
+    alloc_txt = " Positioning currently shows you are " + ", and ".join(alloc_points) + "." if alloc_points else ""
+    
+    return intro + drivers + alloc_txt

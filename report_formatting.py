@@ -205,12 +205,13 @@ def add_figure_to_doc(doc, fig, width_inches=7.5, height_inches=4.5):
 # Main Generator
 # =====================================================================
 
-def generate_word_report(data, sections, report_title, subtitle, period_label, mobile_mode=False, end_date=None):
+def generate_word_report(data, sections, report_title, subtitle, period_label, mobile_mode=False, start_date=None, end_date=None):
     """
     Generates a Word Document based on selected sections.
     Args:
         end_date (datetime): Time Machine cutoff for tax lot calculations.
         mobile_mode (bool): If True, forces 1 chart per page and full width for readability.
+        start_date (datetime): Optional anchor for period-based AI summaries.
     """
     doc = Document()
     set_narrow_margins(doc)
@@ -251,16 +252,23 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
         if section_key == "morning_brief":
             # Avoid circular import at top level
             try:
-                 # Try absolute import which might work if not circular, but safe to keep as is
-                 from components.ai_brief import generate_ai_summary
+                 from components.ai_brief import generate_ai_summary, generate_ai_summary_period
             except:
                  pass 
 
-            # If data is missing or we need to calculate specific brief data:
-            summary_text = generate_ai_summary(data) if 'generate_ai_summary' in locals() else "AI Summary not available."
+            # If we have the period-aware generator, prefer it (used in Custom Reports)
+            if 'generate_ai_summary_period' in locals():
+                summary_text = generate_ai_summary_period(data, start_date=start_date, end_date=end_date)
+                header_text = "Period Performance Summary"
+            elif 'generate_ai_summary' in locals():
+                summary_text = generate_ai_summary(data)
+                header_text = "Morning AI Summary"
+            else:
+                 summary_text = "AI Summary not available."
+                 header_text = "AI Summary"
             
             check_break()
-            add_header(doc, "Morning AI Summary", level=2)
+            add_header(doc, header_text, level=2)
             add_markdown_paragraph(doc, summary_text)
             doc.add_paragraph() # Spacer
 

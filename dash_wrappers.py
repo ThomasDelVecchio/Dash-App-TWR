@@ -5,6 +5,11 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 from collections import defaultdict
+import io
+import os
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
 
 # Import existing modules
 from portfolio_engine import (
@@ -38,6 +43,12 @@ import config
 from config import TARGET_MONTHLY_CONTRIBUTION, GLOBAL_PALETTE, RISK_FREE_RATE, TAX_RATE_LT, TAX_RATE_ST
 
 # ============================================================
+# GOOGLE DRIVE CONFIG
+# ============================================================
+TOKEN_FILE = 'token.json'
+PARENT_FOLDER_ID = '1deTQ3M6SIGcFfZM3vvzTjaq12kZZcWxj'
+
+# ============================================================
 # GLOBAL DATA CACHE (Server-Side)
 # ============================================================
 _DATA_CACHE = None
@@ -52,6 +63,52 @@ ASSET_CLASS_PROXIES = {
     "Gold / Precious Metals": "GLD",
     "Digital Assets": "BTC-USD"
 }
+
+# --- UPDATE FUNCTION ---
+def send_to_drive(content, filename, mimetype='text/csv'):
+    """
+    Uploads using the User's credentials (OAuth) to bypass Service Account limits.
+    Supports both string content (auto-encoded) and binary/bytes content.
+    """
+    try:
+        # Check if the token exists (created by authorize.py)
+        if not os.path.exists(TOKEN_FILE):
+            return "❌ Error: token.json missing. Run authorize.py first."
+
+        # Authenticate as YOU (not the bot)
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE, ['https://www.googleapis.com/auth/drive.file'])
+        service = build('drive', 'v3', credentials=creds)
+
+        file_metadata = {
+            'name': filename,
+            'parents': [PARENT_FOLDER_ID]
+        }
+        
+        # dynamic buffer handling
+        if isinstance(content, str):
+            media_io = io.BytesIO(content.encode('utf-8'))
+        elif isinstance(content, bytes):
+            media_io = io.BytesIO(content)
+        else:
+            # Assume it's already a file-like object
+            media_io = content
+            
+        media = MediaIoBaseUpload(
+            media_io,
+            mimetype=mimetype,
+            resumable=True
+        )
+
+        service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id'
+        ).execute()
+
+        return "✅ Exported to Drive"
+
+    except Exception as e:
+        return f"❌ Export failed: {str(e)}"
 
 def get_data():
     """Retrieve cached data, initializing if necessary."""

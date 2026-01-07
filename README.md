@@ -10,6 +10,7 @@ This is a comprehensive portfolio analytics dashboard built with Plotly Dash. It
 *   **Attribution Analysis:** Understand the sources of your portfolio's returns.
 *   **Data-Driven Insights:** Get AI-powered summaries and insights into your portfolio's performance.
 *   **Report Generation:** Generate detailed portfolio reports in DOCX and PDF formats.
+*   **Google Drive Integration:** Seamlessly export generated Word reports and data directly to a specific Google Drive folder.
 
 ## Installation
 
@@ -42,6 +43,36 @@ To enable this feature:
     ```python
     FMP_API_KEY = "YOUR_SECRET_API_KEY"
     ```
+
+### Google Drive Integration (Optional)
+
+You can export generated reports and data directly to Google Drive. This requires setting up a Google Cloud Project and authenticating your account.
+
+**Prerequisites:**
+1.  **Create a Google Cloud Project:** Go to the [Google Cloud Console](https://console.cloud.google.com/).
+2.  **Enable Google Drive API:** Search for "Google Drive API" and click "Enable".
+3.  **Configure OAuth Consent Screen:** Set the user type to "External" and add yourself as a test user. Add the `.../auth/drive.file` scope.
+4.  **Create Credentials:**
+    *   Go to **Credentials** -> **Create Credentials** -> **OAuth client ID**.
+    *   Select **Desktop app** for the application type.
+    *   Click **Download JSON** for the created client ID.
+5.  **Setup Files:**
+    *   Rename the downloaded file to `client_secret.json`.
+    *   Place `client_secret.json` in the root directory of this project.
+
+**Authentication:**
+Run the following command in your terminal:
+```bash
+python authorize.py
+```
+This will open your web browser. Log in with your Google account and grant the requested permissions. A `token.json` file will be created in your root directory, which the application uses for subsequent exports.
+
+**Target Folder (Optional):**
+By default, files are uploaded to a specific folder defined in `dash_wrappers.py`. To change the destination folder:
+1.  Open `dash_wrappers.py`.
+2.  Find the variable `PARENT_FOLDER_ID`.
+3.  Replace the value with the ID of your desired Google Drive folder (found in the folder's URL).
+
 
 ## Usage
 
