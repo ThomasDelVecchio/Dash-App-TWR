@@ -1,6 +1,6 @@
 # Portfolio Analytics Dashboard
 
-This is a comprehensive portfolio analytics dashboard built with Plotly Dash. It provides in-depth analysis of your investment portfolio, including performance, risk, and attribution analysis. The application features an interactive web interface, and also provides command-line tools for generating reports.
+This is a comprehensive portfolio analytics dashboard built with Plotly Dash. It provides in-depth analysis of your investment portfolio, including performance, risk, and attribution analysis. The application features an interactive web interface.
 
 ## Features
 
@@ -9,7 +9,7 @@ This is a comprehensive portfolio analytics dashboard built with Plotly Dash. It
 *   **Risk Management:** Analyze your portfolio's risk profile with various risk metrics and visualizations.
 *   **Attribution Analysis:** Understand the sources of your portfolio's returns.
 *   **Data-Driven Insights:** Get AI-powered summaries and insights into your portfolio's performance.
-*   **Report Generation:** Generate detailed portfolio reports in DOCX and PDF formats.
+*   **Report Generation:** Generate detailed portfolio reports in DOCX format (and PDF via browser print).
 *   **Google Drive Integration:** Seamlessly export generated Word reports and data directly to a specific Google Drive folder.
 
 ## Installation
@@ -26,11 +26,12 @@ This is a comprehensive portfolio analytics dashboard built with Plotly Dash. It
 ## Configuration
 
 ### Loading Your Own Data
-The app comes pre-loaded with `sample_data/` so you can explore the dashboard immediately.
+
+The app comes pre-loaded with sample files in the `sample_data/` folder: **`sample holdings.csv`** and **`cashflows.csv`**. *IMPORTANT* Move them into the root folder with all other py files before running 
 
 To import your own portfolio:
-1. Delete the files inside the `sample_data/` folder.
-2. Place your own **`transactions.csv`** and **`cashflows.csv`** in the root directory.
+1. Replace the **`sample holdings.csv`** and **`cashflows.csv`** files in the root directory with your own data (keeping the same filenames).
+2. Ensure your CSV files follow the column structure of the samples.
 
 ### API Keys (Optional)
 
@@ -86,22 +87,6 @@ python app.py
 
 The application will be available at `http://127.0.0.1:8050/`.
 
-### Command-Line Reporting
-
-You can also generate reports from the command line:
-
-*   **Generate DOCX/PDF report:**
-    ```bash
-    python main.py
-    ```
-    This will generate a `TWR_MD_Report.docx` and `TWR_MD_Report.pdf` in the `Output/` directory.
-
-*   **Run console report:**
-    ```bash
-    python main.py console
-    ```
-    This will print a summary of your portfolio's performance to the console.
-
 ## Pages
 
 The dashboard consists of the following pages:
@@ -132,7 +117,6 @@ The following Python libraries are required to run the application:
 *   plotly
 *   python-dotenv
 *   python-docx
-*   docx2pdf
 *   matplotlib
 
 ## ⚠️ Disclaimer & Data Usage
