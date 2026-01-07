@@ -335,3 +335,46 @@ mjx-container > svg {
     display: none;
 }
 
+
+/* ============================================================ 
+   ACCORDION STYLING (Institutional Grid Look)
+   ============================================================ */
+
+/* Remove default rounded corners and borders from the item container */
+.accordion-item {
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2) !important; /* Subtle separator like a grid line */
+}
+
+/* Header/Button Styling */
+.accordion-button {
+    background-color: var(--card-bg) !important; /* Match card/grid header background */
+    color: var(--text-color) !important;
+    border-radius: 0 !important; /* flush corners */
+    padding: 0.5rem 1rem !important; /* Reduced vertical padding */
+    font-weight: 600; /* Header-like weight */
+    border: none !important;
+    box-shadow: none !important; /* Remove blue focus ring */
+}
+
+/* Expanded state for button */
+.accordion-button:not(.collapsed) {
+    background-color: rgba(255, 255, 255, 0.05) !important; /* Slightly lighter on expand */
+    color: var(--text-color) !important;
+    box-shadow: none !important;
+}
+
+/* Remove default padding from body to let nested grid fill space */
+.accordion-body {
+    padding: 0 !important;
+    background-color: transparent !important;
+    border: none !important;
+}
+
+/* Specific tweaks for dark mode to ensure matches AG Grid headers */
+[data-theme="dark"] .accordion-button {
+    background-color: #333 !important; /* Matches AG Grid Header in dark mode */
+}
+

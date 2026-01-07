@@ -1,5 +1,5 @@
 import dash
-from dash import dcc, html, callback, Input, Output
+from dash import dcc, html, callback, Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import dash_wrappers as dw
@@ -24,15 +24,37 @@ layout = html.Div([
     
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Horizon Returns (Modified Dietz)", className="card-title p-2"),
-            dcc.Loading(html.Div(id='horizon-ret-table-container'))
+            dbc.CardHeader([
+                dbc.Row([
+                    dbc.Col(html.H5("Horizon Returns (Modified Dietz)", className="card-title p-0 m-0"), width=True),
+                    dbc.Col([
+                        dbc.Button("Expand All", id="btn-ret-expand", size="sm", color="light", outline=True, className="me-2", n_clicks=0),
+                        dbc.Button("Collapse All", id="btn-ret-collapse", size="sm", color="light", outline=True, n_clicks=0),
+                    ], width="auto")
+                ], align="center")
+            ]),
+            dbc.CardBody(dcc.Loading([
+                dbc.Accordion(id='perf-ret-accordion', always_open=True, active_item=[], flush=True),
+                html.Div(id='perf-ret-footnote', className="text-muted small mt-2")
+            ]))
         ]), width=12, className="mb-4"),
     ]),
     
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Horizon P/L (Economic)", className="card-title p-2"),
-            dcc.Loading(html.Div(id='horizon-pl-table-container'))
+            dbc.CardHeader([
+                dbc.Row([
+                    dbc.Col(html.H5("Horizon P/L (Economic)", className="card-title p-0 m-0"), width=True),
+                    dbc.Col([
+                        dbc.Button("Expand All", id="btn-pl-expand", size="sm", color="light", outline=True, className="me-2", n_clicks=0),
+                        dbc.Button("Collapse All", id="btn-pl-collapse", size="sm", color="light", outline=True, n_clicks=0),
+                    ], width="auto")
+                ], align="center")
+            ]),
+            dbc.CardBody(dcc.Loading([
+                dbc.Accordion(id='perf-pl-accordion', always_open=True, active_item=[], flush=True),
+                html.Div(id='perf-pl-footnote', className="text-muted small mt-2")
+            ]))
         ]), width=12, className="mb-4"),
     ]),
     
@@ -76,8 +98,10 @@ layout = html.Div([
 @callback(
     [Output('cum-ret-chart', 'figure'),
      Output('excess-ret-chart', 'figure'),
-     Output('horizon-ret-table-container', 'children'),
-     Output('horizon-pl-table-container', 'children')],
+     Output('perf-ret-accordion', 'children'),
+     Output('perf-ret-footnote', 'children'),
+     Output('perf-pl-accordion', 'children'),
+     Output('perf-pl-footnote', 'children')],
     [Input('data-signal', 'data'),
      Input('date-range-store', 'data'),
      Input('benchmark-store', 'data'),
@@ -87,7 +111,7 @@ layout = html.Div([
 )
 def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_exited):
     data = dw.get_data()
-    if not data: return {}, {}, "Loading...", "Loading...", "N/A", "N/A"
+    if not data: return {}, {}, [], "", [], ""
     
     # --- CHATBOT PARAMS ---
     chat_target = ""
@@ -104,46 +128,8 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
     cum_fig = dw.get_cumulative_return_chart(data, start_date, bm_map, "dark")
     exc_fig = dw.get_excess_return_chart(data, bm_map, "dark")
     
-    # 2. Horizon Returns Table
-    # Re-using the horizon analysis function from dash_wrappers which NOW includes Sharpe/Sortino
-    # We need to restructure it to fit the grouped row format if we want to keep that visual style.
-    # However, get_horizon_analysis returns a Portfolio-level summary (one row per horizon).
-    # The existing table (lines 142-200) shows Asset Class breakdown.
-    # The prompt asked for "columns in the Horizon Returns table".
-    # Since the Asset Class table shows "1D", "1W"... as columns, adding Sharpe/Sortino as columns
-    # implies calculating them per asset class per horizon?? That's huge computation.
-    # Usually Sharpe/Sortino are Portfolio-level metrics.
-    # But let's assume the user wants them for the PORTFOLIO rows, or as separate columns in the table.
-    #
-    # Wait, the existing table has horizons as COLUMNS: | Asset/Ticker | 1D | 1W | ... |
-    # Adding "Sharpe" and "Sortino" as columns means they are essentially new "Horizons"?
-    # OR does it mean "For this asset class, what is the Sharpe?"
-    # If the table structure is: Row=Asset, Col=Horizon Return.
-    # Then Sharpe/Sortino should be new COLUMNS: | Asset | ... | SI | Sharpe | Sortino |
-    # Yes, typically calculated over the SI (Since Inception) or 1Y window.
-    # I will calculate Sharpe/Sortino for SI and add them as columns to the Asset Class table.
-    
-    # ... Wait, I can't easily calculate daily Sharpe for every single ticker efficiently here without heavy lifting.
-    # For now, I will stick to the Portfolio Level "Horizon Analysis" table if it exists, 
-    # OR add them to the Asset Class table using the metrics I put in dash_wrappers (which currently only do Portfolio).
-    #
-    # Actually, dash_wrappers.get_horizon_analysis returns a DataFrame with columns: Horizon, Return, P/L, Sharpe, Sortino.
-    # That function creates a TABLE where Rows = Horizons (1D, 1W...).
-    # BUT the visual table in performance.py (id='horizon-ret-table-container') has Rows = Asset Classes.
-    # There is a disconnect. The user asked "add ... as columns in the Horizon Returns table".
-    # If the "Horizon Returns table" refers to the Asset Class breakdown, then I need to add Sharpe/Sortino columns
-    # which represent the risk-adjusted return of that asset class (likely SI).
-    #
-    # Re-reading prompt: "columns in the Horizon Returns table".
-    # Given the existing table is Asset Class based, I will add "Sharpe (SI)" and "Sortino (SI)" columns.
-    # I need to compute these per asset class.
-    # `dash_wrappers.py` `_calculate_dynamic_risk_profile` already calculates Volatility.
-    # I can use that + SI Return to estimate Sharpe.
-    # Sharpe ~ (Ann. Return - Rf) / Volatility.
-    # I will use the cached Risk Profile to populate these columns for Asset Classes.
-    
+    # Initialize Data
     class_df = data['class_df']
-    # Select source table based on toggle
     if include_exited:
          sec_table_display = data['sec_table']
     else:
@@ -151,90 +137,19 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
     
     horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
     cols = ["Asset Class / Ticker"] + horizons + ["Sharpe (SI)", "Vol (SI)"] 
-    # Using SI because the prompt requested to change 1yr to SI
-    # Actually, let's use the Dynamic Risk Profile values.
-    
     risk_data = data.get("risk_return", {}) # {AC: {return: %, vol: %}}
-    
-    # Derive Asset Class Rank Map for consistent sorting
     ac_rank_map = {ac: i for i, ac in enumerate(class_df['asset_class'].unique())}
 
-    rows = []
-    # Sort classes
-    for _, crow in class_df.iterrows():
-        ac = crow['asset_class']
-        rank = ac_rank_map.get(ac, 999)
-        
-        # Fetch Risk Metrics
-        ac_risk = risk_data.get(ac, {})
-        sharpe_str = "N/A"
-        vol_str = "N/A"
-        
-        if ac_risk:
-            # Estimate Sharpe using TTM Return and Vol
-            # Sharpe = (Ret - Rf) / Vol
-            # Config Rf is decimal (0.04). Risk dict has percents (10.0).
-            # Convert Rf to percent: 4.0
-            rf_pct = 4.0 
-            ret = ac_risk.get("return", 0.0)
-            vol = ac_risk.get("vol", 0.0)
-            
-            if vol > 0:
-                sharpe = (ret - rf_pct) / vol
-                sharpe_str = f"{sharpe:.2f}"
-            
-            vol_str = f"{vol:.1f}%"
-        
-        # Class Row (Includes full history from Engine)
-        r_vals = {
-            "Asset Class / Ticker": ac, 
-            "Type": "Class", 
-            "_sort_rank": rank, 
-            "_is_header": 1,
-            "Sharpe (SI)": sharpe_str,
-            "Vol (SI)": vol_str,
-            "meta_Sharpe (SI)_ret": ac_risk.get("return", 0.0),
-            "meta_Sharpe (SI)_vol": ac_risk.get("vol", 0.0),
-            "meta_Sharpe (SI)_rf": 4.0,
-            "meta_Vol (SI)_vol": ac_risk.get("vol", 0.0)
-        }
-        # Add all meta columns from class_df row
-        for k, v in crow.items():
-            if str(k).startswith("meta_"):
-                r_vals[k] = v
-
-        for h in horizons:
-            val = crow.get(h)
-            r_vals[h] = fmt_pct_clean(val) if pd.notna(val) else "N/A"
-        rows.append(r_vals)
-        
-        # Ticker Rows (Filtered to Display Holdings only)
-        tickers = sec_table_display[sec_table_display['asset_class'] == ac]
-        for _, trow in tickers.iterrows():
-            t = trow['ticker']
-            tr_vals = {
-                "Asset Class / Ticker": f"  {t}", 
-                "Type": "Ticker", 
-                "_sort_rank": rank, 
-                "_is_header": 0,
-                "Sharpe (SI)": "", # Too expensive to calc per ticker on the fly
-                "Vol (SI)": ""
-            }
-            # Add all meta columns from sec_table row
-            for k, v in trow.items():
-                if str(k).startswith("meta_"):
-                    tr_vals[k] = v
-
-            for h in horizons:
-                val = trow.get(h)
-                tr_vals[h] = fmt_pct_clean(val) if pd.notna(val) else "N/A"
-            rows.append(tr_vals)
+    # =========================================================================
+    # 2. HORIZON RETURNS TABLE (ACCORDION)
+    # =========================================================================
+    
+    # Define Columns (Shared across all accordion grids)
+    ret_column_defs = []
     
     # Check Sort Target
     is_ret_target = "return" in chat_target or (not chat_target and not "p/l" in chat_target)
-
-    # Create AG Grid column definitions
-    ret_column_defs = []
+    
     for col in cols:
         col_def = {
             "field": col, 
@@ -242,7 +157,7 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
             "comparator": {"function": "GroupedRowComparator"}
         }
         
-        # Freeze First Column and ensure mobile readability
+        # Freeze First Column
         if col == "Asset Class / Ticker":
             col_def["pinned"] = "left"
             col_def["minWidth"] = 180
@@ -255,11 +170,11 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
              if col.lower() == target_col or target_col in col.lower():
                  col_def["sort"] = chat_cmd["params"].get("direction", "desc")
 
-        # Hide Audit Meta Columns (explicitly, though field match should suffice if column list is fixed)
+        # Hide Audit Meta Columns
         if col.startswith("meta_"):
             col_def["hide"] = True
 
-        # Add conditional styling for return columns (green for positive, red for negative)
+        # Conditional Styling
         if col in horizons:
             col_def["cellStyle"] = {
                 "styleConditions": [
@@ -268,28 +183,90 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
                 ]
             }
         
-        # Enable sorting for Risk Metrics
+        # Risk Metrics Config
         if "Sharpe" in col or "Vol" in col:
             col_def["sortable"] = True
-            col_def["minWidth"] = 150 # Increased width for Sharpe/Vol
+            col_def["minWidth"] = 100
             
         ret_column_defs.append(col_def)
+
+    # Build Accordion Items
+    ret_accordion_items = []
+    
+    for _, crow in class_df.iterrows():
+        ac = crow['asset_class']
+        rank = ac_rank_map.get(ac, 999)
+        local_rows = []
         
-    # Append meta columns to defs so they are available in params.data
-    # We scan the first row to find available meta columns
-    if rows:
-        sample_row = rows[0]
-        meta_keys = [k for k in sample_row.keys() if k.startswith("meta_")]
-        for mk in meta_keys:
-            if mk not in [c["field"] for c in ret_column_defs]:
-                ret_column_defs.append({"field": mk, "hide": True})
+        # --- A. Class Row ---
+        ac_risk = risk_data.get(ac, {})
+        sharpe_str = "N/A"
+        vol_str = "N/A"
+        
+        if ac_risk:
+            rf_pct = 4.0 
+            ret_val = ac_risk.get("return", 0.0)
+            vol_val = ac_risk.get("vol", 0.0)
+            if vol_val > 0:
+                sharpe = (ret_val - rf_pct) / vol_val
+                sharpe_str = f"{sharpe:.2f}"
+            vol_str = f"{vol_val:.1f}%"
+        
+        r_vals = {
+            "Asset Class / Ticker": " Total", # Indented slightly less than ticker? Space aligns text.
+            "Type": "Class", 
+            "_sort_rank": rank, 
+            "_is_header": 1,
+            "Sharpe (SI)": sharpe_str,
+            "Vol (SI)": vol_str
+        }
+        # Copy Meta
+        for k, v in crow.items():
+            if str(k).startswith("meta_"): r_vals[k] = v
+        # Copy Horizon Returns
+        for h in horizons:
+            val = crow.get(h)
+            r_vals[h] = fmt_pct_clean(val) if pd.notna(val) else "N/A"
+        
+        # --- B. Ticker Rows ---
+        tickers = sec_table_display[sec_table_display['asset_class'] == ac]
+        for _, trow in tickers.iterrows():
+            t = trow['ticker']
+            tr_vals = {
+                "Asset Class / Ticker": f"  {t}", 
+                "Type": "Ticker", 
+                "_sort_rank": rank,
+                "Sharpe (SI)": "",
+                "Vol (SI)": ""
+            }
+            # Copy Meta
+            for k, v in trow.items():
+                if str(k).startswith("meta_"): tr_vals[k] = v
+            # Copy Horizon Returns
+            for h in horizons:
+                val = trow.get(h)
+                tr_vals[h] = fmt_pct_clean(val) if pd.notna(val) else "N/A"
+            local_rows.append(tr_vals)
             
-    ret_table = html.Div(
-        dag.AgGrid(
-            id="perf-horizon-ret-grid",
-            rowData=rows,
-            columnDefs=ret_column_defs,
-            defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
+        # Insert Total Row at Top
+        local_rows.insert(0, r_vals)
+
+        # --- C. Create Grid for this Class ---
+        # Add meta columns to defs if needed (dynamic check)
+        local_defs = ret_column_defs[:]
+        # Use r_vals or first local_row for meta check
+        sample = r_vals if r_vals else (local_rows[0] if local_rows else {})
+        if sample:
+            meta_keys = [k for k in sample.keys() if k.startswith("meta_")]
+            for mk in meta_keys:
+                if mk not in [c["field"] for c in local_defs]:
+                    local_defs.append({"field": mk, "hide": True})
+        
+        item_grid = dag.AgGrid(
+            id={"type": "perf-ac-ret-grid", "index": str(rank)}, # Pattern Matching ID
+            rowData=local_rows,
+            columnDefs=local_defs,
+            defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "filter": True, "resizable": True},
             className="ag-theme-alpine-dark audit-target",
             dashGridOptions={
                 "domLayout": "autoHeight",
@@ -297,132 +274,53 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
                     "function": "params.data.Type === 'Class' ? {'fontWeight': 'bold', 'backgroundColor': 'rgba(255,255,255,0.05)'} : {}"
                 }
             }
-        ), style={'overflowX': 'auto'}
-    )
-    
-    # 3. Horizon P/L Table
-    # Use DIRECT asset class P/L calculation (matches PDF logic)
-    pl_table_data = []
-    
-    # Pre-fetch ticker P/L for all horizons (avoid multiple price fetches)
-    ticker_pl_cache = {}
-    for h in horizons:
-        ticker_pl_cache[h] = dw.get_ticker_pl_df(data, h)
-
-    for _, crow in class_df.iterrows():
-        ac = crow['asset_class']
-        rank = ac_rank_map.get(ac, 999)
+        )
         
-        # Asset Class Row: Use Direct Calculation (includes closed positions via Modified Dietz)
-        r_vals = {
-            "Asset Class / Ticker": ac, 
-            "Type": "Class", 
-            "_sort_rank": rank, 
-            "_is_header": 1
-        }
-        # Add meta columns from class_df (crow) for Audit
-        for k, v in crow.items():
-            if str(k).startswith("meta_"):
-                r_vals[k] = v
-
-        # ASSET CLASS LOOP (UPDATED)
-        for h in horizons:
-            # Use synchronized calculation for Audit consistency
-            res = dw.get_asset_class_pl(data, ac, h, return_components=True)
-            
-            if isinstance(res, dict):
-                r_vals[h] = fmt_dollar_clean(res["pl"])
-                # Populate meta columns from calculation components
-                r_vals[f"meta_{h}_start"] = res["start"]
-                r_vals[f"meta_{h}_end"] = res["end"]
-                r_vals[f"meta_{h}_flow"] = res["flow"]
-                r_vals[f"meta_{h}_inc"] = res["inc"]
-                r_vals[f"meta_{h}_denom"] = res["denom"]
-            else:
-                pl_val = res
-                r_vals[h] = fmt_dollar_clean(pl_val) if pl_val is not None else "N/A"
-        pl_table_data.append(r_vals)
+        # --- D. Header Text ---
+        # Include summary stats in the header
+        si_ret = r_vals.get("SI", "N/A")
+        header_text = f"{ac}  |  SI Return: {si_ret}  |  Vol: {vol_str}"
         
-        # Ticker Rows: Show visible tickers only, use ticker-level P/L
-        # Need to find the full ticker row in sec_table to get meta cols
-        # tickers_in_ac is just a list of names.
-        # Let's get the full rows from sec_table_display
-        ticker_rows = sec_table_display[sec_table_display['asset_class'] == ac]
+        ret_accordion_items.append(
+            dbc.AccordionItem(
+                item_grid,
+                title=header_text,
+                item_id=f"item-ret-{rank}"
+            )
+        )
         
-        for _, t_row_full in ticker_rows.iterrows():
-            t = t_row_full['ticker']
-            tr_vals = {
-                "Asset Class / Ticker": f"  {t}", 
-                "Type": "Ticker", 
-                "_sort_rank": rank, 
-                "_is_header": 0
-            }
-            # Add meta columns from ticker row
-            for k, v in t_row_full.items():
-                if str(k).startswith("meta_"):
-                    tr_vals[k] = v
-
-            # TICKER LOOP (UPDATED)
-            for h in horizons:
-                # Use cached ticker P/L (consistent with asset class calculation)
-                df = ticker_pl_cache[h]
-                if not df.empty and t in df.index:
-                    pl_val = df.loc[t, 'pl']
-                    tr_vals[h] = fmt_dollar_clean(pl_val) if pl_val is not None else "N/A"
-                    
-                    # SYNC META DATA: Pull meta columns from the cache to ensure Audit Modal matches Table Value
-                    for col in df.columns:
-                        if col.startswith(f"meta_{h}_"):
-                            tr_vals[col] = df.loc[t, col]
-                else:
-                    tr_vals[h] = "N/A"
-            pl_table_data.append(tr_vals)
+    # Returns Accordion Items are ready in ret_accordion_items
     
-    # Add Cash / Recon Row (matches PDF exactly)
-    # pinnedBottomRowData expects a list of rows
-    cash_recon_vals = dw.get_cash_recon_pl(data, horizons)
-    recon_row = {"Asset Class / Ticker": "Cash / Recon", "Type": "Recon"}
-    for h in horizons:
-        pl_val = cash_recon_vals.get(h)
-        recon_row[h] = fmt_dollar_clean(pl_val) if pl_val is not None else "N/A"
     
-    # Use pinnedBottomRowData for Recon
-    pinned_pl_rows = [recon_row]
-
+    # =========================================================================
+    # 3. HORIZON P/L TABLE (ACCORDION)
+    # =========================================================================
+    
     # Check Sort Target
     is_pl_target = "p/l" in chat_target or "profit" in chat_target
 
-    # Create AG Grid column definitions for P/L table
     pl_column_defs = []
     for col in cols:
-        # Exclude Risk Metrics from P/L Table
-        if "Sharpe" in col or "Vol" in col:
-            continue
-            
+        if "Sharpe" in col or "Vol" in col: continue # Exclude Risk
+        
         col_def = {
             "field": col, 
             "headerName": col, 
             "comparator": {"function": "GroupedRowComparator"}
         }
-        
-        # Freeze First Column and ensure mobile readability
         if col == "Asset Class / Ticker":
             col_def["pinned"] = "left"
             col_def["minWidth"] = 180
             col_def["lockPinned"] = True
             col_def["cellClass"] = "lock-pinned"
-        
-        # Chatbot Sort
+            
         if chat_action == "SORT" and is_pl_target:
              target_col = chat_cmd["params"].get("column", "").lower()
              if col.lower() == target_col or target_col in col.lower():
                  col_def["sort"] = chat_cmd["params"].get("direction", "desc")
+        
+        if col.startswith("meta_"): col_def["hide"] = True
 
-        # Hide Audit Meta Columns
-        if col.startswith("meta_"):
-            col_def["hide"] = True
-
-        # Add conditional styling for P/L columns (green for positive, red for negative)
         if col in horizons:
             col_def["cellStyle"] = {
                 "styleConditions": [
@@ -431,60 +329,133 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
                 ]
             }
         pl_column_defs.append(col_def)
-        
-    # Append meta columns to defs so they are available in params.data
-    if pl_table_data:
-        sample_row = pl_table_data[0]
-        meta_keys = [k for k in sample_row.keys() if k.startswith("meta_")]
-        for mk in meta_keys:
-            if mk not in [c["field"] for c in pl_column_defs]:
-                pl_column_defs.append({"field": mk, "hide": True})
+
+    # Pre-fetch ticker P/L
+    ticker_pl_cache = {}
+    for h in horizons:
+        ticker_pl_cache[h] = dw.get_ticker_pl_df(data, h)
+
+    pl_accordion_items = []
     
-    pl_table = html.Div(
-        dag.AgGrid(
-            id="perf-horizon-pl-grid",
-            rowData=pl_table_data,
-            columnDefs=pl_column_defs,
-            defaultColDef={"flex": 1, "minWidth": 120, "sortable": True, "filter": True, "resizable": True},
+    for _, crow in class_df.iterrows():
+        ac = crow['asset_class']
+        rank = ac_rank_map.get(ac, 999)
+        local_rows = []
+        
+        # --- A. Class Row ---
+        r_vals = {"Asset Class / Ticker": " Total", "Type": "Class", "_sort_rank": rank, "_is_header": 1}
+        for k, v in crow.items():
+            if str(k).startswith("meta_"): r_vals[k] = v
+            
+        for h in horizons:
+            res = dw.get_asset_class_pl(data, ac, h, return_components=True)
+            if isinstance(res, dict):
+                r_vals[h] = fmt_dollar_clean(res["pl"])
+                r_vals[f"meta_{h}_start"] = res["start"]
+                r_vals[f"meta_{h}_end"] = res["end"]
+                r_vals[f"meta_{h}_flow"] = res["flow"]
+                r_vals[f"meta_{h}_inc"] = res["inc"]
+                r_vals[f"meta_{h}_denom"] = res["denom"]
+            else:
+                r_vals[h] = fmt_dollar_clean(res) if res is not None else "N/A"
+        
+        # --- B. Ticker Rows ---
+        tickers = sec_table_display[sec_table_display['asset_class'] == ac]
+        for _, t_row_full in tickers.iterrows():
+            t = t_row_full['ticker']
+            tr_vals = {"Asset Class / Ticker": f"  {t}", "Type": "Ticker", "_sort_rank": rank}
+            for k, v in t_row_full.items():
+                if str(k).startswith("meta_"): tr_vals[k] = v
+            
+            for h in horizons:
+                df = ticker_pl_cache[h]
+                if not df.empty and t in df.index:
+                    pl_val = df.loc[t, 'pl']
+                    tr_vals[h] = fmt_dollar_clean(pl_val) if pl_val is not None else "N/A"
+                    for col in df.columns:
+                        if col.startswith(f"meta_{h}_"): tr_vals[col] = df.loc[t, col]
+                else:
+                    tr_vals[h] = "N/A"
+            local_rows.append(tr_vals)
+            
+        # Insert Total Row at Top
+        if r_vals:
+            local_rows.insert(0, r_vals)
+
+        # --- C. Create Grid ---
+        local_defs = pl_column_defs[:]
+        # Use r_vals or first row for meta
+        sample = r_vals if r_vals else (local_rows[0] if local_rows else {})
+        if sample:
+            meta_keys = [k for k in sample.keys() if k.startswith("meta_")]
+            for mk in meta_keys:
+                if mk not in [c["field"] for c in local_defs]:
+                    local_defs.append({"field": mk, "hide": True})
+        
+        item_grid = dag.AgGrid(
+            id={"type": "perf-ac-pl-grid", "index": str(rank)},
+            rowData=local_rows,
+            columnDefs=local_defs,
+            defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "filter": True, "resizable": True},
             className="ag-theme-alpine-dark audit-target",
             dashGridOptions={
                 "domLayout": "autoHeight",
-                "pinnedBottomRowData": pinned_pl_rows,
                 "getRowStyle": {
-                    "function": """
-                    if (params.data.Type === 'Class') {
-                        return {'fontWeight': 'bold', 'backgroundColor': 'rgba(255,255,255,0.05)'};
-                    } else if (params.data.Type === 'Recon') {
-                        return {'fontWeight': 'bold', 'backgroundColor': 'rgba(255,255,0,0.15)', 'borderTop': '2px solid #888'};
-                    }
-                    return {};
-                    """
-                    }
+                    "function": "params.data.Type === 'Class' ? {'fontWeight': 'bold', 'backgroundColor': 'rgba(255,255,255,0.05)'} : {}"
+                }
             }
-        ), style={'overflowX': 'auto'}
+        )
+        
+        si_pl = r_vals.get("SI", "N/A")
+        header_text = f"{ac}  |  SI P/L: {si_pl}"
+        
+        pl_accordion_items.append(
+            dbc.AccordionItem(item_grid, title=header_text, item_id=f"item-pl-{rank}")
+        )
+        
+    
+    # --- Cash / Recon (Outside Accordion) ---
+    cash_recon_vals = dw.get_cash_recon_pl(data, horizons)
+    recon_row = {"Asset Class / Ticker": "Cash / Recon", "Type": "Recon"}
+    for h in horizons:
+        pl_val = cash_recon_vals.get(h)
+        recon_row[h] = fmt_dollar_clean(pl_val) if pl_val is not None else "N/A"
+    
+    # Create distinct grid for Recon
+    recon_grid = dag.AgGrid(
+        id="perf-recon-grid",
+        rowData=[recon_row],
+        columnDefs=pl_column_defs, # Re-use pl defs
+        defaultColDef={"flex": 1, "minWidth": 100, "resizable": True},
+        className="ag-theme-alpine-dark audit-target",
+        dashGridOptions={
+            "domLayout": "autoHeight", 
+            "headerHeight": 0, # Hide Header to blend in? Or keep it? Keeping it ensures column alignment visual.
+                               # Actually header makes it look like a new table. 
+                               # If we hide header, columns won't align visually with above tables if screen resizes.
+                               # It's safer to show header or wrap in a card titled "Reconciliation".
+        }
     )
     
-    # ... inside update_performance function ...
+    # Add Recon as the last Accordion Item?
+    pl_accordion_items.append(
+        dbc.AccordionItem(
+            recon_grid, 
+            title="Reconciliation (Cash & Fees)", 
+            item_id="item-pl-recon"
+        )
+    )
 
     # Dynamic Footnote Text
-    if include_exited:
-        visibility_text = "Tables display ALL positions (active and exited) with valid history in the period."
-    else:
-        visibility_text = "Tables display currently active positions only."
+    visibility_text = "Tables display ALL positions (active and exited) with valid history in the period." if include_exited else "Tables display currently active positions only."
 
-    ret_footnote = html.Div(
-        f"Note: {visibility_text} Asset Class totals ALWAYS include historical contribution of closed positions (GIPS compliant). "
-        "Returns require full measurement period (e.g., 1M return requires 30+ days of history).",
-        className="text-muted fst-italic mt-2 small"
-    )
+    ret_footnote_text = f"Note: {visibility_text} Asset Class totals ALWAYS include historical contribution of closed positions (GIPS compliant). " \
+                        "Returns require full measurement period (e.g., 1M return requires 30+ days of history)."
     
-    pl_footnote = html.Div(
-        f"Note: {visibility_text} P/L shows actual economic gain/loss (MV_End - MV_Start - Net_Flows + Income). "
-        "This reflects actual economic outcomes regardless of holding period.",
-        className="text-muted fst-italic mt-2 small"
-    )
+    pl_footnote_text = f"Note: {visibility_text} P/L shows actual economic gain/loss (MV_End - MV_Start - Net_Flows + Income). " \
+                       "This reflects actual economic outcomes regardless of holding period."
 
-    return cum_fig, exc_fig, [ret_table, ret_footnote], [pl_table, pl_footnote]
+    return cum_fig, exc_fig, ret_accordion_items, ret_footnote_text, pl_accordion_items, pl_footnote_text
 
 # Growth of Invested Capital Callbacks
 
@@ -628,3 +599,116 @@ def update_growth_analysis(signal, dates, selected_ac, chat_cmd, _filters):
         print(f"Error generating growth table: {e}")
     
     return chart_fig, table_output
+
+# =============================================================================
+# ACCORDION TOGGLE CALLBACKS
+# =============================================================================
+
+@callback(
+    Output("perf-ret-accordion", "active_item"),
+    [Input("btn-ret-expand", "n_clicks"),
+     Input("btn-ret-collapse", "n_clicks")],
+    [State("perf-ret-accordion", "children")]
+)
+def toggle_ret_accordion(n_exp, n_col, children):
+    ctx = dash.callback_context
+    if not ctx.triggered: return dash.no_update
+    
+    button_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    
+    if not children: return []
+    
+    # Normalize to list if single component
+    if not isinstance(children, list):
+        children = [children]
+        
+    if button_id == "btn-ret-expand":
+        # Extract item_ids from component props
+        ids = []
+        for item in children:
+            if isinstance(item, dict) and 'props' in item:
+                i_id = item['props'].get('item_id')
+                if i_id: ids.append(i_id)
+        return ids
+    
+    elif button_id == "btn-ret-collapse":
+        return []
+        
+    return dash.no_update
+
+
+@callback(
+    Output("perf-pl-accordion", "active_item"),
+    [Input("btn-pl-expand", "n_clicks"),
+     Input("btn-pl-collapse", "n_clicks")],
+    [State("perf-pl-accordion", "children")]
+)
+def toggle_pl_accordion(n_exp, n_col, children):
+    ctx = dash.callback_context
+    if not ctx.triggered: return dash.no_update
+    
+    button_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    
+    if not children: return []
+    
+    # Normalize to list if single component
+    if not isinstance(children, list):
+        children = [children]
+        
+    if button_id == "btn-pl-expand":
+        ids = []
+        for item in children:
+            if isinstance(item, dict) and 'props' in item:
+                i_id = item['props'].get('item_id')
+                if i_id: ids.append(i_id)
+        return ids
+    
+    elif button_id == "btn-pl-collapse":
+        return []
+        
+    return dash.no_update
+
+# =============================================================================
+# GRID INTERACTION CALLBACKS
+# =============================================================================
+
+@callback(
+    Output('audit-request-store', 'data', allow_duplicate=True),
+    [Input({'type': 'perf-ac-ret-grid', 'index': ALL}, 'cellClicked'),
+     Input({'type': 'perf-ac-ret-grid', 'index': ALL}, 'cellContextMenu')],
+    [State('audit-request-store', 'data')],
+    prevent_initial_call=True
+)
+def handle_perf_grid_clicks(cell_clicks, right_clicks, current_data):
+    ctx = dash.callback_context
+    if not ctx.triggered: return dash.no_update
+    
+    # Identify Trigger
+    trigger_str = ctx.triggered[0]['prop_id']
+    if not trigger_str: return dash.no_update
+    
+    # Extract ID part before the .property
+    trigger_id_str = trigger_str.split('.')[0]
+    
+    # Parse JSON ID
+    try:
+        import json
+        trigger_id = json.loads(trigger_id_str)
+    except:
+        return dash.no_update
+        
+    # Get Value
+    click_data = ctx.triggered[0]['value']
+    if not click_data: return dash.no_update
+    
+    # Construct Request
+    request = {
+        'gridId': trigger_id,
+        'colId': click_data.get('colId'),
+        'rowData': click_data.get('data'),
+        'rowIndex': click_data.get('rowIndex'),
+        'timestamp': pd.Timestamp.now().isoformat()
+    }
+    
+    return request
+

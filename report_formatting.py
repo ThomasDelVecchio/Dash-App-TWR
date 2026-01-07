@@ -13,6 +13,19 @@ from tax_engine import build_tax_lots
 # Formatting Helpers
 # =====================================================================
 
+# Global Asset Class Abbreviation Map
+ASSET_CLASS_SHORT_MAP = {
+    "US Large Cap": "US LC",
+    "US Growth": "US Growth", 
+    "US Small Cap": "US SC",
+    "International Equity": "INTL EQTY",
+    "Gold / Precious Metals": "GOLD",
+    "Digital Assets": "DIGITAL",
+    "US Bonds": "US Bonds", 
+    "CASH": "CASH", 
+    "Fixed Income": "FI"
+}
+
 def fmt_pct_clean(x):
     try:
         if x is None or pd.isna(x):
@@ -45,13 +58,13 @@ def safe(x):
 # =====================================================================
 
 def set_narrow_margins(doc):
-    """Sets page margins to 0.5 inches."""
+    """Sets page margins to 0.3 inches."""
     sections = doc.sections
     for section in sections:
-        section.top_margin = Inches(0.5)
-        section.bottom_margin = Inches(0.5)
-        section.left_margin = Inches(0.5)
-        section.right_margin = Inches(0.5)
+        section.top_margin = Inches(0.3)
+        section.bottom_margin = Inches(0.3)
+        section.left_margin = Inches(0.3)
+        section.right_margin = Inches(0.3)
 
 def add_header(doc, text, level=1):
     """Adds a centered header."""
@@ -554,19 +567,22 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
             # Full list of horizons to match App
             horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
             
-            headers = ["Asset Class / Ticker"] + horizons
+            headers = ["Asset"] + horizons
             rows = []
             
             # Unique classes from class_df
             unique_classes = class_df['asset_class'].unique() if not class_df.empty else []
             
             for ac in unique_classes:
+                # Map to Short Name if available
+                ac_short = ASSET_CLASS_SHORT_MAP.get(ac, ac)
+                
                 # 1. Class Row
                 crow_df = class_df[class_df['asset_class'] == ac]
                 if crow_df.empty: continue
                 crow = crow_df.iloc[0]
                 
-                r_vals = [ac]
+                r_vals = [ac_short]
                 for h in horizons:
                     val = crow.get(h)
                     r_vals.append(fmt_pct_clean(val))
@@ -604,14 +620,17 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
                     ticker_pl_cache[h] = pd.DataFrame() # Fallback
                 
             rows = []
-            headers = ["Asset Class / Ticker"] + horizons
+            headers = ["Asset"] + horizons
             
             # Determine order of asset classes (can rely on class_df order)
             unique_classes = class_df['asset_class'].unique() if not class_df.empty else []
             
             for ac in unique_classes:
+                # Map to Short Name if available
+                ac_short = ASSET_CLASS_SHORT_MAP.get(ac, ac)
+                
                 # 1. Class Row
-                r_vals = [ac]
+                r_vals = [ac_short]
                 for h in horizons:
                     res = dw.get_asset_class_pl(data, ac, h, return_components=False)
                     r_vals.append(fmt_dollar_clean(res))
