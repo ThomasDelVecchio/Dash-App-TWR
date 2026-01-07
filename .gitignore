@@ -21,3 +21,8 @@ __pycache__/
 *.png
 *.jpg
 *.jpeg
+
+# --- EXCEPTIONS ---
+!sample_data/
+!sample_data/*.csv
+!sample_data/*.json
