@@ -1,0 +1,10 @@
+ticker,shares,asset_class,target_pct
+VTV,710.0735999999999,US Large Cap Value,25
+VIG,469.7697,US Dividend Growth,20
+VWO,1563.1949,Emerging Markets,15
+XLE,924.8346999999999,Energy Sector,10
+SMH,168.28289999999998,Semiconductors,10
+TLT,655.5559000000001,Long-Term Treasuries,10
+COST,26.4162,US Consumer Staples,5
+GLD,80.623,Gold / Precious Metals,5
+CASH,42460.0,CASH,0
