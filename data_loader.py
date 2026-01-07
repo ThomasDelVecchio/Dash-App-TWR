@@ -300,7 +300,7 @@ def load_dividends(path: str = CASHFLOWS_FILE) -> pd.DataFrame:
     df["amount"] = df["amount"].astype(float)
     df["ticker"] = df["ticker"].fillna("").astype(str).str.upper()
 
-    divs = df[df["type"] == "DIVIDEND"].copy()
+    divs = df[df["type"].isin(["DIVIDEND", "INTEREST"])].copy()
     divs = divs.sort_values("date").reset_index(drop=True)
     return divs
 

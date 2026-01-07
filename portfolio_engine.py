@@ -21,6 +21,7 @@ from financial_math import (
     modified_dietz_for_asset_class_window,
     annualize_return,
     is_annualized,
+    compute_cash_yield,
     HORIZONS,
     ANNUALIZE_HORIZONS,
 )
@@ -138,7 +139,7 @@ def run_engine(end_date=None):
         raw_flows.to_csv(temp_path, index=False)
         
         try:
-            pv = build_portfolio_value_series_from_flows(holdings, prices, cashflows_path=temp_path)
+            pv, cash_trace = build_portfolio_value_series_from_flows(holdings, prices, cashflows_path=temp_path)
         finally:
             if os.path.exists(temp_path):
                 os.remove(temp_path)
@@ -158,7 +159,7 @@ def run_engine(end_date=None):
                 if rows_to_add:
                     holdings = pd.concat([holdings, pd.DataFrame(rows_to_add)], ignore_index=True)
 
-        pv = build_portfolio_value_series_from_flows(holdings, prices)
+        pv, cash_trace = build_portfolio_value_series_from_flows(holdings, prices)
 
     # =============================================================
     # FIX: Clip PV to true inception date (institutionally correct)
@@ -325,11 +326,44 @@ def run_engine(end_date=None):
             
     sec_table = sec_table[final_cols].sort_values("market_value", ascending=False)
 
-    # NEW: Hardcode CASH returns to 0.0% across all horizons
+    # NEW: Calculate CASH returns using Yield logic (Income / Avg Balance)
     cash_mask = sec_table["ticker"] == "CASH"
-    for h in ALL_HORIZONS:
-        if h in sec_table.columns:
-            sec_table.loc[cash_mask, h] = 0.0
+    if cash_mask.any():
+        # Identify Interest Flows
+        # Filter for dividends associated with CASH or flagged as INTEREST
+        interest_subset = dividends[
+            (dividends["ticker"] == "CASH") | 
+            (dividends["type"] == "INTEREST")
+        ]
+        
+        for h in ALL_HORIZONS:
+            if h not in sec_table.columns:
+                continue
+                
+            if h == "SI":
+                start_h = inception_date
+            else:
+                start_h = get_portfolio_horizon_start(pv, inception_date, h)
+                
+            if start_h is None or start_h >= as_of:
+                sec_table.loc[cash_mask, h] = np.nan
+                continue
+                
+            yld = compute_cash_yield(cash_trace, interest_subset, start_h, as_of, return_components=True)
+            
+            if isinstance(yld, dict):
+                sec_table.loc[cash_mask, h] = yld["return"]
+                sec_table.loc[cash_mask, f"meta_{h}_start"] = yld["start_val"]
+                sec_table.loc[cash_mask, f"meta_{h}_end"] = yld["end_val"]
+                sec_table.loc[cash_mask, f"meta_{h}_flow"] = yld["net_flow"]
+                sec_table.loc[cash_mask, f"meta_{h}_inc"] = yld["income"]
+                sec_table.loc[cash_mask, f"meta_{h}_denom"] = yld["denom"]
+            else:
+                sec_table.loc[cash_mask, h] = yld
+            
+            # Populate basic meta for audit
+            sec_table.loc[cash_mask, f"meta_{h}_is_annualized"] = is_annualized(start_h, as_of)
+            sec_table.loc[cash_mask, f"meta_{h}_days"] = (as_of - start_h).days
 
     # ------ Asset-class MD (Unified Loop for ALL Horizons + SI) ------
     
@@ -338,10 +372,13 @@ def run_engine(end_date=None):
     # This ensures liquidated asset classes are still calculated.
     # ---------------------------------------------------------
     all_tickers = set(transactions_raw["ticker"].unique()) | set(holdings["ticker"].unique())
-    all_tickers.discard("CASH")
+    # DO NOT discard CASH - we need it for the CASH asset class loop
+    # all_tickers.discard("CASH")
     
     # Map Ticker -> Asset Class (Default to 'Unknown' if missing from holdings file)
     ticker_ac_map = holdings.set_index("ticker")["asset_class"].to_dict()
+    # Ensure CASH maps to CASH asset class
+    ticker_ac_map["CASH"] = "CASH"
     
     ac_groups = {}
     for t in all_tickers:
@@ -354,10 +391,37 @@ def run_engine(end_date=None):
     for asset_class, class_tickers in ac_groups.items():
         row = {"asset_class": asset_class}
 
-        # NEW: Hardcode Cash asset class returns to 0.0%
+        # Calculate Cash Asset Class Returns
         if asset_class == "CASH":
+            interest_subset = dividends[
+                (dividends["ticker"] == "CASH") | 
+                (dividends["type"] == "INTEREST")
+            ]
+            
             for h in ALL_HORIZONS:
-                row[h] = 0.0
+                if h == "SI":
+                    start_h = inception_date
+                else:
+                    start_h = get_portfolio_horizon_start(pv, inception_date, h)
+                
+                if start_h is None or start_h >= as_of:
+                    row[h] = np.nan
+                    continue
+                    
+                yld = compute_cash_yield(cash_trace, interest_subset, start_h, as_of, return_components=True)
+                
+                if isinstance(yld, dict):
+                    row[h] = yld["return"]
+                    row[f"meta_{h}_start"] = yld["start_val"]
+                    row[f"meta_{h}_end"] = yld["end_val"]
+                    row[f"meta_{h}_flow"] = yld["net_flow"]
+                    row[f"meta_{h}_inc"] = yld["income"]
+                    row[f"meta_{h}_denom"] = yld["denom"]
+                else:
+                    row[h] = yld
+                
+                row[f"meta_{h}_is_annualized"] = is_annualized(start_h, as_of)
+                row[f"meta_{h}_days"] = (as_of - start_h).days
         else:
             # Pre-calculate asset class inception for gating logic
             class_inception = None
@@ -535,10 +599,43 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
     Cash/Recon reconciliation is accurate.
     """
     if ticker == "CASH":
-        # Treat CASH as 0% return, 0 P/L for horizons in this table.
+        # Calculate Interest Income for CASH
+        total_interest = 0.0
+        
+        # Determine Start Date
+        start_date = raw_start
+        if h == "SI":
+            if portfolio_inception is not None:
+                start_date = portfolio_inception
+            else:
+                 if dividends is not None and not dividends.empty:
+                    start_date = dividends["date"].min()
+        
+        if start_date is not None and dividends is not None and not dividends.empty:
+             # Filter CASH dividends
+             cash_divs = dividends[
+                (dividends["ticker"] == "CASH") | 
+                (dividends["type"] == "INTEREST")
+             ]
+             
+             # Filter by Date
+             if h == "SI" and portfolio_inception is not None:
+                 mask = (cash_divs["date"] >= start_date) & (cash_divs["date"] <= pv_as_of)
+             else:
+                 mask = (cash_divs["date"] > start_date) & (cash_divs["date"] <= pv_as_of)
+                 
+             total_interest = cash_divs.loc[mask, "amount"].sum()
+        
         if return_components:
-            return {"pl": 0.0, "start": 0.0, "end": 0.0, "flow": 0.0, "inc": 0.0, "denom": 0.0}
-        return 0.0
+            return {
+                "pl": total_interest,
+                "start": 0.0, 
+                "end": 0.0,
+                "flow": 0.0,
+                "inc": total_interest,
+                "denom": 0.0
+            }
+        return total_interest
 
     # price series
     if ticker not in prices.columns:
@@ -726,7 +823,7 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
         
     tickers_in_ac = sec_table[sec_table["asset_class"] == asset_class]["ticker"].dropna().unique().tolist()
     
-    if not tickers_in_ac or asset_class == "CASH":
+    if not tickers_in_ac:
         if return_components: return {"pl": 0.0, "start": 0.0, "end": 0.0, "flow": 0.0, "inc": 0.0, "denom": 0.0}
         return 0.0
 
@@ -754,7 +851,7 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
     
     # Iterate over each ticker in the asset class
     for t in tickers_in_ac:
-        if t == "CASH": continue
+        # if t == "CASH": continue (We want to include CASH now)
         
         # We need the shares_end value for the ticker
         sec_row = sec_table[sec_table["ticker"] == t]

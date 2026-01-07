@@ -139,6 +139,7 @@ def build_portfolio_value_series_from_flows(
 
     # ----- Build PV series day by day -----
     pv = pd.Series(index=pv_index, dtype=float)
+    cash_trace = pd.Series(index=pv_index, dtype=float)
 
     for current_date in pv_index:
         # Apply any flows dated strictly before current_date (but after prior dates)
@@ -188,6 +189,7 @@ def build_portfolio_value_series_from_flows(
             total += qty * float(px)
 
         pv.loc[current_date] = total
+        cash_trace.loc[current_date] = cash_balance
 
 
     # ----- Sanity check against final holdings -----
@@ -222,7 +224,7 @@ def build_portfolio_value_series_from_flows(
         )
 
 
-    return pv
+    return pv, cash_trace
 
 
 # ------------------------------------------------------------
@@ -1150,3 +1152,86 @@ def fv_contrib(c, r, yr):
     if monthly_r == 0:
         return c * n
     return c * (( (1 + monthly_r) ** n - 1 ) / monthly_r)
+
+
+# ------------------------------------------------------------
+# Cash Yield Logic
+# ------------------------------------------------------------
+
+def compute_cash_yield(
+    cash_trace: pd.Series,
+    interest_df: pd.DataFrame,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+    return_components: bool = False
+):
+    """
+    Computes annualized cash yield based on interest income and average daily balance.
+    Return = Sum(Interest) / Average(Cash Balance).
+    Annualized if > 1 year.
+    """
+    if cash_trace.empty:
+        if return_components:
+            return {"return": 0.0, "start_val": 0.0, "end_val": 0.0, "net_flow": 0.0, "income": 0.0, "denom": 0.0}
+        return 0.0
+        
+    # Filter Cash Trace to window [start, end]
+    # Includes start date balance as base
+    sub_trace = cash_trace[(cash_trace.index >= start_date) & (cash_trace.index <= end_date)]
+    if sub_trace.empty:
+        if return_components:
+            return {"return": 0.0, "start_val": 0.0, "end_val": 0.0, "net_flow": 0.0, "income": 0.0, "denom": 0.0}
+        return 0.0
+        
+    avg_balance = sub_trace.mean()
+    if avg_balance <= 0.01: # Avoid div/0 or negative base issues
+        if return_components:
+            return {"return": 0.0, "start_val": 0.0, "end_val": 0.0, "net_flow": 0.0, "income": 0.0, "denom": 0.0}
+        return 0.0
+        
+    # Filter Interest to window (start, end]
+    # Interest paid ON start date usually belongs to prior period
+    total_interest = 0.0
+    if not interest_df.empty:
+        mask = (interest_df["date"] > start_date) & (interest_df["date"] <= end_date)
+        total_interest = interest_df.loc[mask, "amount"].sum()
+        
+    yield_val = total_interest / avg_balance
+    
+    # Universal Annualization Gate
+    final_ret = annualize_return(yield_val, start_date, end_date)
+    
+    if return_components:
+        # Determine Start/End Vals for Audit
+        # start_val: Balance on or before start_date
+        # end_val: Balance on or before end_date
+        # trace indices are dates. Use asof logic via searchsorted.
+        sorted_dates = cash_trace.index # assumed sorted
+        
+        start_idx = sorted_dates.searchsorted(start_date, side='right') - 1
+        start_val = 0.0
+        if start_idx >= 0:
+            start_val = float(cash_trace.iloc[start_idx])
+            
+        end_idx = sorted_dates.searchsorted(end_date, side='right') - 1
+        end_val = 0.0
+        if end_idx >= 0:
+            end_val = float(cash_trace.iloc[end_idx])
+            
+        # Net Flow for Audit Formula: (End - Start - Flow + Inc) / Denom
+        # We want Gain = Income(Inc)
+        # Inc = End - Start - Flow + Inc
+        # Flow = End - Start
+        net_flow = end_val - start_val
+    
+        return {
+            "return": final_ret,
+            "start_val": start_val,
+            "end_val": end_val,
+            "net_flow": net_flow,
+            "income": total_interest,
+            "denom": avg_balance
+        }
+        
+    return final_ret
+
