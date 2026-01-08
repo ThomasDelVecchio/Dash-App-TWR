@@ -121,7 +121,7 @@ layout = html.Div([
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5("Portfolio Value (Since Inception %)", className="card-title p-2"),
-            dcc.Graph(id='pv-chart', style={'height': '400px'})
+            dcc.Graph(id='pv-chart', style={'height': '428px'})
         ]), width=7),
         dbc.Col(dbc.Card([
             html.H5("Portfolio Snapshot", className="card-title p-2"),

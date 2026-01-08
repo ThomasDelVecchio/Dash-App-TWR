@@ -404,12 +404,19 @@ def get_portfolio_horizon_start(
     # YTD: ONLY if portfolio live on Jan 1
     # =============================
     if label == "YTD":
-        year_start = as_of.replace(month=1, day=1)
+        # Anchor at last trading day of prior year for GIPS-correct chaining
+        prior_year_end = as_of.replace(month=1, day=1) - pd.Timedelta(days=1)
 
-        if inception_date > year_start:
-            return None
+        pv_idx = pv.index
+        prev_dates = pv_idx[pv_idx <= prior_year_end]
+        
+        if len(prev_dates) == 0:
+            if inception_date > as_of.replace(month=1, day=1):
+                return None
+            start = inception_date
+        else:
+            start = prev_dates.max()
 
-        start = year_start
         if start >= as_of:
             return None
 

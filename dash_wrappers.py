@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 import io
 import os
-import json
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
@@ -511,6 +510,10 @@ def get_snapshot_metrics(data):
     mtd_row = twr_df[twr_df["Horizon"] == "MTD"]
     mtd_ret = mtd_row["Return"].iloc[0] if not mtd_row.empty else 0.0
     
+    # YTD Return
+    ytd_row = twr_df[twr_df["Horizon"] == "YTD"]
+    ytd_ret = ytd_row["Return"].iloc[0] if not ytd_row.empty else 0.0
+    
     # Calculate Efficiency Scores (Sharpe/Sortino)
     twr_curve = _get_daily_twr_curve(data)
     eff = calculate_efficiency_metrics(twr_curve)
@@ -533,6 +536,7 @@ def get_snapshot_metrics(data):
         "twr_si": twr_si,
         "pl_si": data["pl_si"],
         "mtd_ret": mtd_ret,
+        "ytd_ret": ytd_ret,
         "sharpe": eff["sharpe"],
         "sortino": eff["sortino"],
         "max_dd": max_dd,
@@ -555,7 +559,7 @@ def get_horizon_analysis(data):
     # Get Full TWR Curve for slicing
     twr_curve_full = _get_daily_twr_curve(data)
     
-    horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "1Y"]
+    horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y"]
     
     snap_map = {row["Horizon"]: row["Return"] for _, row in twr_df.iterrows()}
     
@@ -1809,7 +1813,7 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
     pv = data["pv"]
     if twr_df.empty: return go.Figure()
     
-    horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "1Y", "SI"]
+    horizons = ["1D", "1W", "MTD", "YTD", "1M", "3M", "6M", "1Y", "SI"]
     port_rets = twr_df.set_index("Horizon")["Return"]
     
     # Add SI if missing
@@ -3052,50 +3056,6 @@ def fetch_audit_details(request_data):
     col_id = request_data.get("colId", "")
     row_data = request_data.get("rowData", {})
     
-    # ------------------------------------------------
-    # TYPE 6: ASSET CLASS DIETZ (Accordion "Total" Rows)
-    # ------------------------------------------------
-    if "perf-ac-ret-grid" in str(grid_id):
-        # Only enrich "Class" rows (Pinned Top) 
-        # Ticker rows usually carry their own data via sec_table, but Class rows rely on class_df
-        if row_data.get("Type") == "Class":
-            try:
-                # Extract Rank from Grid ID
-                # Grid ID is a dictionary or JSON string e.g. '{"index":"0","type":"perf-ac-ret-grid"}'
-                rank = -1
-                if isinstance(grid_id, dict):
-                    rank = int(grid_id.get("index", -1))
-                else:
-                    try:
-                        # Handle potentially single-quoted string from Python str() representation
-                        s = str(grid_id).replace("'", '"')
-                        d = json.loads(s)
-                        rank = int(d.get("index", -1))
-                    except:
-                        pass
-                
-                if rank >= 0:
-                    class_df = data.get("class_df")
-                    # Ensure alignment with performance.py (iterates class_df in order)
-                    if class_df is not None and rank < len(class_df):
-                        row = class_df.iloc[rank]
-                        h = col_id # Horizon field name (e.g. "SI", "1Y")
-                        
-                        # Inject Meta Keys required by audit_modal.py
-                        # Keys: meta_{h}_start, _end, _flow, _inc, _denom
-                        transfer_suffixes = ["start", "end", "flow", "inc", "denom", "is_annualized", "days"]
-                        
-                        for suf in transfer_suffixes:
-                            mk = f"meta_{h}_{suf}"
-                            if mk in row:
-                                request_data[mk] = row[mk]
-                                
-                        # Inject Asset Class name for Modal Title context
-                        request_data["Asset Class"] = row.get("asset_class", "Total")
-
-            except Exception as e:
-                print(f"Error enriching Asset Class Audit: {e}")
-
     # ------------------------------------------------
     # TYPE 5: TWR AUDIT (Snapshot Return Columns)
     # ------------------------------------------------
