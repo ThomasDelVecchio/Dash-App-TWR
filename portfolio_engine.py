@@ -611,6 +611,10 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
                  if dividends is not None and not dividends.empty:
                     start_date = dividends["date"].min()
         
+        # FIX: Ensure start_date is valid. If None (e.g. pre-inception horizon), return None.
+        if start_date is None:
+             return None
+        
         if start_date is not None and dividends is not None and not dividends.empty:
              # Filter CASH dividends
              cash_divs = dividends[
