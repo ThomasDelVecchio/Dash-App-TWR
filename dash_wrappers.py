@@ -2512,15 +2512,15 @@ def get_growth_of_capital_table_data(data):
     # Income = 0 (Included in PV/Growth)
     
     # Note: Using raw numeric values before formatting
+    latest_date_val = summary_df["Date"].max() if not summary_df.empty else pd.Timestamp.now()
+    
     summary_df["meta_Growth %_start"] = 0.0
     summary_df["meta_Growth %_end"] = summary_df["Portfolio Value"]
     summary_df["meta_Growth %_flow"] = summary_df["Cash Invested"]
     summary_df["meta_Growth %_inc"] = 0.0
     summary_df["meta_Growth %_denom"] = summary_df["Cash Invested"]
     summary_df["meta_Growth %_start_date"] = data["inception_date"]
-    summary_df["meta_Growth %_end_date"] = latest_date
-    summary_df["meta_Growth %_start_date"] = data["inception_date"]
-    summary_df["meta_Growth %_end_date"] = latest_date
+    summary_df["meta_Growth %_end_date"] = latest_date_val
 
     # Select and order columns (include meta)
     cols = ["Asset Class", "Cash Invested", "Portfolio Value", "Growth", "Growth %"]
