@@ -464,6 +464,16 @@ def calculate_active_metrics(data, benchmark_ticker="SPY"):
         
     bm_series = prices[benchmark_ticker].dropna()
     
+    # [NEW LOGIC START]
+    # Check for Start Date Alignment (Gateway)
+    # If benchmark starts > 7 days after portfolio, it's invalid for "active" metrics of this portfolio
+    port_start = twr_curve.index[0]
+    bm_start = bm_series.index[0]
+    
+    if (bm_start - port_start).days > 7:
+        return {"beta": "N/A", "te": "N/A"}
+    # [NEW LOGIC END]
+    
     # Align Dates
     common_idx = twr_curve.index.intersection(bm_series.index)
     if len(common_idx) < 30: # Need some history
@@ -1120,6 +1130,15 @@ def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, t
                 hist = fetch_price_history([ticker], use_adj_close=True)
                 ser = hist[ticker]
                 
+                # [NEW LOGIC START]
+                # Gateway Check: If benchmark history starts significantly after the chart start date,
+                # do NOT plot it (it would be misleading or flat-lined).
+                # Allow 7 day grace period for holidays/weekend mismatches.
+                earliest_bm_date = ser.index[0]
+                if (earliest_bm_date - start_date).days > 7:
+                    continue
+                # [NEW LOGIC END]
+                
                 # GIPS COMPLIANCE FIX: Benchmark Normalization
                 # If starting at inception, we need the benchmark's return for Day 1.
                 # Standard normalization (P / P[0] - 1) sets Day 1 return to 0%.
@@ -1133,6 +1152,11 @@ def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, t
                     if not history_before.empty:
                         base_price = float(history_before.iloc[-1])
                 
+                # GIPS FIX: Backward Snap
+                if base_price is None:
+                     if not ser[ser.index <= start_date].empty:
+                         base_price = float(ser.asof(start_date))
+
                 # Filter strictly >= start_date for plotting X-axis
                 ser_plot = ser[ser.index >= start_date]
                 ser_plot = ser_plot[ser_plot.index <= pv.index.max()]
@@ -1895,6 +1919,13 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
                     hist = fetch_price_history([bm_ticker], use_adj_close=True)
                     ser = hist[bm_ticker]
                     
+                    # [NEW LOGIC START]
+                    # Gateway Check: If benchmark history starts significantly after the horizon start,
+                    # treat as N/A to prevent calculating return over a truncated period.
+                    if ser.empty or (ser.index[0] - start).days > 7:
+                        raise ValueError("Insufficient History")
+                    # [NEW LOGIC END]
+                    
                     # Logic to find base price (Handle SI / Day 1 Return)
                     base_price = None
                     
@@ -1907,6 +1938,13 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
                          history_before = ser[ser.index < start]
                          if not history_before.empty:
                              base_price = float(history_before.iloc[-1])
+
+                    # GIPS FIX: Backward Snap (asof) ensures we capture the correct base price 
+                    # even if the start date is a holiday/weekend.
+                    if base_price is None:
+                         # Verify if any price exists <= start
+                         if not ser[ser.index <= start].empty:
+                             base_price = float(ser.asof(start))
                     
                     # Filter for window
                     ser_window = ser[ser.index >= start]
