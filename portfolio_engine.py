@@ -358,16 +358,12 @@ def run_engine(end_date=None):
                 sec_table.loc[cash_mask, f"meta_{h}_flow"] = yld["net_flow"]
                 sec_table.loc[cash_mask, f"meta_{h}_inc"] = yld["income"]
                 sec_table.loc[cash_mask, f"meta_{h}_denom"] = yld["denom"]
-                sec_table.loc[cash_mask, f"meta_{h}_start_date"] = yld.get("start_date", start_h)
-                sec_table.loc[cash_mask, f"meta_{h}_end_date"] = yld.get("end_date", as_of)
             else:
                 sec_table.loc[cash_mask, h] = yld
             
             # Populate basic meta for audit
             sec_table.loc[cash_mask, f"meta_{h}_is_annualized"] = is_annualized(start_h, as_of)
             sec_table.loc[cash_mask, f"meta_{h}_days"] = (as_of - start_h).days
-            sec_table.loc[cash_mask, f"meta_{h}_start_date"] = start_h
-            sec_table.loc[cash_mask, f"meta_{h}_end_date"] = as_of
 
     # ------ Asset-class MD (Unified Loop for ALL Horizons + SI) ------
     
@@ -421,15 +417,11 @@ def run_engine(end_date=None):
                     row[f"meta_{h}_flow"] = yld["net_flow"]
                     row[f"meta_{h}_inc"] = yld["income"]
                     row[f"meta_{h}_denom"] = yld["denom"]
-                    row[f"meta_{h}_start_date"] = yld.get("start_date", start_h)
-                    row[f"meta_{h}_end_date"] = yld.get("end_date", as_of)
                 else:
                     row[h] = yld
                 
                 row[f"meta_{h}_is_annualized"] = is_annualized(start_h, as_of)
                 row[f"meta_{h}_days"] = (as_of - start_h).days
-                row[f"meta_{h}_start_date"] = start_h
-                row[f"meta_{h}_end_date"] = as_of
         else:
             # Pre-calculate asset class inception for gating logic
             class_inception = None
@@ -529,8 +521,9 @@ def run_engine(end_date=None):
                     row[f"meta_{h}_denom"] = ret["denom"]
                     row[f"meta_{h}_is_annualized"] = is_annualized(start_date, as_of)
                     row[f"meta_{h}_days"] = (as_of - start_date).days
-                    row[f"meta_{h}_start_date"] = start_date
-                    row[f"meta_{h}_end_date"] = as_of
+                    # GIPS FIX: Use actual start/end from Modified Dietz calculation for consistency
+                    row[f"meta_{h}_start_date"] = ret.get("start_date", start_date)
+                    row[f"meta_{h}_end_date"] = ret.get("end_date", as_of)
                 else:
                     # Apply Universal Gate
                     row[h] = annualize_return(ret, start_date, as_of)
@@ -649,7 +642,9 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
                 "end": 0.0,
                 "flow": 0.0,
                 "inc": total_interest,
-                "denom": 0.0
+                "denom": 0.0,
+                "start_date": start_date,
+                "end_date": pv_as_of
             }
         return total_interest
 
@@ -904,7 +899,7 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
             "flow": net_flows_total,
             "inc": divs_total,
             "denom": mv_start_total + net_flows_total, # Approximation
-            "start_date": raw_start if h != "SI" else pv_start_date,
+            "start_date": raw_start,
             "end_date": as_of
         }
         

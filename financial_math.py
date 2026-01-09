@@ -984,10 +984,17 @@ def compute_security_modified_dietz(
                 horizon_days = (as_of - start).days
             elif h == "1W":
                 # Fixed 1-week horizon (Calendar Lookback)
-                # Aligns with Portfolio TWR "Rolling OTHER horizons" logic.
-                # Uses as_of - 7 days. modified_dietz_for_ticker_window will use .asof() 
-                # to find the price on or before this date (Backward Snap).
-                start = as_of - pd.Timedelta(days=7)
+                # GIPS FIX: Backward snap to actual trading day (matches Portfolio TWR logic)
+                target_date = as_of - pd.Timedelta(days=7)
+                
+                # Backward Snap: Find last available price date on or before target_date
+                price_idx = price_series.index
+                prev_dates = price_idx[price_idx <= target_date]
+                if len(prev_dates) == 0:
+                    row[h] = np.nan
+                    continue
+                    
+                start = prev_dates.max()
                 horizon_days = 7
             elif h == "MTD":
                 # MTD anchored to EOD of last trading day of the prior month
@@ -1026,23 +1033,58 @@ def compute_security_modified_dietz(
 
 
             elif h == "3M":
-                start = as_of - timedelta(days=90)
+                # GIPS FIX: Backward snap to actual trading day
+                target_date = as_of - timedelta(days=90)
+                price_idx = price_series.index
+                prev_dates = price_idx[price_idx <= target_date]
+                if len(prev_dates) == 0:
+                    row[h] = np.nan
+                    continue
+                start = prev_dates.max()
                 horizon_days = 90
             elif h == "6M":
-                start = as_of - timedelta(days=180)
+                # GIPS FIX: Backward snap to actual trading day
+                target_date = as_of - timedelta(days=180)
+                price_idx = price_series.index
+                prev_dates = price_idx[price_idx <= target_date]
+                if len(prev_dates) == 0:
+                    row[h] = np.nan
+                    continue
+                start = prev_dates.max()
                 horizon_days = 180
             elif h == "YTD":
                 # Align with Portfolio YTD (Prior Year End)
                 start = as_of.replace(month=1, day=1) - pd.Timedelta(days=1)
                 horizon_days = (as_of - start).days + 1
             elif h == "1Y":
-                start = as_of - timedelta(days=365)
+                # GIPS FIX: Backward snap to actual trading day
+                target_date = as_of - timedelta(days=365)
+                price_idx = price_series.index
+                prev_dates = price_idx[price_idx <= target_date]
+                if len(prev_dates) == 0:
+                    row[h] = np.nan
+                    continue
+                start = prev_dates.max()
                 horizon_days = 365
             elif h == "3Y":
-                start = as_of - timedelta(days=365 * 3)
+                # GIPS FIX: Backward snap to actual trading day
+                target_date = as_of - timedelta(days=365 * 3)
+                price_idx = price_series.index
+                prev_dates = price_idx[price_idx <= target_date]
+                if len(prev_dates) == 0:
+                    row[h] = np.nan
+                    continue
+                start = prev_dates.max()
                 horizon_days = 365 * 3
             elif h == "5Y":
-                start = as_of - timedelta(days=365 * 5)
+                # GIPS FIX: Backward snap to actual trading day
+                target_date = as_of - timedelta(days=365 * 5)
+                price_idx = price_series.index
+                prev_dates = price_idx[price_idx <= target_date]
+                if len(prev_dates) == 0:
+                    row[h] = np.nan
+                    continue
+                start = prev_dates.max()
                 horizon_days = 365 * 5
             elif h == "SI":
                 # For Ticker SI, start is one day BEFORE the first trade

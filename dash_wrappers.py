@@ -581,12 +581,20 @@ def get_horizon_analysis(data):
         sortino = "N/A"
         
         if start is not None and start < as_of:
-            # Map start to pv index
+            # Map start to pv index using BACKWARD SNAP (GIPS-compliant)
+            # Must match get_portfolio_horizon_start behavior to ensure displayed
+            # start date matches the actual calculation start date
             if start not in pv.index:
                 pv_idx = pv.index.sort_values()
-                pos = pv_idx.searchsorted(start)
-                if pos < len(pv_idx):
-                    start = pv_idx[pos]
+                # Backward snap: find last PV date <= start (not forward snap)
+                prev_dates = pv_idx[pv_idx <= start]
+                if len(prev_dates) > 0:
+                    start = prev_dates.max()
+                else:
+                    # Fallback to forward snap if no prior date exists
+                    pos = pv_idx.searchsorted(start)
+                    if pos < len(pv_idx):
+                        start = pv_idx[pos]
             
             if start in pv.index:
                 mv_start = float(pv.loc[start])
