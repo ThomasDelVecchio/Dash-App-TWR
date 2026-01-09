@@ -5,12 +5,15 @@ This is a comprehensive portfolio analytics dashboard built with Plotly Dash. It
 ## Features
 
 *   **Interactive Dashboard:** A multi-page web application for exploring your portfolio data.
-*   **Performance Analysis:** Track your portfolio's performance with metrics like Time-Weighted Return (TWR) and Modified Dietz.
-*   **Risk Management:** Analyze your portfolio's risk profile with various risk metrics and visualizations.
-*   **Attribution Analysis:** Understand the sources of your portfolio's returns.
-*   **Data-Driven Insights:** Get AI-powered summaries and insights into your portfolio's performance.
-*   **Report Generation:** Generate detailed portfolio reports in DOCX format (and PDF via browser print).
-*   **Google Drive Integration:** Seamlessly export generated Word reports and data directly to a specific Google Drive folder.
+*   **Performance Analysis:** Track your portfolio's performance with metrics like Time-Weighted Return (TWR) and Modified Dietz (GIPS-compliant).
+*   **Risk Intelligence:** Analyze risk with volatility scatters, correlation heatmaps, and Monte Carlo simulations (historical bootstrapping).
+*   **Attribution Analysis:** Understand the sources of your portfolio's returns with Brinson-Fachler and Frongello linking models.
+*   **Tax Optimization:** Visualize tax lots, identify harvesting opportunities, and simulate trade tax impacts (FIFO/LIFO/HIFO).
+*   **Rebalancing:** Drill-down rebalancing tool with tax-aware trade generation and drift analysis.
+*   **AI Assistant:** Integrated chatbot for natural language portfolio queries and ad-hoc analysis.
+*   **Custom Reporting:** Drag-and-drop report builder for creating print-ready PDFs with specific modules.
+*   **Data-Driven Insights:** Get AI-powered "Morning Brief" summaries and insights into your portfolio's performance.
+*   **Google Drive Integration:** Seamlessly export generated reports and data directly to a specific Google Drive folder.
 
 ## Installation
 
@@ -97,11 +100,24 @@ The dashboard consists of the following pages:
 *   **/attribution:** Attribution analysis to understand the drivers of your portfolio's returns.
 *   **/flows:** A summary of your portfolio's cash flows.
 *   **/holdings:** A detailed view of your current holdings.
-*   **/risk:** Risk analysis, including volatility, drawdowns, and other risk metrics.
-*   **/trade-lab:** A laboratory for simulating trades and analyzing their potential impact on your portfolio.
-*   **/taxes:** Tax analysis, including tax-lot accounting and simulated tax-loss harvesting.
+*   **/rebalancing:** Interactive rebalancing tool with tax-aware trade generation and drift analysis.
+*   **/risk:** Risk analysis, including volatility, drawdowns, and correlation matrices.
+*   **/trade-lab:** A laboratory for simulating trades and analyzing their potential impact via Monte Carlo simulations.
+*   **/taxes:** Tax analysis, including tax-lot accounting, cliffs, and simulated tax-loss harvesting.
+*   **/custom-report:** A customizable report builder to select, reorder, and print specific portfolio modules (PDF-ready).
 *   **/settings:** Application settings, including theme and other preferences.
 *   **/help:** A help index with information about the application and its features.
+
+### AI Assistant
+The dashboard features a persistent, draggable AI chatbot powered by Google Gemini. It has context awareness of your portfolio data and can answer questions about performance, risk, and specific holdings. It can also run Python code snippets to perform ad-hoc analysis.
+
+### System Architecture & Validation
+This application follows a strict 5-Layer Separation of Concerns (UI, Wrapper, Engine, Math, Data). It includes a rigorous **Forensic Audit Suite** located in `Validation/forensic_audit/` to verify mathematical accuracy against GIPS standards.
+
+To run the audit suite:
+```bash
+python Validation/forensic_audit/run_audit.py
+```
 
 ## Dependencies
 
