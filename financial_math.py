@@ -444,12 +444,16 @@ def get_portfolio_horizon_start(
     if label == "1M":
         one_month_prior = as_of - pd.DateOffset(months=1)
 
+        # Backward Snap (Calendar Lookback)
+        # Find the last PV date on or before the 1-month-prior calendar date.
+        # This ensures we capture the full economic period (e.g. Fri -> Mon move).
         pv_idx = pv.index
-        idx_pos = pv_idx.searchsorted(one_month_prior)
-        if idx_pos >= len(pv_idx):
+        prev_dates = pv_idx[pv_idx <= one_month_prior]
+        
+        if len(prev_dates) == 0:
             return None
 
-        start = pv_idx[idx_pos]
+        start = prev_dates.max()
 
         full_horizon_days = (as_of - start).days + 1
         lived_days = (as_of - inception_date).days + 1
@@ -970,19 +974,12 @@ def compute_security_modified_dietz(
                 start = prev_idx.max()
                 horizon_days = (as_of - start).days
             elif h == "1W":
-                # True 1-week horizon, aligned to *trading days* for this ticker.
-                # Anchor at (as_of - 7 calendar days), then snap to the first
-                # available price date ON or AFTER that.
-                price_idx = price_series.index  # non-NaN prices for this ticker
-                one_week_prior = as_of - pd.Timedelta(days=7)
-
-                idx_pos = price_idx.searchsorted(one_week_prior)
-                if idx_pos >= len(price_idx):
-                    row[h] = np.nan
-                    continue
-
-                start = price_idx[idx_pos]
-                horizon_days = (as_of - start).days + 1
+                # Fixed 1-week horizon (Calendar Lookback)
+                # Aligns with Portfolio TWR "Rolling OTHER horizons" logic.
+                # Uses as_of - 7 days. modified_dietz_for_ticker_window will use .asof() 
+                # to find the price on or before this date (Backward Snap).
+                start = as_of - pd.Timedelta(days=7)
+                horizon_days = 7
             elif h == "MTD":
                 # MTD anchored to EOD of last trading day of the prior month
                 prev_month_end = as_of.replace(day=1) - pd.Timedelta(days=1)
@@ -1005,21 +1002,15 @@ def compute_security_modified_dietz(
 
             elif h == "1M":
                 # Calendar 1M (GIPS-style)
-                one_month_prior = as_of - pd.DateOffset(months=1)
-
-                # Use this ticker's own price index
-                price_idx = price_series.index
-                idx_pos = price_idx.searchsorted(one_month_prior)
-
-                if idx_pos >= len(price_idx):
-                    row[h] = np.nan
-                    continue
-
-                start = price_idx[idx_pos]
-                horizon_days = (as_of - start).days + 1
+                # Aligns with Portfolio TWR logic (Backward Snap).
+                # Uses as_of - 1 Month. modified_dietz_for_ticker_window will use .asof() 
+                # to find the price on or before this date.
+                start = as_of - pd.DateOffset(months=1)
+                
+                # Horizon Length is variable (28-31 days) but start is fixed calendar date
+                horizon_days = (as_of - start).days
                 
                 # GIPS GATE: Security must have existed STRICTLY BEFORE 1M start
-                # Using >= prevents V0=0 for securities bought ON the start date
                 if first_tx_date >= start:
                     row[h] = np.nan
                     continue
@@ -1032,7 +1023,8 @@ def compute_security_modified_dietz(
                 start = as_of - timedelta(days=180)
                 horizon_days = 180
             elif h == "YTD":
-                start = as_of.replace(month=1, day=1)
+                # Align with Portfolio YTD (Prior Year End)
+                start = as_of.replace(month=1, day=1) - pd.Timedelta(days=1)
                 horizon_days = (as_of - start).days + 1
             elif h == "1Y":
                 start = as_of - timedelta(days=365)
@@ -1241,4 +1233,5 @@ def compute_cash_yield(
         }
         
     return final_ret
+
 
