@@ -23,6 +23,32 @@ def get_audit_modal_content(request_data):
     col_id = request_data.get("colId")
     row_data = request_data.get("rowData", {})
     
+    # Helper to extract date range for display
+    start_date = request_data.get("meta_Return_start_date") or \
+                 row_data.get(f"meta_{col_id}_start_date") or \
+                 row_data.get("meta_ac_start_date") or \
+                 row_data.get("meta_Value ($)_start_date") or \
+                 row_data.get("meta_Growth %_start_date") or \
+                 row_data.get("meta_Return_start_date") or \
+                 row_data.get("meta_P/L_start_date")
+                 
+    end_date = request_data.get("meta_Return_end_date") or \
+               row_data.get(f"meta_{col_id}_end_date") or \
+               row_data.get("meta_ac_end_date") or \
+               row_data.get("meta_Value ($)_end_date") or \
+               row_data.get("meta_Growth %_end_date") or \
+               row_data.get("meta_Return_end_date") or \
+               row_data.get("meta_P/L_end_date")
+
+    date_str = ""
+    if start_date and end_date:
+        try:
+            s = pd.Timestamp(start_date).strftime('%b %d, %Y')
+            e = pd.Timestamp(end_date).strftime('%b %d, %Y')
+            date_str = f"Period: {s} to {e}"
+        except:
+            pass
+
     # ----------------------------------------------------
     # TYPE 1: Asset Class Value Breakdown (Allocation)
     # ----------------------------------------------------
@@ -147,6 +173,7 @@ def get_audit_modal_content(request_data):
         
         content = []
         content.append(html.H4(f"Audit: {ticker} (Contribution to Return)", className="mb-3"))
+        if date_str: content.append(html.Div(date_str, className="text-muted small mb-3"))
         
         # Add Effect Section
         content.append(html.H6("1. Effect Calculation", className="fw-bold mt-3"))
@@ -251,9 +278,11 @@ def get_audit_modal_content(request_data):
             ]),
         ]
         
-        content = [
-            html.H4(f"Audit: {ticker} (Frongello)", className="mb-3"),
-            
+        content = []
+        content.append(html.H4(f"Audit: {ticker} (Frongello)", className="mb-3"))
+        if date_str: content.append(html.Div(date_str, className="text-muted small mb-3"))
+        
+        content.extend([
             html.H6("1. Total Effect Calculation", className="fw-bold mt-3"),
             dcc.Markdown(effect_formula_tex, mathjax=True, className="text-body"),
             dcc.Markdown(effect_sub_tex, mathjax=True, className="text-body"),
@@ -268,7 +297,7 @@ def get_audit_modal_content(request_data):
             html.P(explanation, className="text-muted small mb-3"),
             
             dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-2", style={'maxWidth': '450px'})
-        ]
+        ])
         return dbc.ModalBody(content)
 
     # ----------------------------------------------------
@@ -874,6 +903,7 @@ def get_audit_modal_content(request_data):
         
         content = []
         content.append(html.H4(f"Audit: Portfolio Return ({horizon})", className="mb-3"))
+        if date_str: content.append(html.Div(date_str, className="text-muted small mb-3"))
         content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
         
         # Summary Table
@@ -997,6 +1027,7 @@ def get_audit_modal_content(request_data):
     
     content = []
     content.append(html.H4(f"Audit: {ticker} ({col_id})", className="mb-3"))
+    if date_str: content.append(html.Div(date_str, className="text-muted small mb-3"))
     
     def fmt_num(n): return f"{n:,.2f}"
     

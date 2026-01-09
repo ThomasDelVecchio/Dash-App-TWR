@@ -696,7 +696,9 @@ def modified_dietz_for_ticker_window(
             "net_flow": net_external_flows,
             "income": total_divs,
             "weighted_flow": sum_weighted_flows,
-            "denom": denom
+            "denom": denom,
+            "start_date": start,
+            "end_date": end
         }
     
     return gain / denom
@@ -902,7 +904,9 @@ def modified_dietz_for_asset_class_window(
             "net_flow": net_external_flows,
             "income": total_divs,
             "weighted_flow": sum_weighted_flows,
-            "denom": denom
+            "denom": denom,
+            "start_date": start,
+            "end_date": end
         }
 
     return gain / denom
@@ -1132,11 +1136,15 @@ def compute_security_modified_dietz(
                 row[f"meta_{h}_denom"] = md_ret["denom"]
                 row[f"meta_{h}_is_annualized"] = is_annualized(effective_start, as_of)
                 row[f"meta_{h}_days"] = (as_of - effective_start).days
+                row[f"meta_{h}_start_date"] = md_ret.get("start_date", effective_start)
+                row[f"meta_{h}_end_date"] = md_ret.get("end_date", effective_end)
             else:
                 # Apply Universal Gate
                 row[h] = annualize_return(md_ret, effective_start, as_of)
                 row[f"meta_{h}_is_annualized"] = is_annualized(effective_start, as_of)
                 row[f"meta_{h}_days"] = (as_of - effective_start).days
+                row[f"meta_{h}_start_date"] = effective_start
+                row[f"meta_{h}_end_date"] = effective_end
 
 
         rows.append(row)
@@ -1234,7 +1242,9 @@ def compute_cash_yield(
             "end_val": end_val,
             "net_flow": net_flow,
             "income": total_interest,
-            "denom": avg_balance
+            "denom": avg_balance,
+            "start_date": start_date,
+            "end_date": end_date
         }
         
     return final_ret

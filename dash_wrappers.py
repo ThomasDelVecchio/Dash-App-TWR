@@ -626,9 +626,13 @@ def get_horizon_analysis(data):
             f"meta_Return_denom": mv_start + net_flows, # Approximation for display
             f"meta_Return_is_annualized": is_annualized(start, as_of) if start is not None else False,
             f"meta_Return_days": (as_of - start).days if start is not None else 0,
+            f"meta_Return_start_date": start,
+            f"meta_Return_end_date": as_of,
 
             f"meta_P/L_start": mv_start,
             f"meta_P/L_end": mv_end,
+            f"meta_P/L_start_date": start,
+            f"meta_P/L_end_date": as_of,
             f"meta_P/L_flow": net_flows,
             f"meta_P/L_inc": 0.0 # Included in PL but not separated
         })
@@ -681,9 +685,13 @@ def get_horizon_analysis(data):
         f"meta_Return_denom": si_mv_start + si_flows,
         f"meta_Return_is_annualized": is_annualized(si_start, as_of),
         f"meta_Return_days": (as_of - si_start).days,
+        f"meta_Return_start_date": si_start,
+        f"meta_Return_end_date": as_of,
 
         f"meta_P/L_start": si_mv_start,
         f"meta_P/L_end": si_mv_end,
+        f"meta_P/L_start_date": si_start,
+        f"meta_P/L_end_date": as_of,
         f"meta_P/L_flow": si_flows,
         f"meta_P/L_inc": 0.0
     })
@@ -740,6 +748,8 @@ def get_ticker_pl_df(data, horizon="SI"):
             item[f"meta_{horizon}_flow"] = res["flow"]
             item[f"meta_{horizon}_inc"] = res["inc"]
             item[f"meta_{horizon}_denom"] = res["denom"]
+            item[f"meta_{horizon}_start_date"] = res.get("start_date")
+            item[f"meta_{horizon}_end_date"] = res.get("end_date")
         else:
             item = {"ticker": t, "pl": res}
             
@@ -992,6 +1002,8 @@ def get_daily_attribution_breakdown(data, date_str):
     df["meta_Return_denom"] = denominator # Alias for consistency
     df["meta_Return_start"] = pv_start
     df["meta_Return_flow"] = ext_flow_today
+    df["meta_Return_start_date"] = prev_date
+    df["meta_Return_end_date"] = target_date
     
     # Add Asset Class specific meta
     df["meta_ac_start"] = df["Asset Class"].map(lambda x: ac_details[x]["start"])
@@ -2505,6 +2517,10 @@ def get_growth_of_capital_table_data(data):
     summary_df["meta_Growth %_flow"] = summary_df["Cash Invested"]
     summary_df["meta_Growth %_inc"] = 0.0
     summary_df["meta_Growth %_denom"] = summary_df["Cash Invested"]
+    summary_df["meta_Growth %_start_date"] = data["inception_date"]
+    summary_df["meta_Growth %_end_date"] = latest_date
+    summary_df["meta_Growth %_start_date"] = data["inception_date"]
+    summary_df["meta_Growth %_end_date"] = latest_date
 
     # Select and order columns (include meta)
     cols = ["Asset Class", "Cash Invested", "Portfolio Value", "Growth", "Growth %"]
@@ -2590,7 +2606,28 @@ def get_cash_recon_pl(data, horizons):
         
         # 3. Diff is Cash / Recon P/L
         diff = port_pl - sum_ticker_pl
-        cash_recon[h] = diff
+        
+        # Capture date range for audit (using Portfolio Horizon logic)
+        h_start = None
+        if h == "SI":
+            h_start = inception_date
+        else:
+            h_start = get_portfolio_horizon_start(pv, inception_date, h)
+            
+        # Snap start logic (must match calculate_horizon_pl)
+        if h_start is not None and h_start not in pv.index:
+            pv_idx = pv.index.sort_values()
+            pos = pv_idx.searchsorted(h_start)
+            if pos > 0:
+                h_start = pv_idx[pos - 1]
+            else:
+                h_start = pv_idx[0]
+                
+        cash_recon[h] = {
+            "pl": diff,
+            "start_date": h_start,
+            "end_date": as_of_dt
+        }
     
     return cash_recon
 
@@ -2740,7 +2777,7 @@ def get_asset_class_allocation_table(data):
     if class_df is not None and not class_df.empty:
         # Merge on asset_class (not short name)
         asset_group = asset_group.merge(
-            class_df[["asset_class", "meta_SI_start", "meta_SI_end", "meta_SI_flow", "meta_SI_inc", "meta_SI_denom"]],
+            class_df[["asset_class", "meta_SI_start", "meta_SI_end", "meta_SI_flow", "meta_SI_inc", "meta_SI_denom", "meta_SI_start_date", "meta_SI_end_date"]],
             on="asset_class",
             how="left"
         )
@@ -2772,6 +2809,10 @@ def get_asset_class_allocation_table(data):
             "meta_Value ($)_flow": row.get("meta_SI_flow", 0),
             "meta_Value ($)_inc": row.get("meta_SI_inc", 0),
             "meta_Value ($)_denom": row.get("meta_SI_denom", 0),
+            "meta_Value ($)_start_date": row.get("meta_SI_start_date"),
+            "meta_Value ($)_end_date": row.get("meta_SI_end_date"),
+            "meta_Value ($)_start_date": row.get("meta_SI_start_date"),
+            "meta_Value ($)_end_date": row.get("meta_SI_end_date"),
             # NEW: Breakdown meta
             "meta_Value ($)_breakdown": breakdown_list
         }
@@ -3032,7 +3073,9 @@ def _calculate_frongello_linking(data, start_date=None, end_date=None):
             "meta_ac_start": ac_period_start.get(ac, 0.0),
             "meta_ac_end": ac_period_end.get(ac, 0.0),
             "meta_ac_flow": ac_period_flow.get(ac, 0.0),
-            "meta_ac_inc": ac_period_inc.get(ac, 0.0)
+            "meta_ac_inc": ac_period_inc.get(ac, 0.0),
+            "meta_ac_start_date": start_date,
+            "meta_ac_end_date": end_date,
         })
         
     df_res = pd.DataFrame(results).sort_values("Contribution (%)", ascending=False)
@@ -3122,6 +3165,8 @@ def fetch_audit_details(request_data):
         request_data["twr_monthly_breakdown"] = monthly_table
         request_data["meta_Return_start"] = row_data.get("meta_Return_start")
         request_data["meta_Return_end"] = row_data.get("meta_Return_end")
+        request_data["meta_Return_start_date"] = start
+        request_data["meta_Return_end_date"] = end
         request_data["meta_Return_flow"] = row_data.get("meta_Return_flow")
         
         # Pass Annualization Context

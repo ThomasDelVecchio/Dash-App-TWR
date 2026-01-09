@@ -356,6 +356,8 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
                 r_vals[f"meta_{h}_flow"] = res["flow"]
                 r_vals[f"meta_{h}_inc"] = res["inc"]
                 r_vals[f"meta_{h}_denom"] = res["denom"]
+                r_vals[f"meta_{h}_start_date"] = res.get("start_date")
+                r_vals[f"meta_{h}_end_date"] = res.get("end_date")
             else:
                 r_vals[h] = fmt_dollar_clean(res) if res is not None else "N/A"
         
@@ -418,8 +420,14 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
     cash_recon_vals = dw.get_cash_recon_pl(data, horizons)
     recon_row = {"Asset Class / Ticker": "Cash / Recon", "Type": "Recon"}
     for h in horizons:
-        pl_val = cash_recon_vals.get(h)
-        recon_row[h] = fmt_dollar_clean(pl_val) if pl_val is not None else "N/A"
+        val_obj = cash_recon_vals.get(h)
+        if val_obj and isinstance(val_obj, dict):
+            pl_val = val_obj.get("pl")
+            recon_row[h] = fmt_dollar_clean(pl_val) if pl_val is not None else "N/A"
+            recon_row[f"meta_{h}_start_date"] = val_obj.get("start_date")
+            recon_row[f"meta_{h}_end_date"] = val_obj.get("end_date")
+        else:
+            recon_row[h] = "N/A"
     
     # Create distinct grid for Recon
     recon_grid = dag.AgGrid(
