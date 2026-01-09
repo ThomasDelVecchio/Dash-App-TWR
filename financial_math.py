@@ -481,15 +481,20 @@ def get_portfolio_horizon_start(
         raise ValueError(f"Unsupported horizon label: {label}")
 
     full_horizon_days = days_map[label]
-    start = as_of - timedelta(days=full_horizon_days)
+    target_date = as_of - timedelta(days=full_horizon_days)
 
     lived_days = (as_of - inception_date).days + 1
     if lived_days < full_horizon_days:
         return None
 
-    # If theoretical start is before PV exists at all, treat as insufficient data
-    if start < pv.index.min():
+    # Backward Snap: Find last valid PV date <= target_date
+    pv_idx = pv.index
+    prev_dates = pv_idx[pv_idx <= target_date]
+    
+    if len(prev_dates) == 0:
         return None
+
+    start = prev_dates.max()
 
     if start < inception_date:
         start = inception_date
