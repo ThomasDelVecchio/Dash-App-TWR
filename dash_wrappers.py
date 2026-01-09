@@ -1018,6 +1018,9 @@ def get_daily_attribution_breakdown(data, date_str):
     df["meta_ac_end"] = df["Asset Class"].map(lambda x: ac_details[x]["end"])
     df["meta_ac_flow"] = df["Asset Class"].map(lambda x: ac_details[x]["flow"])
     df["meta_ac_inc"] = df["Asset Class"].map(lambda x: ac_details[x]["inc"])
+    # Map dates to AC meta for consistency with Frongello outputs
+    df["meta_ac_start_date"] = prev_date
+    df["meta_ac_end_date"] = target_date
     
     df = df.sort_values("Effect", ascending=False)
     
@@ -1453,12 +1456,32 @@ def get_monthly_attribution_breakdown(data, year_month_str):
     """
     Decomposes a specific month's Market Effect into Asset Class components
     using Frongello Linking.
+    
+    Now uses GIPS-compliant Backward Snap logic for start_date to ensure
+    consistency with 'MTD' and '1M' portfolio calculations.
     """
     parts = year_month_str.split('-')
     year = int(parts[0])
     month = int(parts[1])
-    start_date = pd.Timestamp(year, month, 1)
-    end_date = start_date + pd.offsets.MonthEnd(1)
+    
+    # Target: Last calendar day of the PREVIOUS month
+    calendar_start = pd.Timestamp(year, month, 1) - pd.Timedelta(days=1)
+    end_date = calendar_start + pd.offsets.MonthEnd(1)
+    
+    pv = data["pv"]
+    if pv.empty: return pd.DataFrame()
+
+    # Backward Snap: Find last valid PV date <= calendar_start
+    # This aligns the anchor with the MTD/1M calculations in financial_math.py
+    pv_idx = pv.index
+    prev_dates = pv_idx[pv_idx <= calendar_start]
+    
+    if len(prev_dates) > 0:
+        start_date = prev_dates.max()
+    else:
+        # Fallback if history starts mid-month or this is the first month
+        # Capture inception by going back one day before the first data point
+        start_date = pv_idx.min() - pd.Timedelta(days=1)
 
     # Use the robust Frongello engine
     df = _calculate_frongello_linking(data, start_date=start_date, end_date=end_date)
@@ -1476,24 +1499,35 @@ def get_weekly_attribution_breakdown(data, date_str):
     Decomposes a specific week's Market Effect into Asset Class components
     using Frongello Linking. 
     
-    Aligns strictly with the 'W-FRI' resampling used in the main chart.
+    Uses GIPS-compliant backward snap logic (same as Portfolio TWR '1W')
+    to ensure returns capture holidays and non-trading days correctly.
     """
     end_date = pd.Timestamp(date_str)
+    pv = data["pv"]
     
-    # Calculate Start Date: The day after the previous Friday.
-    # This ensures alignment with resample('W-FRI') bins.
+    if pv.empty: return pd.DataFrame()
     
-    # 1. Find the Friday strictly before end_date
-    # weekday: Mon=0 ... Fri=4 ... Sun=6
-    days_since_fri = (end_date.weekday() - 4) % 7
+    # Calculate Start Date matching Portfolio TWR "1W" logic:
+    # 1. Target = Calendar 7 days prior
+    # 2. Snap Backward to nearest valid trading day
+    target_date = end_date - pd.Timedelta(days=7)
     
-    # If end_date is Fri (4), offset is 0. But we want the PREVIOUS Friday (start of bin), 
-    # so we subtract 7. If offset > 0, it means we are mid-week, so we subtract offset 
-    # to get to the immediately preceding Friday.
-    offset = days_since_fri if days_since_fri > 0 else 7
+    # Backward Snap: Find last valid PV date <= target_date
+    pv_idx = pv.index
+    prev_dates = pv_idx[pv_idx <= target_date]
     
-    last_friday = end_date - pd.Timedelta(days=offset)
-    start_date = last_friday + pd.Timedelta(days=1)
+    if len(prev_dates) > 0:
+        # Use the anchor date (strictly before the window of return)
+        # _calculate_frongello_linking uses ( > start_date ) so this is correct.
+        start_date = prev_dates.max()
+    else:
+        # Fallback if history is too short (e.g. first week)
+        # Ensure we capture inception by going back one extra day
+        start_date = pv_idx.min() - pd.Timedelta(days=1)
+        
+        # Safety check: if target window is entirely in future (unlikely)
+        if start_date >= end_date:
+            return pd.DataFrame()
 
     # Use the robust Frongello engine
     df = _calculate_frongello_linking(data, start_date=start_date, end_date=end_date)
@@ -2311,13 +2345,30 @@ def calculate_growth_of_capital_data(data, end_date=None):
         val = ac_pv_series[ac]
         growth = val - inv
         
+        # Calculate First Invested Date for Audit Metadata
+        if ac == "CASH":
+             # Use first external flow date
+             if cf_ext is not None and not cf_ext.empty:
+                 first_invested_date = cf_ext["date"].min()
+             else:
+                 first_invested_date = start_date
+        else:
+             # Use first transaction date for this asset class
+             # Note: 'tx' is already filtered to exclude CASH, so we use the original logic
+             ac_tx = tx[tx["asset_class"] == ac]
+             if not ac_tx.empty:
+                 first_invested_date = ac_tx["date"].min()
+             else:
+                 first_invested_date = start_date
+
         # Build DataFrame directly from Series for speed
         df_ac = pd.DataFrame({
             "Date": date_range,
             "Asset Class": ac,
             "Cash Invested": inv,
             "Portfolio Value": val,
-            "Growth": growth
+            "Growth": growth,
+            "First Invested": first_invested_date
         })
         # Handle division by zero for %
         df_ac["Growth %"] = np.where(
@@ -2346,7 +2397,8 @@ def calculate_growth_of_capital_data(data, end_date=None):
         "Asset Class": "Total",
         "Cash Invested": invested_total,
         "Portfolio Value": pv_total_recalc,
-        "Growth": pv_total_recalc - invested_total
+        "Growth": pv_total_recalc - invested_total,
+        "First Invested": start_date
     })
     df_total["Growth %"] = np.where(
         df_total["Cash Invested"] > 1.0,
@@ -2527,7 +2579,14 @@ def get_growth_of_capital_table_data(data):
     summary_df["meta_Growth %_flow"] = summary_df["Cash Invested"]
     summary_df["meta_Growth %_inc"] = 0.0
     summary_df["meta_Growth %_denom"] = summary_df["Cash Invested"]
-    summary_df["meta_Growth %_start_date"] = data["inception_date"]
+    
+    # Use the calculated First Invested date from the time series logic
+    # instead of the global inception date.
+    if "First Invested" in summary_df.columns:
+        summary_df["meta_Growth %_start_date"] = summary_df["First Invested"]
+    else:
+        summary_df["meta_Growth %_start_date"] = data["inception_date"]
+        
     summary_df["meta_Growth %_end_date"] = latest_date_val
 
     # Select and order columns (include meta)
@@ -2992,17 +3051,52 @@ def _calculate_frongello_linking(data, start_date=None, end_date=None):
     if daily_df.empty: return pd.DataFrame()
     
     # 2. Filter Date Range
-    if start_date is None: start_date = daily_df.index.get_level_values(0).min()
-    if end_date is None: end_date = daily_df.index.get_level_values(0).max()
+    # Use explicit Timestamps for comparison
+    if start_date:
+        ts_start = pd.Timestamp(start_date)
+    else:
+        # For SI, we want to include the inception day (which is min()), so we need > (min - 1 day)
+        ts_start = daily_df.index.get_level_values(0).min() - pd.Timedelta(days=1)
+
+    ts_end = pd.Timestamp(end_date) if end_date else daily_df.index.get_level_values(0).max()
     
     # Slicing MultiIndex (Date, AC)
-    # Using slice(start, end) on the first level
-    mask = (daily_df.index.get_level_values(0) >= pd.Timestamp(start_date)) & \
-           (daily_df.index.get_level_values(0) <= pd.Timestamp(end_date))
+    # STRICTLY GREATER (>) to respect Anchor Date boundary (GIPS standard)
+    mask = (daily_df.index.get_level_values(0) > ts_start) & \
+           (daily_df.index.get_level_values(0) <= ts_end)
     window = daily_df[mask].copy()
     
     if window.empty: return pd.DataFrame()
+
+    # If SI mode (start_date is None), determine specific start dates per asset class
+    ac_first_activity = {}
+    if start_date is None:
+        # Check window for activity: Start Value exists OR Flow occurred
+        has_activity = (window["Start_MV"] > 0) | (window["Net_Flow"].abs() > 1e-6)
+        active_subset = window[has_activity]
+        flat = active_subset.index.to_frame(index=False)
+        flat_cols = flat.columns
+        # Group by Asset Class (level 1) and find min Date (level 0)
+        ac_first_activity = flat.groupby(flat_cols[1])[flat_cols[0]].min().to_dict()
+
+    # Determine Effective SNAP-BACK Dates for Audit Context (GIPS Consistency)
+    # The math uses the first trading day in the window (window start),
+    # but the logic relies on Start_MV which comes from the PRIOR trading day (Anchor).
     
+    actual_start_idx = window.index.get_level_values(0).min()
+    actual_end_idx = window.index.get_level_values(0).max()
+    
+    # Find the Anchor Date (The trading day strictly before the window start)
+    # We need the full index to look backward
+    full_dates = daily_df.index.get_level_values(0).unique().sort_values()
+    loc = full_dates.searchsorted(actual_start_idx)
+    
+    if loc > 0:
+        anchor_date = full_dates[loc - 1]
+    else:
+        # If starting at very beginning of history (index 0), anchor is the start date itself (Inception)
+        anchor_date = actual_start_idx
+        
     # 3. Pivot back to Wide Format for vectorized calculation
     # We need (Date x AC) matrices
     start_mv = window["Start_MV"].unstack(level=1).fillna(0.0)
@@ -3039,11 +3133,6 @@ def _calculate_frongello_linking(data, start_date=None, end_date=None):
     link_factors = prev_r.cumprod()
     
     # 7. Calculate Daily Asset Class Returns/Effects
-    # Effect ($) = End - Start - Flow + Income?
-    # Actually, in Frongello, we attribute the Portfolio Return.
-    # r_i = (End_i - Start_i - Flow_i) / (Start_p + Flow_p) ?? No.
-    #
-    # 7. Calculate Daily Asset Class Returns/Effects
     # Logic: Capital at risk today = yesterday's value + today's flows
     capital_at_risk = start_mv + flows
     effect_daily = end_mv - capital_at_risk + income
@@ -3060,6 +3149,9 @@ def _calculate_frongello_linking(data, start_date=None, end_date=None):
     total_effect = effect_daily.sum() # Simple Sum of P/L ($)
     
     # Calculate Period Aggregates for Audit Modal
+    # Note: For Start/End MV presentation, we want the period boundaries.
+    # Start of period = Start_MV of the first day
+    # End of period = End_MV of the last day
     ac_period_start = start_mv.iloc[0]
     ac_period_end = end_mv.iloc[-1]
     ac_period_flow = flows.sum()
@@ -3082,8 +3174,10 @@ def _calculate_frongello_linking(data, start_date=None, end_date=None):
             "meta_ac_end": ac_period_end.get(ac, 0.0),
             "meta_ac_flow": ac_period_flow.get(ac, 0.0),
             "meta_ac_inc": ac_period_inc.get(ac, 0.0),
-            "meta_ac_start_date": start_date,
-            "meta_ac_end_date": end_date,
+            # Use Anchor Date to reflect GIPS snap-back logic in Audit Modal
+            # If SI Mode, use asset specific start date if available
+            "meta_ac_start_date": ac_first_activity.get(ac, anchor_date) if start_date is None else anchor_date,
+            "meta_ac_end_date": actual_end_idx,
         })
         
     df_res = pd.DataFrame(results).sort_values("Contribution (%)", ascending=False)
