@@ -313,9 +313,10 @@ def get_audit_modal_content(request_data):
         def fmt_num(n): return f"{n:,.2f}"
 
         if "Sharpe" in str(col_id):
-            ret = float(row_data.get(f"meta_{col_id}_ret", 0.0))
-            vol = float(row_data.get(f"meta_{col_id}_vol", 0.0))
-            rf = float(row_data.get(f"meta_{col_id}_rf", 4.0))
+            # Use generic backend keys to avoid suffix mismatches (e.g. "Sharpe (SI)")
+            ret = float(row_data.get("meta_Sharpe_ret", 0.0))
+            vol = float(row_data.get("meta_Sharpe_vol", 0.0))
+            rf = float(row_data.get("meta_Sharpe_rf", 4.0))
 
             formula_tex = r"""
             $$
@@ -366,7 +367,8 @@ def get_audit_modal_content(request_data):
             content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
 
         elif "Vol" in str(col_id):
-            vol = float(row_data.get(f"meta_{col_id}_vol", 0.0))
+            # Use generic backend keys
+            vol = float(row_data.get("meta_Vol_vol", 0.0))
             
             formula_tex = r"""
             $$

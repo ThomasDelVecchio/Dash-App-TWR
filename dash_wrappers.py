@@ -328,9 +328,13 @@ def _calculate_dynamic_risk_profile(prices, sec_table, holdings, end_date=None):
         
         # Volatility (Annualized Std Dev)
         vol = series.std() * np.sqrt(252) * 100.0
-        
+
+        # ARITHMETIC MEAN RETURN (For Sharpe Ratio - GIPS Standard)
+        mean_daily_ret = series.mean()
+        arith_ret = mean_daily_ret * 252 * 100.0
+
+        # GEOMETRIC RETURN (For Total Return Display)
         # TTM Return (Last 252 trading days)
-        # Or full history CAGR? Prompt says "TTM performance"
         if len(series) >= 252:
             recent = series.tail(252)
             ttm_ret = ((1 + recent).prod() - 1.0) * 100.0
@@ -342,17 +346,24 @@ def _calculate_dynamic_risk_profile(prices, sec_table, holdings, end_date=None):
                 ttm_ret = ((1 + total_ret) ** (252/days) - 1.0) * 100.0
             else:
                 ttm_ret = total_ret * 100.0 # Too short to annualize safely
-                
+        
+        # Calculate Sharpe Ratio (Arithmetic Mean - Rf) / Vol
+        # Use centralized Risk Free Rate
+        rf_pct = RISK_FREE_RATE * 100.0 # Convert scalar 0.04 to 4.0
+        sharpe = (arith_ret - rf_pct) / vol if vol > 0 else 0.0
+
         dynamic_risk_return[ac] = {
-            "return": ttm_ret,
-            "vol": vol
+            "return": ttm_ret,       # Geometric (for plotting Return vs Vol)
+            "arith_return": arith_ret, # Arithmetic (for Sharpe context)
+            "vol": vol,
+            "sharpe": sharpe
         }
         
     # Add Fixed Benchmarks if missing (for gauge stability)
     if "Fixed Income" not in dynamic_risk_return:
-        dynamic_risk_return["Fixed Income"] = {"return": 4.0, "vol": 5.0}
+        dynamic_risk_return["Fixed Income"] = {"return": 4.0, "arith_return": 4.0, "vol": 5.0, "sharpe": 0.0}
     if "US Large Cap" not in dynamic_risk_return:
-         dynamic_risk_return["US Large Cap"] = {"return": 10.0, "vol": 15.0}
+         dynamic_risk_return["US Large Cap"] = {"return": 10.0, "arith_return": 10.0, "vol": 15.0, "sharpe": 0.4}
 
     return dynamic_risk_return, dynamic_corr_matrix
 
@@ -407,47 +418,63 @@ def calculate_efficiency_metrics(twr_series):
     """
     Calculates Sharpe and Sortino Ratios based on daily TWR series.
     Uses RISK_FREE_RATE from config.
+    Returns dictionary with ratios AND components for Audit Trail.
     """
+    default_res = {
+        "sharpe": "N/A", "sortino": "N/A",
+        "vol": 0.0, "ret": 0.0, "rf": RISK_FREE_RATE
+    }
+    
     if twr_series.empty or len(twr_series) < 2:
-        return {"sharpe": "N/A", "sortino": "N/A"}
+        return default_res
         
     # Calculate Daily Returns from the Curve
     daily_rets = twr_series.pct_change().dropna()
     
     if daily_rets.empty:
-        return {"sharpe": "N/A", "sortino": "N/A"}
+        return default_res
     
-    # Annualize Risk Free Rate for daily subtraction
-    # (1 + r_annual)^(1/252) - 1
-    rf_daily = (1 + RISK_FREE_RATE) ** (1/252) - 1
+    # 1. Volatility (Annualized Standard Deviation)
+    # GIPS / Industry Standard for daily data
+    std_dev_daily = daily_rets.std()
+    vol_annualized = std_dev_daily * np.sqrt(252)
     
-    # Excess Returns
-    excess_rets = daily_rets - rf_daily
+    # 2. Return (Arithmetic Mean Annualized)
+    # Used for Sharpe numerator to be consistent with StdDev denominator
+    mean_daily_ret = daily_rets.mean()
+    ret_annualized = mean_daily_ret * 252
     
-    # Annualized Mean Excess Return
-    # Geometric mean is more accurate for long horizons, but arithmetic is standard for Sharpe
-    mean_excess = excess_rets.mean() * 252
+    # 3. Risk Free Rate (Annualized)
+    rf = RISK_FREE_RATE
     
-    # 1. Sharpe Ratio
-    std_dev = daily_rets.std() * np.sqrt(252)
-    sharpe = mean_excess / std_dev if std_dev > 0 else 0.0
+    # 4. Sharpe Ratio
+    # (Rp - Rf) / Sigma
+    excess_ret = ret_annualized - rf
+    sharpe = excess_ret / vol_annualized if vol_annualized > 0 else 0.0
     
-    # 2. Sortino Ratio
-    # Downside Deviation: Std Dev of NEGATIVE returns only (relative to MAR=0 or MAR=RiskFree?)
-    # Standard Sortino uses MAR = Risk Free Rate.
-    # So we look at variability of (R - Rf) where (R - Rf) < 0.
-    downside_rets = excess_rets[excess_rets < 0]
+    # 5. Sortino Ratio
+    # Downside Deviation (MAR = Risk Free Rate)
+    # Calculate daily excess returns vs daily Rf equivalent
+    rf_daily = (1 + rf) ** (1/252) - 1
+    daily_excess = daily_rets - rf_daily
+    
+    downside_rets = daily_excess[daily_excess < 0]
     
     if downside_rets.empty:
-        sortino = 100.0 # Infinite/High
+        sortino = 10.0 # Capped high value
     else:
-        # Calculate downside deviation (root mean squared downside)
-        downside_dev = np.sqrt((downside_rets ** 2).mean()) * np.sqrt(252)
-        sortino = mean_excess / downside_dev if downside_dev > 0 else 0.0
+        # Root Mean Squared of Downside Deviations
+        downside_dev_daily = np.sqrt((downside_rets ** 2).mean())
+        downside_dev_ann = downside_dev_daily * np.sqrt(252)
+        
+        sortino = excess_ret / downside_dev_ann if downside_dev_ann > 0 else 0.0
         
     return {
         "sharpe": sharpe,
-        "sortino": sortino
+        "sortino": sortino,
+        "vol": vol_annualized,    # For display/audit (decimal, e.g. 0.15 = 15%)
+        "ret": ret_annualized,    # For display/audit
+        "rf": rf                  # For display/audit
     }
 
 def calculate_active_metrics(data, benchmark_ticker="SPY"):
@@ -629,6 +656,19 @@ def get_horizon_analysis(data):
                     eff = calculate_efficiency_metrics(curve_slice)
                     sharpe = eff["sharpe"]
                     sortino = eff["sortino"]
+                    
+                    # Capture components for Audit
+                    sharpe_vol = eff.get("vol", 0.0)
+                    sharpe_ret = eff.get("ret", 0.0)
+                    sharpe_rf = eff.get("rf", 0.0)
+                else:
+                    sharpe_vol = 0.0
+                    sharpe_ret = 0.0
+                    sharpe_rf = 0.0
+        else:
+             sharpe_vol = 0.0
+             sharpe_ret = 0.0
+             sharpe_rf = 0.0
 
         rows.append({
             "Horizon": h,
@@ -636,6 +676,12 @@ def get_horizon_analysis(data):
             "P/L": pl_val,
             "Sharpe": sharpe,
             "Sortino": sortino,
+            
+            # Sharpe Audit Meta
+            "meta_Sharpe_vol": sharpe_vol,
+            "meta_Sharpe_ret": sharpe_ret,
+            "meta_Sharpe_rf": sharpe_rf,
+            
             # Audit Meta Columns
             f"meta_Return_start": mv_start,
             f"meta_Return_end": mv_end,
@@ -695,6 +741,11 @@ def get_horizon_analysis(data):
         "P/L": pl_si,
         "Sharpe": eff_si["sharpe"],
         "Sortino": eff_si["sortino"],
+        
+        # Sharpe Audit Meta
+        "meta_Sharpe_vol": eff_si.get("vol", 0.0),
+        "meta_Sharpe_ret": eff_si.get("ret", 0.0),
+        "meta_Sharpe_rf": eff_si.get("rf", 0.0),
         
         f"meta_Return_start": si_mv_start,
         f"meta_Return_end": si_mv_end,

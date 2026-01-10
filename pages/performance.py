@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import dash_wrappers as dw
 from report_formatting import fmt_pct_clean, fmt_dollar_clean
+from config import RISK_FREE_RATE
 import pandas as pd
 
 layout = html.Div([
@@ -204,13 +205,23 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
         vol_str = "N/A"
         
         if ac_risk:
-            rf_pct = 4.0 
-            ret_val = ac_risk.get("return", 0.0)
+            # Use pre-calculated metrics from backend (GIPS compliant)
             vol_val = ac_risk.get("vol", 0.0)
-            if vol_val > 0:
-                sharpe = (ret_val - rf_pct) / vol_val
-                sharpe_str = f"{sharpe:.2f}"
+            sharpe_val = ac_risk.get("sharpe", None)
+            
+            # Retrieve arithmetic return for Audit Audit
+            arith_ret = ac_risk.get("arith_return", ac_risk.get("return", 0.0))
+            
             vol_str = f"{vol_val:.1f}%"
+            
+            if sharpe_val is not None:
+                sharpe_str = f"{sharpe_val:.2f}"
+            else:
+                # Fallback if backend keys missing (legacy safety)
+                rf_pct = RISK_FREE_RATE * 100.0
+                if vol_val > 0:
+                    sharpe_calc = (arith_ret - rf_pct) / vol_val
+                    sharpe_str = f"{sharpe_calc:.2f}"
         
         r_vals = {
             "Asset Class / Ticker": " Total", # Indented slightly less than ticker? Space aligns text.
@@ -218,7 +229,14 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
             "_sort_rank": rank, 
             "_is_header": 1,
             "Sharpe (SI)": sharpe_str,
-            "Vol (SI)": vol_str
+            "Vol (SI)": vol_str,
+            
+            # INJECT META DATA FOR AUDIT MODAL (Generic Keys)
+            "meta_Sharpe_vol": ac_risk.get("vol", 0.0),
+            "meta_Sharpe_ret": ac_risk.get("arith_return", 0.0),
+            "meta_Sharpe_rf": RISK_FREE_RATE * 100.0,
+            
+            "meta_Vol_vol": ac_risk.get("vol", 0.0)
         }
         # Copy Meta
         for k, v in crow.items():
