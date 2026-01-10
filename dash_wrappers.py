@@ -2688,8 +2688,10 @@ def get_cash_recon_pl(data, horizons):
         # 2. Sum Ticker P/Ls (Internal Flows)
         sum_ticker_pl = 0.0
         
-        # Iterate all non-CASH tickers (use full table to match Portfolio PL)
-        all_tickers = sec_table[sec_table["ticker"] != "CASH"]["ticker"].unique()
+        # Iterate all tickers INCLUDING CASH (use full table to match Portfolio PL)
+        # We include CASH because its P/L (Interest) is displayed in the main table,
+        # so the Residual should only capture unexplained discrepancies.
+        all_tickers = sec_table["ticker"].unique()
         
         as_of_dt = pv.index.max()
         if h == "SI":
