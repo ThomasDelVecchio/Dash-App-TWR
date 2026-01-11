@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forensic Audit Report</title>
+    <style>
+        :root {
+            --primary-color: #00ff9d;
+            --background-color: #0a0a0a;
+            --card-bg: #1a1a1a;
+            --text-color: #e0e0e0;
+            --danger-color: #ff4757;
+            --success-color: #2ed573;
+            --border-color: #333;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        .container {
+            max_width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+        h1, h2, h3 { margin: 0; }
+        h1 { color: var(--primary-color); }
+        .meta { text-align: right; color: #888; }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+        .status-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+        .status-card.pass { border-color: var(--success-color); }
+        .status-card.fail { border-color: var(--danger-color); }
+        
+        .audit-module {
+            background: var(--card-bg);
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        .module-header {
+            padding: 1rem 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        .status-badge.pass { background: rgba(46, 213, 115, 0.2); color: var(--success-color); }
+        .status-badge.fail { background: rgba(255, 71, 87, 0.2); color: var(--danger-color); }
+        
+        .module-content {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+        .methodology-list {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1rem 2rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        .log-output {
+            background: #000;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            color: #ccc;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>Forensic Audit Report</h1>
+                <div style="opacity: 0.8;">Executive Integrity Dashboard</div>
+            </div>
+            <div class="meta">
+                <div>Date: 2026-01-11 14:12:45</div>
+                <div>Version: 3.0 (Modular Opus Suite)</div>
+            </div>
+        </header>
+
+        <section class="executive-summary">
+            <h2>Executive Summary</h2>
+            <p>
+                This report certifies the mathematical integrity, regulatory compliance, and data consistency 
+                of the Portfolio Analytics Engine. All tests are performed against live and synthetic datasets 
+                to ensure maximum reliability.
+            </p>
+            
+            <div class="status-grid">
+                <div class="status-card pass">
+                    <h3>System Health</h3>
+                    <div style="font-size: 2.5rem; font-weight: bold; color: var(--primary-color);">
+                        100%
+                    </div>
+                </div>
+                <div class="status-card pass">
+                    <h3>Modules Passed</h3>
+                    <div style="font-size: 2.5rem; font-weight: bold; color: var(--success-color);">
+                        14
+                    </div>
+                </div>
+                <div class="status-card pass">
+                    <h3>Modules Failed</h3>
+                    <div style="font-size: 2.5rem; font-weight: bold; color: var(--border-color);">
+                        0
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="audit-section">
+            <h2>Detailed Audit Logs</h2>
+    
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>Data Integrity & Validation <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_00_data_integrity.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Ensure all input data sources are clean, structured, and consistent before processing.</p>
+                    <ul class='methodology-list'><li>• Validate Holdings, Cashflows, Transactions, and Dividends columns.</li><li>• Reconcile Share Counts (Holdings vs Transaction Sums).</li></ul>
+                    <div class="log-output">
+--- Testing Data Integrity (Input Validation) ---
+
+Checking Holdings...
+[PASS] Holdings loaded: 15 positions. Columns valid.
+
+Checking External Cashflows...
+[PASS] Cashflows loaded: 1 entries.
+
+Checking Transactions...
+[PASS] Transactions loaded: 32 trades.
+
+Checking Dividends...
+[PASS] Dividends loaded: 10 entries.
+
+Reconciling Shares (Holdings vs Transactions)...
+[PASS] All share counts match between Holdings and Transaction history.
+
+[SUCCESS] audit_00_data_integrity.py passed.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>Math Core Physics <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_01_math_core.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Verify the fundamental financial mathematics engine accuracy.</p>
+                    <ul class='methodology-list'><li>• Stress test Time-Weighted Return (TWR) calculation (Standard, Fundings, Withdrawals).</li><li>• Verify Geometric Chaining Invariant ((1+r1)*(1+r2)-1).</li><li>• Verify Modified Dietz logic and Component Identity.</li><li>• Confirm Dividend Capture in Money-Weighted Returns.</li><li>• Test Asset Class aggregation logic.</li><li>• Confirm P/L 'Sum of Parts' equality.</li></ul>
+                    <div class="log-output">
+--- Testing TWR Core Logic ---
+[PASS] Standard TWR: 0.100000 == 0.100000
+[PASS] Day 1 Funding TWR: 0.050000 == 0.050000
+[PASS] Large Withdrawal TWR: 0.100000 == 0.100000
+[PASS] Extreme Volatility: 10.000000 == 10.000000
+[PASS] Zero Value Recovery: -1.000000 == -1.000000
+[PASS] Leap Year: 0.100000 == 0.100000
+  Checking Geometric Chaining...
+[PASS] Geometric Chaining: 0.102500 == 0.102500
+
+--- Testing Modified Dietz Logic ---
+[PASS] Modified Dietz: 0.488722 == 0.488722
+  Checking MD Component Identity...
+[PASS] Component Identity: Gain 65.00 matches derived 65.00
+  Checking MD Dividend Capture...
+[PASS] Dividend correctly captured in MD components.
+
+--- Testing Asset Class Modified Dietz Logic ---
+[PASS] Asset Class MD: 0.235294 == 0.235294
+
+--- Testing P/L Math (Sum of Parts) ---
+[PASS] P/L Math: Portfolio 10.0 == Sum Tickers 10.0
+
+[SUCCESS] audit_01_math_core.py passed.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>Horizon Gating & Logic <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_02_horizon_gating.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Ensure returns are only calculated for valid time periods.</p>
+                    <ul class='methodology-list'><li>• Test 'Too New' assets to ensure returns are suppressed (NaN).</li><li>• Verify MTD/1M/1W availability for new assets.</li><li>• Verify security-level gating rules.</li><li>• Verify all horizons: 6M, YTD, 3Y, 5Y, SI.</li><li>• Boundary Testing (364 vs 365 days) for Annualization.</li></ul>
+                    <div class="log-output">
+--- Testing Portfolio Horizon Gating ---
+[PASS] 1Y TWR Correctly Gated (NaN) for 364-day history
+[PASS] 1Y TWR Exists for 365-day history
+[PASS] 3Y TWR Annualized correctly: 0.1001 (~10%)
+[PASS] YTD TWR Correctly Gated (NaN) for post-Jan 1 inception
+
+--- Testing Security Horizon Gating ---
+[PASS] AGE_10D passed 1W
+[PASS] AGE_10D gated 1M
+[PASS] AGE_10D passed SI
+[PASS] AGE_400D passed 1Y
+[PASS] AGE_400D gated 3Y
+[PASS] AGE_5Y passed 5Y
+
+--- Testing Future Date Handling ---
+[PASS] 1D TWR NaN for 1-day history (Correct)
+
+--- Testing Horizon Start Date Consistency (GIPS Compliance) ---
+[PASS] Portfolio 1W start date correctly backward-snapped to 2025-12-31
+
+  Testing backward snap consistency for all horizons:
+[PASS] 1W: Start date 2025-12-31 is a valid trading day
+    1M: N/A (insufficient data)
+    3M: N/A (insufficient data)
+    6M: N/A (insufficient data)
+    1Y: N/A (insufficient data)
+
+--- Testing Ticker vs Asset Class Start Date Alignment ---
+[PASS] 1W start dates match: Ticker=2026-01-01 00:00:00, AC=2026-01-01 00:00:00
+[PASS] SI start date 2025-01-02 00:00:00 is on/before first trade 2025-01-02
+
+--- Testing MTD/YTD Backward Snap Logic ---
+[PASS] MTD correctly anchored to 2025-12-31 (last trading day of prior month)
+[PASS] YTD correctly anchored to 2025-12-31 (last trading day of prior year)
+
+--- Testing P/L vs Return Start Date Alignment ---
+[PASS] 1D: Start date 2026-01-07 is valid trading day (consistent for P/L and Return)
+[PASS] 1W: Start date 2025-12-31 is valid trading day (consistent for P/L and Return)
+[PASS] MTD: Start date 2025-12-31 is valid trading day (consistent for P/L and Return)
+
+[SUCCESS] audit_02_horizon_gating.py passed all checks.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>P/L Attribution Ledger <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_03_pl_attribution.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Prove that no money is disappearing from the portfolio.</p>
+                    <ul class='methodology-list'><li>• Calculate Portfolio P/L (Top-Down) using Net External Flows.</li><li>• Calculate Sum of Ticker P/Ls (Bottom-Up) using Net Internal Flows + Income.</li><li>• Assert the Gap between Portfolio P/L and Sum(Tickers) is negligible (< $15.00).</li></ul>
+                    <div class="log-output">
+--- Testing P/L Attribution (The Accounting Ledger) ---
+Loading live data via Analytics Engine...
+Data loaded.
+[PASS] [1W] Match! Port: 754.61 | Sum: 754.61 | Gap: 0.00
+[PASS] [1M] Match! Port: 1,448.24 | Sum: 1,448.17 | Gap: 0.07
+[PASS] [MTD] Match! Port: 868.35 | Sum: 868.35 | Gap: -0.00
+[PASS] [YTD] Match! Port: 868.35 | Sum: 868.35 | Gap: -0.00
+[1Y] Insufficient data for Portfolio P/L.
+[PASS] [SI] Match! Port: 2,064.54 | Sum: 2,064.39 | Gap: 0.15
+
+--- Dividend Integrity Check ---
+Checking Dividend: CASH on 2025-11-28 for $0.08
+[PASS] Dividend accounted for. Total Income for CASH: $0.15000000000000002 >= Sample $0.08
+
+[SUCCESS] audit_03_pl_attribution.py passed.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>Risk Intelligence <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_04_risk_intelligence.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Validate advanced risk metrics and correlation data.</p>
+                    <ul class='methodology-list'><li>• Check Correlation Matrix integrity (Diagonal=1.0, Symmetric).</li><li>• Verify Active Risk Metrics (Beta, Tracking Error) vs SPY.</li><li>• Verify Drawdown Series logic (Max Drawdown matches series minimum).</li></ul>
+                    <div class="log-output">
+--- Testing Risk Intelligence (Institutional Upgrade) ---
+Loading live data...
+Checking Correlation Matrix...
+[PASS] Correlation Matrix Diagonal is all 1.0
+[PASS] Correlation Matrix is Symmetric
+[PASS] Correlation Values within [-1, 1]
+[PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1177
+Checking Active Metrics (Beta/TE)...
+[PASS] Beta vs SPY calculated: 0.6090
+[PASS] Tracking Error calculated: 6.0579%
+Checking Drawdown Logic...
+[PASS] Max Drawdown (-2.83%) matches Minimum of Series
+[PASS] Drawdown Series is always <= 0.0
+
+[SUCCESS] audit_04_risk_intelligence.py passed.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>UI Consistency Matrix <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_05_consistency_matrix.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Ensure the Dashboard tells a consistent story across all views.</p>
+                    <ul class='methodology-list'><li>• Compare 'Snapshot' TWR vs 'Cumulative Return Chart' final value.</li><li>• Compare 'Snapshot' P/L vs 'Horizon Analysis Table' P/L.</li><li>• Compare 'Growth of Capital Table' Total vs 'Snapshot' P/L.</li><li>• Compare 'Attribution Summary' Sum vs 'Snapshot' TWR.</li></ul>
+                    <div class="log-output">
+--- Testing Consistency Matrix (The Truth-Teller) ---
+Loading live data...
+Checking Snapshot vs Chart...
+[PASS] Cumulative SI TWR (0.0437) matches Chart Final Value (0.0437)
+Checking Snapshot vs Horizon Table...
+[PASS] Snapshot SI P/L (2,064.54) matches Horizon Table (2,064.54)
+Checking Growth Table vs P/L...
+[PASS] Growth Table Total (2,064.54) matches SI P/L (2,064.54)
+Checking Attribution vs SI TWR...
+[PASS] Attribution Sum (4.37%) matches SI TWR (4.37%)
+Checking Risk Chart vs Horizon Table...
+Risk Chart US Large Cap Return: 22.64%
+[PASS] Risk Data exists.
+
+[SUCCESS] audit_05_consistency_matrix.py passed.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>GIPS Compliance Scorecard <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_06_gips_scorecard.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Rate the system against key GIPS requirements.</p>
+                    <ul class='methodology-list'><li>• Check 1: External Flows distinct from Trade Flows.</li><li>• Check 2: Portfolio Return calculated using TWR.</li><li>• Check 3: Segment Returns calculated using Money-Weighted (Modified Dietz).</li><li>• Check 4: Daily Valuation enabled.</li><li>• Check 5: No Annualization for periods < 1 Year.</li></ul>
+                    <div class="log-output">
+--- GIPS Compliance Scorecard ---
+[PASS] Req 1: External Flows are passed as separate argument to TWR engine.
+[PASS] Req 2: Portfolio Return validated as TWR (via audit_01).
+[PASS] Req 3: Segment Returns use Modified Dietz (Money-Weighted).
+[PASS] Req 4: System uses Daily Valuation for TWR.
+[PASS] Req 5: No Annualization for periods < 1 Year.
+
+Final GIPS Score: 5/5
+[SUCCESS] System is GIPS Compliant.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>System Stress Tests <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_07_stress_test.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Verify system stability under extreme conditions.</p>
+                    <ul class='methodology-list'><li>• Test Gapped Data (Missing Prices).</li><li>• Test Negative Equity (Short/Leverage) handling.</li><li>• Test Trillion Dollar Scale.</li><li>• Test Day 1 Inception (Deposit+Buy).</li><li>• Test Weekend Flow Snapping.</li></ul>
+                    <div class="log-output">
+--- Testing Gapped Data (Missing Prices) ---
+[PASS] Gapped Data: Flow mapped to next valid date. TWR=0.0000
+
+--- Testing Negative Equity (Short/Leverage) ---
+[PASS] Negative Equity: Engine handled it without crash. Result=-1.5000
+
+--- Testing Trillions Scale (Floating Point) ---
+[PASS] Trillions Scale: 10% return calculated correctly
+
+--- Testing Same-Day Deposit and Buy (Inception) ---
+[PASS] Same-Day Inception: 0.050000 == 0.050000
+
+--- Testing Non-Trading Day Flow Snapping ---
+[PASS] Weekend Flow Snapping: 0.0476 matches expected 0.0476
+
+[SUCCESS] audit_07_stress_test.py passed all checks.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>Time Machine (Point-in-Time) <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_08_time_machine.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Verify historical accuracy and absence of look-ahead bias.</p>
+                    <ul class='methodology-list'><li>• Run Engine with historical end_date (e.g., T-14).</li><li>• Compare Historical PV vs Live PV at that date.</li><li>• Ensure no future tickers leak into historical holdings.</li></ul>
+                    <div class="log-output">
+--- Testing Time Machine Consistency ---
+Running Live Engine...
+Time Machine Target: 2025-12-26
+Running Historical Engine...
+
+Checking PV Consistency...
+[PASS] PV Matches: History=49042.38 vs Live=49042.38
+
+Checking Future Leakage (Transactions)...
+[PASS] No future tickers detected in historical view.
+
+[SUCCESS] audit_08_time_machine.py passed.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>Custom Report Logic <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_09_custom_report.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Validate 'Curve Slicing' methodology for arbitrary time periods.</p>
+                    <ul class='methodology-list'><li>• Load normalized TWR Curve.</li><li>• Calculate return for random windows using Slice Method.</li><li>• Calculate return for same windows using Rigorous Engine.</li><li>• Assert they match within 1bps.</li></ul>
+                    <div class="log-output">
+--- Testing Custom Report Logic (Curve Slicing) ---
+Loading Live Data...
+
+Scanning Last 30 Days (2025-12-10 to 2026-01-09)...
+[PASS] Last 30 Days: Match! Slice=0.023403 vs Rigorous=0.023403
+
+Scanning Middle 20 Days (2025-12-06 to 2025-12-26)...
+[PASS] Middle 20 Days: Match! Slice=0.025507 vs Rigorous=0.025507
+
+[SUCCESS] audit_09_custom_report.py passed.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>Cash Yield & GIPS Logic <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_10_cash.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Verify Cash is treated as an Asset Class with performance yield, not just a holding tank.</p>
+                    <ul class='methodology-list'><li>• Validate 'Yield = Interest / Time-Weighted Balance' math.</li><li>• Verify Variable Balance weighting logic.</li><li>• Confirm Interest is treated as Return (Growth) in TWR, not External Flow.</li></ul>
+                    <div class="log-output">
+--- Testing Cash Yield (Simple) ---
+[PASS] Simple Yield: 0.004000 == 0.004000
+
+--- Testing Cash Yield (Variable Balance) ---
+[PASS] Variable Balance Yield: 0.010000 == 0.010000
+
+--- Testing GIPS Compliance (TWR vs Interest) ---
+[PASS] Cash TWR (Interest as Growth): 0.010000 == 0.010000
+
+[SUCCESS] audit_10_cash.py passed.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>Single-Ticker Consistency <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_11_single_ticker_consistency.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Verify that Asset Class returns strictly match Ticker returns when the class contains only that ticker.</p>
+                    <ul class='methodology-list'><li>• Scan for single-ticker asset classes (active or exited).</li><li>• Compare Asset Class Return vs Ticker Return for all horizons (1W, 1M, YTD, etc.).</li><li>• Assert mathematical equality to ensure start-date alignment.</li></ul>
+                    <div class="log-output">
+--- Testing Single-Ticker Asset Class Consistency (GIPS Standards) ---
+Objective: Ensure Asset Class returns match Ticker returns exactly when 1:1.
+Loading engine data...
+Found 3 single-ticker asset classes: {'International Equity': 'VXUS', 'Gold / Precious Metals': 'GLD', 'Digital Assets': 'FBTC'}
+
+Checking International Equity vs VXUS...
+
+Checking Gold / Precious Metals vs GLD...
+
+Checking Digital Assets vs FBTC...
+[PASS] All single-ticker asset classes match their tickers exactly across all horizons.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>Holiday Lookback Logic <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_12_holiday_lookback.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Verify Backward Snap logic for rolling horizons to handle holidays correctly.</p>
+                    <ul class='methodology-list'><li>• Simulate PV series with holiday gap exactly on lookback target date.</li><li>• Compare Forward Snap (Bug) vs Backward Snap (Fix) returns.</li><li>• Verify 1W and 3M rolling horizons.</li></ul>
+                    <div class="log-output">
+--- Testing 1W Rolling Horizon (Holiday Gap) ---
+Computed 1W TWR: 0.2000
+[PASS] 1W correctly snapped BACKWARD to prior available price.
+
+--- Testing 1D Report on Holiday (Good Friday Logic) ---
+[PASS] Good Friday identified as market holiday.
+As Of: 2024-03-29
+Calculated Start Date: 2024-03-27
+[PASS] 1D Start Date snapped back to Wednesday (T-2) correctly.
+
+--- Testing 1D Report on Weekend (Saturday Logic) ---
+As Of: 2024-01-06
+Calculated Start Date: 2024-01-04
+[PASS] 1D Start Date snapped back to Thursday correctly for Weekend report.
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>Universal Annualization Logic <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_13_annualization.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Verify that returns are only annualized when duration strictly exceeds 1.0 years (365.25 days).</p>
+                    <ul class='methodology-list'><li>• Verify 180 Days -> Cumulative (No Annualization).</li><li>• Verify 365 Days -> Cumulative (Boundary Condition).</li><li>• Verify 366 Days -> Annualized (Leap Year Edge Case).</li><li>• Verify 3 Years -> Annualized correctly.</li></ul>
+                    <div class="log-output">=======================================================
+AUDIT: UNIVERSAL ANNUALIZATION LOGIC GATE (365.25 DAYS)
+=======================================================
+SCENARIO 1: 180 Days (<= 1.0 Year)
+  Input Return: 10.0000%
+  Output:       10.0000%
+  Expected:     10.0000% (Cumulative)
+  Result:       PASS
+----------------------------------------
+SCENARIO 2: 365 Days (Exactly 365)
+  Input Return: 10.0000%
+  Output:       10.0000%
+  Expected:     10.0000% (Cumulative)
+  Result:       PASS
+----------------------------------------
+SCENARIO 3: 366 Days (Leap Year Edge Case)
+  Input Return: 10.0000%
+  Output:       9.9785%
+  Expected:     9.9785% (Annualized)
+  Result:       PASS
+----------------------------------------
+SCENARIO 4: 3 Years (1096 Days)
+  Input Return: 33.10%
+  Output:       9.9976%
+  Expected:     9.9976% (Annualized)
+  Result:       PASS
+=======================================================
+
+=======================================================
+AUDIT: PORTFOLIO ENGINE INTEGRATION TEST
+=======================================================
+PORTFOLIO ENGINE: 365 Days
+  Cumulative TWR: 10.0000%
+  Final Output:   10.0000%
+  Result:         PASS
+----------------------------------------
+PORTFOLIO ENGINE: 366 Days
+  Cumulative TWR: 10.0000%
+  Final Output:   9.9785%
+  Result:         PASS
+=======================================================
+</div>
+                </div>
+            </div>
+        
+        </section>
+
+        <footer>
+            Generated by Automated Forensic Audit Suite v3.0
+        </footer>
+    </div>
+</body>
+</html>
+    

@@ -111,13 +111,29 @@ The dashboard consists of the following pages:
 ### AI Assistant
 The dashboard features a persistent, draggable AI chatbot powered by Google Gemini. It has context awareness of your portfolio data and can answer questions about performance, risk, and specific holdings. It can also run Python code snippets to perform ad-hoc analysis.
 
-### System Architecture & Validation
-This application follows a strict 5-Layer Separation of Concerns (UI, Wrapper, Engine, Math, Data). It includes a rigorous **Forensic Audit Suite** located in `Validation/forensic_audit/` to verify mathematical accuracy against GIPS standards.
+## Forensic Validation & Auditing
 
-To run the audit suite:
+This application relies on a strict **5-Layer Separation of Concerns** (UI, Wrapper, Engine, Math, Data) to ensure data integrity. To guarantee mathematical accuracy and GIPS compliance, the project includes a rigorous **Forensic Audit Suite** located in `Validation/forensic_audit/`.
+
+### Running the Full Audit
+To run the complete validation suite (all tests), execute:
+
 ```bash
 python Validation/forensic_audit/run_audit.py
 ```
+
+This will run all audit modules and print a pass/fail summary to the console.
+
+### Key Audit Modules
+You can also run individual audit scripts to verify specific components:
+
+*   **Math Core (`audit_01_math_core.py`):** Verifies the TWR chain-linking and Modified Dietz formulas against known manual calculations.
+*   **Horizon Gating (`audit_02_horizon_gating.py`):** Ensures returns are only calculated when sufficient data and strict horizon rules are met (e.g., no annualized returns for < 1 year).
+*   **P/L Attribution (`audit_03_pl_attribution.py`):** Validates that Portfolio P/L matches exactly with `MV_end - MV_start - NetFlows`.
+*   **Risk Intelligence (`audit_04_risk_intelligence.py`):** verifies Sharpe ratios, volatility calculations, and drawdown logic.
+*   **GIPS Scorecard (`audit_06_gips_scorecard.py`):** Checks for key GIPS compliance requirements (start-of-day flows, fair value, etc.).
+
+For more details on the testing methodology, refer to `Validation/SYSTEM_ARCHITECTURE.md`.
 
 ## Dependencies
 
