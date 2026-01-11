@@ -703,15 +703,7 @@ python app.py
 # Access at: http://127.0.0.1:8050/
 ```
 
-### Generating Reports
 
-```bash
-# Generate DOCX/PDF report (outputs to Output/ directory)
-python main.py
-
-# CLI console summary (prints tables to terminal)
-python main.py console
-```
 
 ### Running Validation Suite
 

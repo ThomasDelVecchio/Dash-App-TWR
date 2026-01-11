@@ -1,0 +1,22 @@
+PROPRIETARY SOURCE CODE LICENSE
+Software: Financial Analytics Dashboard & Reporting Suite
+Author: Thomas Del Vecchio
+
+1. COPYRIGHT & OWNERSHIP
+All source code, algorithms, and logic contained in this repository are the sole intellectual property of Thomas Del Vecchio Short. This software is protected by copyright laws.
+
+2. USAGE RIGHTS
+You are granted a limited, non-exclusive license to view and execute this software for evaluation or internal demonstration purposes only.
+
+3. RESTRICTIONS
+You may NOT:
+   a. Redistribute, publish, or share the source code with any third party.
+   b. Use this software for commercial production or business operations without explicit written permission.
+   c. Modify the source code for the purpose of creating a derivative or competing product.
+   d. Remove or alter any copyright notices or license information.
+
+4. NO WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. The Author is not responsible for any financial losses or errors resulting from the use of this software.
+
+-----------------------------------------------------------------------
+Copyright (c) 2026 Thomas Del Vecchio Short. All Rights Reserved.
