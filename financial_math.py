@@ -3,6 +3,14 @@ import numpy as np
 from datetime import datetime, timedelta
 from data_loader import CASHFLOWS_FILE
 
+# Holidays for NYSE Calendar Logic
+from pandas.tseries.holiday import (
+    AbstractHolidayCalendar, Holiday, nearest_workday, 
+    USMartinLutherKingJr, USPresidentsDay, USMemorialDay, 
+    USLaborDay, USThanksgivingDay, GoodFriday
+)
+from pandas.tseries.offsets import DateOffset
+
 # ============================================================
 # CONFIG / CONSTANTS
 # ============================================================
@@ -13,6 +21,47 @@ ANNUALIZE_HORIZONS = {
     "3Y": 3,
     "5Y": 5,
 }
+
+# ------------------------------------------------------------
+# NYSE Holiday Calendar (GIPS Compliance)
+# ------------------------------------------------------------
+
+class NYSECalendar(AbstractHolidayCalendar):
+    rules = [
+        Holiday('NewYearsDay', month=1, day=1, observance=nearest_workday),
+        USMartinLutherKingJr,
+        USPresidentsDay,
+        GoodFriday,
+        USMemorialDay,
+        # Juneteenth (Observed since 2021, but good to have)
+        Holiday('Juneteenth', month=6, day=19, observance=nearest_workday),
+        Holiday('USIndependenceDay', month=7, day=4, observance=nearest_workday),
+        USLaborDay,
+        USThanksgivingDay,
+        Holiday('Christmas', month=12, day=25, observance=nearest_workday)
+    ]
+
+def get_market_calendar():
+    return NYSECalendar()
+
+def is_market_holiday(date: pd.Timestamp) -> bool:
+    """
+    Checks if a date is a non-trading day (Weekend OR NYSE Holiday).
+    Returns True if the market is closed.
+    """
+    if pd.isna(date):
+        return False
+        
+    # 1. Check Weekend (Saturday=5, Sunday=6)
+    if date.weekday() >= 5:
+        return True
+        
+    # 2. Check Holiday
+    cal = get_market_calendar()
+    # holidays() returns a DatetimeIndex of holidays between start/end
+    # We strictly check if the date IS a holiday
+    holidays = cal.holidays(start=date, end=date)
+    return not holidays.empty
 
 # ------------------------------------------------------------
 # Universal Annualization Logic Gate
@@ -432,6 +481,16 @@ def get_portfolio_horizon_start(
             return None
 
         start = prev_dates.max()
+
+        # [GIPS Compliance: Non-Trading Day Snap-Back]
+        # If as_of is a Weekend OR Holiday, the 'start' found above is the last trading day (Close T-1).
+        # This creates a "Close T-1 -> Holiday" window which has 0% return because prices are static.
+        # To show the last active trading session (Close T-2 -> Close T-1), we need
+        # to snap 'start' back one additional step.
+        if is_market_holiday(as_of):
+            prior_dates = pv_dates[pv_dates < start]
+            if not prior_dates.empty:
+                start = prior_dates.max()
 
         if inception_date > start:
             return None
@@ -981,6 +1040,15 @@ def compute_security_modified_dietz(
                     continue
 
                 start = prev_idx.max()
+
+                # [GIPS Compliance: Non-Trading Day Snap-Back]
+                # If as_of is a Weekend OR Holiday, snap back one extra day to capture
+                # the last active trading session.
+                if is_market_holiday(as_of):
+                    prior_dates = price_idx[price_idx < start]
+                    if not prior_dates.empty:
+                        start = prior_dates.max()
+
                 horizon_days = (as_of - start).days
             elif h == "1W":
                 # Fixed 1-week horizon (Calendar Lookback)
