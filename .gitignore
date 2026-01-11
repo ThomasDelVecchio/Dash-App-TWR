@@ -1,5 +1,4 @@
 # --- BLOCKED FOLDERS (EXPLICIT) ---
-Validation/
 Archive/
 Output/
 __pycache__/
@@ -26,3 +25,6 @@ __pycache__/
 !sample_data/
 !sample_data/*.csv
 !sample_data/*.json
+!Validation/
+Validation/*
+!Validation/forensic_audit/
