@@ -27,7 +27,26 @@ This is a comprehensive portfolio analytics dashboard built with Plotly Dash. It
     *(Note: If you prefer virtual environments, feel free to set one up, but it is not required.)*
 
 ## Configuration
+#### System Settings
+You can configure system behavior (tax rates, risk targets, API keys) using one of two methods:
 
+**Method 1: Environment Variables (Recommended)**
+Create a file named `.env` in the root directory (use `.env.example` as a template). Variables set here will override `config.py`.
+```ini
+FMP_API_KEY=your_actual_api_key
+RISK_FREE_RATE=0.045
+TARGET_PORTFOLIO_VALUE=100000
+```
+
+**Method 2: config.py (Direct Edit)**
+You can directly edit the `config.py` file in the root directory.
+```python
+# config.py
+FMP_API_KEY = "demo"  # Replace with your key
+RISK_FREE_RATE = 0.04
+```
+
+*Note: The application prioritizes `.env` values if they exist.*
 ### Loading Your Own Data
 
 The app comes pre-loaded with sample files in the `sample_data/` folder: **`sample holdings.csv`** and **`cashflows.csv`**. *IMPORTANT* Move them into the root folder with all other py files before running 
@@ -35,18 +54,6 @@ The app comes pre-loaded with sample files in the `sample_data/` folder: **`samp
 To import your own portfolio:
 1. Replace the **`sample holdings.csv`** and **`cashflows.csv`** files in the root directory with your own data (keeping the same filenames).
 2. Ensure your CSV files follow the column structure of the samples.
-
-### API Keys (Optional)
-
-The application can use the Financial Modeling Prep (FMP) API to fetch detailed ETF sector weightings. While not required to run the app, this data enhances the accuracy of your asset allocation analysis.
-
-To enable this feature:
-1.  Open the `config.py` file.
-2.  Find the line `FMP_API_KEY = "demo"`.
-3.  Replace `"demo"` with your actual FMP API key, like this:
-    ```python
-    FMP_API_KEY = "YOUR_SECRET_API_KEY"
-    ```
 
 ### Google Drive Integration (Optional)
 
