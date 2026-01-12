@@ -667,6 +667,21 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
 
     first_trade = tx["date"].min()
 
+    # Early Exit Logic: If position is closed, clamp the end date to the last transaction
+    # This ensures P/L reporting periods stop at liquidation rather than dragging to Today
+    net_shares = tx["shares"].sum()
+    if abs(net_shares) < 1e-6:
+        last_tx_date = tx["date"].max()
+        if last_tx_date < pv_as_of:
+            pv_as_of = last_tx_date
+            # Re-clamp local as_of variable since pv_as_of changed
+            as_of = min(pv_as_of, as_of_price)
+            # Ensure as_of is a valid price date to prevent failure in px_end lookup
+            if as_of not in series.index:
+                snap_idx = series.index.searchsorted(as_of, side='right') - 1
+                if snap_idx >= 0:
+                    as_of = series.index[snap_idx]
+
     # =================================================================
     # SI: Use portfolio inception for alignment with Portfolio P/L
     # This ensures Cash/Recon = Portfolio P/L - Sum(Ticker P/Ls) reconciles
