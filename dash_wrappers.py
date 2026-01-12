@@ -2067,7 +2067,11 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
                         if base_price is None:
                             base_price = float(ser_window.iloc[0])
                             
-                        end_price = float(ser_window.iloc[-1])
+                        # Robust End Price (Snapback)
+                        end_price = float(ser.asof(pv.index.max()))
+                        if pd.isna(end_price):
+                             end_price = float(ser_window.iloc[-1])
+                             
                         b_cum = end_price / base_price - 1.0
                         
                         # Apply Universal Gate to Benchmark Return

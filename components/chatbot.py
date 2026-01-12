@@ -9,6 +9,7 @@ from datetime import datetime
 import dash_wrappers as dw
 import config
 from data_loader import fetch_price_history
+from financial_math import annualize_return
 from pages.help_content import HELP_TOPICS
 from tax_engine import build_tax_lots, simulate_sell
 from report_formatting import fmt_dollar_clean
@@ -1597,13 +1598,32 @@ def handle_benchmark_query(text, data, horizon):
         if bm_ticker not in hist: return f"Could not fetch data for {bm_ticker}."
         
         ser = hist[bm_ticker]
-        ser = ser[ser.index >= start]
-        # Clip to portfolio end
-        ser = ser[ser.index <= pv.index.max()]
+        ser = hist[bm_ticker]
         
-        if len(ser) < 2: return f"Not enough history for {bm_ticker} over {horizon}."
+        # Robust Start Price (Snapback logic matching dash_wrappers)
+        base_price = None
+        if start <= pv.index.min():
+             history_before = ser[ser.index < start]
+             if not history_before.empty:
+                 base_price = float(history_before.iloc[-1])
         
-        bm_ret = ser.iloc[-1] / ser.iloc[0] - 1.0
+        if base_price is None:
+             if not ser[ser.index <= start].empty:
+                 base_price = float(ser.asof(start))
+             elif not ser[ser.index >= start].empty:
+                 base_price = float(ser[ser.index >= start].iloc[0])
+                 
+        # Robust End Price
+        end_date = pv.index.max()
+        end_price = float(ser.asof(end_date)) if not ser[ser.index <= end_date].empty else None
+        
+        if base_price is None or end_price is None:
+            return f"Not enough aligned history for {bm_ticker}."
+            
+        bm_cum = end_price / base_price - 1.0
+        
+        # Annualize if needed (Consistency with Portfolio Return)
+        bm_ret = annualize_return(bm_cum, start, end_date)
         
         excess = (port_ret - bm_ret) * 100
         

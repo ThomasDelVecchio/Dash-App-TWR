@@ -262,7 +262,8 @@ def generate_ai_summary_period(data, start_date=None, end_date=None):
             end_price = spy_prices.asof(eff_end)
             
             if base_price and end_price:
-                spy_ret = (end_price / base_price) - 1.0
+                spy_ret_cum = (end_price / base_price) - 1.0
+                spy_ret = annualize_return(spy_ret_cum, eff_start, eff_end)
                 
                 diff = period_ret - spy_ret
                 if diff > 0.001:
