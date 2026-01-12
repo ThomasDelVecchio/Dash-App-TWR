@@ -1150,7 +1150,12 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                 dbc.Row([
                     dbc.Col([
                         html.H4("Attribution Analysis", className="section-title mb-3"),
-                        dcc.Graph(figure=attr_fig, config={'displayModeBar': False}, style={'height': '600px', 'width': '100%'}, responsive=True)
+                        dcc.Graph(figure=attr_fig, config={'displayModeBar': False}, style={'height': '600px', 'width': '100%'}, responsive=True),
+                        html.Small([
+                            html.I(className="fa-solid fa-triangle-exclamation me-1"),
+                            "Note: Attribution effects are approximated using an arithmetic difference method. Minor discrepancies labeled as 'Recon/Residual' are expected when compared to the geometrically-linked Time-Weighted Return (TWR) shown in the Performance section. ",
+                            html.A("Learn more", href="/help#attribution-methodology", target="_blank", className="text-muted text-decoration-underline")
+                        ], className="text-muted d-block mt-2", style={"fontSize": "0.85rem"})
                     ], width=12)
                 ])
             ], className="report-section page-break-before")

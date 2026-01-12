@@ -1691,27 +1691,30 @@ def get_weekly_attribution_breakdown(data, date_str):
     if pv.empty: return pd.DataFrame()
     
     # Calculate Start Date matching Portfolio TWR "1W" logic:
-    # 1. Target = Calendar 7 days prior
-    # 2. Snap Backward to nearest valid trading day
-    effective_end = get_effective_anchor_date(end_date)
-    target_date = effective_end - pd.Timedelta(days=7)
+    # UPDATED: Must align with Chart binning logic (W-FRI) to ensure P/L matches.
+    # Chart bins are [Prev Friday, Current Friday].
+    # If end_date is Jan 8 (Thu), Chart bin ends Jan 9 (Fri) and starts Jan 2 (Fri).
+    # We must set start_date = Previous Bin Bound (Jan 2).
     
-    # Backward Snap: Find last valid PV date <= target_date
-    pv_idx = pv.index
-    prev_dates = pv_idx[pv_idx <= target_date]
+    # 1. Find the Friday of the current week (Bin End)
+    # weekday(): Mon=0 ... Fri=4 ... Sun=6
+    days_to_fri = (4 - end_date.weekday()) % 7
+    bin_end_fri = end_date + pd.Timedelta(days=days_to_fri)
     
-    if len(prev_dates) > 0:
-        # Use the anchor date (strictly before the window of return)
-        # _calculate_frongello_linking uses ( > start_date ) so this is correct.
-        start_date = prev_dates.max()
-    else:
-        # Fallback if history is too short (e.g. first week)
-        # Ensure we capture inception by going back one extra day
-        start_date = pv_idx.min() - pd.Timedelta(days=1)
+    # 2. Start Date is 7 days prior to the Bin End
+    start_date = bin_end_fri - pd.Timedelta(days=7)
+    
+    # For attribution window (start, end], we want returns AFTER start_date.
+    # So if start_date is Jan 2, we capture Jan 3..Jan 9 (or Jan 8).
+    # This precisely matches the chart's exclusion of the Jan 2 return.
+    
+    # Safety: If history is short, capture inception
+    if start_date < pv.index.min():
+        start_date = pv.index.min() - pd.Timedelta(days=1)
         
-        # Safety check: if target window is entirely in future (unlikely)
-        if start_date >= end_date:
-            return pd.DataFrame()
+    # Safety check: if target window is entirely in future (unlikely)
+    if start_date >= end_date:
+        return pd.DataFrame()
 
     # Use the robust Frongello engine
     df = _calculate_frongello_linking(data, start_date=start_date, end_date=end_date)

@@ -27,7 +27,7 @@ layout = dbc.Container([
                     className="text-body"  # Inherits theme color (light/dark)
                 )
             ])
-        ], className="mb-4 shadow-sm") 
+        ], className="mb-4 shadow-sm", id=key) 
         for key, topic in HELP_TOPICS.items()
     ])
 

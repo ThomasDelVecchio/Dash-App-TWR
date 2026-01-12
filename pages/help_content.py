@@ -128,6 +128,13 @@ $$M_{\text{AC}} = (V_{t,\text{AC}} - V_{t-1,\text{AC}}) - F_{\text{int,AC}} + D_
 *   $V$: Market Value of the Asset Class
 *   $F_{\text{int}}$: Net Internal Flows (Buys/Sells) for that Asset Class
 *   $D$: Dividends received by that Asset Class
+
+#### **Reconciliation Note (Attribution vs Overview)**
+
+You may notice small discrepancies between the **Attribution Page** breakdown and the **Overview Page** metrics. This is expected and due to:
+
+1.  **Geometric vs Arithmetic**: Attribution uses **Frongello Linking** (Geometric) to decompose multi-period returns. The sum of asset class returns does not arithmetically equal the portfolio return due to compounding interaction effects (Residuals).
+2.  **Timeframe Binning**: Charts use standardized bins (e.g., Weekly bars end on Fridays). Overview metrics typically use calendar boundaries (MTD/YTD) or "Last Close". The Attribution breakdown strictly aligns its calculation window (e.g., Friday-to-Friday) to match the visual bar, which may differ from a calendar-based report.
         """
     },
     "ctr_methodologies": {

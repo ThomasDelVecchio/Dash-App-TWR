@@ -28,7 +28,17 @@ layout = html.Div([
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5(id="attribution-detail-title", children="Breakdown", className="card-title p-2"),
-            dcc.Loading(html.Div(id="attribution-detail-container"))
+            dcc.Loading(html.Div(id="attribution-detail-container")),
+            html.Div(
+                html.Small([
+                    html.Strong("Note on Overview Mismatch: "),
+                    "The Attribution module uses ",
+                    html.Strong("Geometric Linking"), 
+                    " (Frongello) and standardized time bins (e.g. W-Fri). ",
+                    "Values may differ slightly from the Overview page due to compounding interaction effects and differing period boundaries. ",
+                    dcc.Link("See Help Index", href="/help")
+                ], className="text-muted")
+            , className="px-3 pb-3")
         ]), width=12, className="mb-4"),
     ]),
 
