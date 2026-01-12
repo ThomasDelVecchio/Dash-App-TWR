@@ -186,55 +186,59 @@ def build_tax_lots(strategy="FIFO", signal=None, as_of_date=None):
     realized_df = pd.DataFrame(realized_events)
     
     # ==========================
-    # WASH SALE GUARD
+    # WASH SALE GUARD (Robust)
     # ==========================
     # Rule: If Loss, check for Buy within +/- 30 days.
+    # If found, disallow loss (Zero Tax Impact) AND add loss to basis of replacement lot.
+    
     if not realized_df.empty:
-        # Pre-compute buy dates per ticker for fast lookup
-        # We need a dict of Ticker -> List of Buy Dates
-        buys = raw_tx[raw_tx["shares"] > 0]
-        buy_dates_map = {}
-        for t, group in buys.groupby("ticker"):
-            buy_dates_map[t] = group["date"].sort_values().values
+        # Initialize default columns if not present
+        if "Is Wash Sale" not in realized_df.columns:
+            realized_df["Is Wash Sale"] = False
+        
+        # Iterate over LOSSES only
+        loss_indices = realized_df[realized_df["Realized P/L"] < -0.01].index
+        
+        for idx in loss_indices:
+            loss_row = realized_df.loc[idx]
+            ticker = loss_row["Ticker"]
+            sold_date = loss_row["Date Sold"]
+            shares_sold = loss_row["Shares"]
+            loss_amount = -loss_row["Realized P/L"] # Positive magnitude of loss
             
-        def check_wash_sale(row):
-            if row["Realized P/L"] >= 0:
-                return False, row["Tax Impact"] # Gains are always taxable
+            # Define Window: [Sold - 30, Sold + 30]
+            start_window = sold_date - pd.Timedelta(days=30)
+            end_window = sold_date + pd.Timedelta(days=30)
             
-            # It's a Loss. Check for replacement shares.
-            ticker = row["Ticker"]
-            date_sold = row["Date Sold"]
-            
-            # Get buys for this ticker
-            if ticker not in buy_dates_map:
-                return False, row["Tax Impact"] # Should not happen if data consistent
+            # Find candidate replacement lots in OPEN LOTS
+            # (Matches Ticker + Acquired in Window)
+            if not open_lots_df.empty:
+                candidates_mask = (
+                    (open_lots_df["Ticker"] == ticker) & 
+                    (open_lots_df["Date Acquired"] >= start_window) & 
+                    (open_lots_df["Date Acquired"] <= end_window)
+                )
                 
-            dates = buy_dates_map[ticker]
-            
-            # Vectorized check for window: [Sold - 30, Sold + 30]
-            # Convert to numpy arrays for speed
-            # Note: dates is numpy array of datetime64[ns]
-            sold_ts = pd.Timestamp(date_sold).to_datetime64()
-            start_window = sold_ts - np.timedelta64(30, 'D')
-            end_window = sold_ts + np.timedelta64(30, 'D')
-            
-            # Check if ANY buy falls in window (excluding the exact match if we were matching trades, 
-            # but here we are matching specific lots. 
-            # Simplified Rule: Any buy in window triggers Wash Sale flag on the LOSS.)
-            
-            mask = (dates >= start_window) & (dates <= end_window)
-            
-            if np.any(mask):
-                return True, 0.0 # Disallowed Loss -> Tax Impact 0 (Loss doesn't reduce tax)
-            
-            return False, row["Tax Impact"]
-
-        # Apply Check
-        # Returns tuple (IsWash, NewTax)
-        # Apply row-wise
-        results = realized_df.apply(check_wash_sale, axis=1, result_type='expand')
-        realized_df["Is Wash Sale"] = results[0]
-        realized_df["Tax Impact"] = results[1]
+                if candidates_mask.any():
+                    # FOUND REPLACEMENT
+                    
+                    # 1. Mark as Wash Sale (Disallow Loss)
+                    realized_df.at[idx, "Is Wash Sale"] = True
+                    realized_df.at[idx, "Tax Impact"] = 0.0 # Loss cannot be claimed
+                    
+                    # 2. Adjust Basis of Replacement Lot
+                    # Applying entire loss to the first matching replacement lot found
+                    # (Simplified "All-or-Nothing" approach sufficient for this analytics scope)
+                    repl_idx = open_lots_df[candidates_mask].index[0]
+                    
+                    current_basis = open_lots_df.at[repl_idx, "Cost Basis"]
+                    new_basis = current_basis + loss_amount
+                    shares_repl = open_lots_df.at[repl_idx, "Shares"]
+                    
+                    # Update Basis and derived Cost Per Share
+                    open_lots_df.at[repl_idx, "Cost Basis"] = new_basis
+                    if shares_repl > 0:
+                        open_lots_df.at[repl_idx, "Cost Per Share"] = new_basis / shares_repl
 
     # Enrich Open Lots with Market Data
     if not open_lots_df.empty:
