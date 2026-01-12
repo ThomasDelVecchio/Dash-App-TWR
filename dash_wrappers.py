@@ -197,12 +197,14 @@ def run_analytics_engine(end_date=None):
     # FIX: Align prices with end_date (Time Machine & Weekend Handling)
     # Matches portfolio_engine.py logic to ensure P/L calc sees the same end date as PV
     if end_date is not None:
-        end_date_ts = pd.Timestamp(end_date)
-        prices_cached = prices_cached[prices_cached.index <= end_date_ts]
+        # Use Effective Anchor (Last Trading Day) for price cache to ensure
+        # Volatility and P/L calculations don't drag on weekends/holidays.
+        target_end_date = get_effective_anchor_date(pd.Timestamp(end_date))
+        prices_cached = prices_cached[prices_cached.index <= target_end_date]
         
-        if not prices_cached.empty and prices_cached.index.max() < end_date_ts:
+        if not prices_cached.empty and prices_cached.index.max() < target_end_date:
             last_row = prices_cached.iloc[[-1]].copy()
-            last_row.index = [end_date_ts]
+            last_row.index = [target_end_date]
             prices_cached = pd.concat([prices_cached, last_row])
     
     # Robustly extract errors from dataframe metadata
@@ -213,6 +215,11 @@ def run_analytics_engine(end_date=None):
     dynamic_risk_return, dynamic_corr_matrix = _calculate_dynamic_risk_profile(
         prices_cached, sec_table_current, holdings, end_date
     )
+    
+    # Calculate Effective As-Of Date explicitly for UI Helpers
+    # This ensures P/L calculations in helpers match the TWR calculation end date
+    as_of_pv = pv.index.max() if not pv.empty else pd.Timestamp.now()
+    effective_as_of = get_effective_anchor_date(as_of_pv)
     
     return {
         "twr_df": twr_df,
@@ -232,7 +239,8 @@ def run_analytics_engine(end_date=None):
         "prices": prices_cached,
         "errors": errors,
         "risk_return": dynamic_risk_return,
-        "correlation_matrix": dynamic_corr_matrix
+        "correlation_matrix": dynamic_corr_matrix,
+        "effective_as_of": effective_as_of
     }
 
 def _prepare_sector_df(sec_table):
@@ -641,12 +649,28 @@ def get_horizon_analysis(data):
     
     snap_map = {row["Horizon"]: row["Return"] for _, row in twr_df.iterrows()}
     
-    as_of = pv.index.max()
+    as_of = data.get("effective_as_of")
+    if as_of is None:
+        as_of = pv.index.max()
     
     # Dynamic Label for 1D
     label_1d = get_display_label_for_1d(as_of)
 
     rows = []
+    
+    # Pre-calculate mv_end robustly
+    mv_as_of = 0.0
+    if as_of in pv.index:
+        mv_as_of = float(pv.loc[as_of])
+    else:
+        # Fallback to nearest prior
+        idx = pv.index.searchsorted(as_of)
+        if idx > 0:
+            mv_as_of = float(pv.iloc[idx - 1])
+        else:
+             # Should practically never happen if as_of is from engine
+             mv_as_of = float(pv.iloc[-1]) if not pv.empty else 0.0
+
     for h in horizons:
         # Use dynamic label for 1D, otherwise standard
         display_h = label_1d if h == "1D" else h
@@ -659,7 +683,7 @@ def get_horizon_analysis(data):
         
         pl_val = np.nan
         mv_start = 0.0
-        mv_end = 0.0
+        mv_end = mv_as_of
         net_flows = 0.0
         sharpe = "N/A"
         sortino = "N/A"
@@ -682,7 +706,6 @@ def get_horizon_analysis(data):
             
             if start in pv.index:
                 mv_start = float(pv.loc[start])
-                mv_end = float(pv.loc[as_of])
                 
                 # Flows
                 if cf_ext is not None and not cf_ext.empty:
@@ -775,7 +798,7 @@ def get_horizon_analysis(data):
         else:
             si_flows = 0.0
     
-    si_mv_end = float(pv.loc[as_of])
+    si_mv_end = mv_as_of
         
     si_ret = twr_si_ann if pd.notna(twr_si_ann) else twr_si
     
@@ -834,6 +857,10 @@ def get_ticker_pl_df(data, horizon="SI"):
     # (Engine usually puts it there, but let's be safe)
     
     as_of = pv.index.max()
+    
+    # GIPS FIX: Use effective_as_of from engine for consistency
+    effective_as_of = data.get("effective_as_of")
+    
     if horizon == "SI":
         raw_start = None
     else:
@@ -853,7 +880,8 @@ def get_ticker_pl_df(data, horizon="SI"):
             t, horizon, prices, as_of, tx_raw, sec_table, raw_start, 
             dividends=dividends,
             portfolio_inception=pv_start_date if horizon == "SI" else None,
-            return_components=True
+            return_components=True,
+            effective_as_of=effective_as_of
         )
         
         if isinstance(res, dict):
@@ -886,7 +914,8 @@ def get_asset_class_pl(data, asset_class, horizon, return_components=False):
         data["tx_raw"],
         data["sec_table"],
         data["dividends"],
-        return_components=return_components
+        return_components=return_components,
+        effective_as_of=data.get("effective_as_of")
     )
 
 def get_projections_data(data):
@@ -2067,16 +2096,19 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
                         if base_price is None:
                             base_price = float(ser_window.iloc[0])
                             
+                        # Use Effective Anchor (Friday) for Benchmark Comparison to minimize "Sunday Drag"
+                        effective_end = get_effective_anchor_date(pv.index.max())
+
                         # Robust End Price (Snapback)
-                        end_price = float(ser.asof(pv.index.max()))
+                        end_price = float(ser.asof(effective_end))
                         if pd.isna(end_price):
                              end_price = float(ser_window.iloc[-1])
                              
                         b_cum = end_price / base_price - 1.0
                         
                         # Apply Universal Gate to Benchmark Return
-                        # Use pv.index.max() as the end date to match Portfolio TWR
-                        b_ret = annualize_return(b_cum, start, pv.index.max())
+                        # Use effective_end as date to match Portfolio TWR logic
+                        b_ret = annualize_return(b_cum, start, effective_end)
                     
                     diff = (p_val - b_ret) * 100
                 except:
@@ -2791,6 +2823,11 @@ def get_cash_recon_pl(data, horizons):
     dividends = data["dividends"]
     prices = data["prices"]
     
+    # GIPS FIX: Use effective anchor
+    effective_as_of = data.get("effective_as_of")
+    if effective_as_of is None:
+        effective_as_of = get_effective_anchor_date(pv.index.max())
+    
     cash_recon = {}
     
     for h in horizons:
@@ -2798,7 +2835,7 @@ def get_cash_recon_pl(data, horizons):
         if h == "SI":
             port_pl = pl_si
         else:
-            port_pl = calculate_horizon_pl(pv, inception_date, cf_ext, h)
+            port_pl = calculate_horizon_pl(pv, inception_date, cf_ext, h, effective_as_of=effective_as_of)
         
         if port_pl is None:
             cash_recon[h] = None
@@ -2825,7 +2862,8 @@ def get_cash_recon_pl(data, horizons):
         for t in all_tickers:
             val = calculate_ticker_pl(
                 t, h, prices, as_of_dt, tx_raw, sec_table, raw_start, dividends=dividends,
-                portfolio_inception=pv_start_date if h == "SI" else None
+                portfolio_inception=pv_start_date if h == "SI" else None,
+                effective_as_of=effective_as_of
             )
             if val is not None:
                 sum_ticker_pl += val

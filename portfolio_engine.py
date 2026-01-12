@@ -22,6 +22,7 @@ from financial_math import (
     annualize_return,
     is_annualized,
     compute_cash_yield,
+    get_effective_anchor_date,
     HORIZONS,
     ANNUALIZE_HORIZONS,
 )
@@ -208,6 +209,11 @@ def run_engine(end_date=None):
     # External flows only where PV exists
     cf = cashflows_ext[cashflows_ext["date"] >= pv.index.min()].copy()
 
+    # Calculate Effective As-Of Date (Last Market Close)
+    # This enforces that all horizon calculations stop at the last valid trading day,
+    # preventing weekend "drag" on returns.
+    as_of_pv = pv.index.max()
+    effective_as_of = get_effective_anchor_date(as_of_pv)
 
     # ------ PORTFOLIO TWR (including SI) ------
     # We define ALL horizons, including SI, for the unified loop.
@@ -215,7 +221,7 @@ def run_engine(end_date=None):
     
     results = {}
     for h in ALL_HORIZONS:
-        results[h] = compute_horizon_twr(pv, cf, inception_date, h)
+        results[h] = compute_horizon_twr(pv, cf, inception_date, h, effective_as_of=effective_as_of)
 
     # Convert dict → DataFrame (excluding SI from main columns if preferred, but usually we want it)
     # The original return structure had SI separate (twr_since_inception).
@@ -236,40 +242,72 @@ def run_engine(end_date=None):
 
     # ---- SINCE-INCEPTION PORTFOLIO P/L (ECONOMIC, MATCHES BUILD_REPORT) ----
     # P/L_SI = MV_end − MV_start − net_external_flows(start, end)
-    as_of = pv.index.max()
+    # GIPS FIX: Use effective_as_of to align with TWR calculation end
+    calc_end_pl = effective_as_of
     start = inception_date
 
     # Map inception_date onto the first PV date on/after it
     if start not in pv.index:
         pv_idx = pv.index.sort_values()
         pos = pv_idx.searchsorted(start)
-        start = pv_idx[pos]
+        if pos < len(pv_idx):
+            start = pv_idx[pos]
 
     # --- FIX: Handle Inception explicitly to capture Day 1 ---
     if start == inception_date:
         mv_start = 0.0
         # Use >= to include flows ON the start date (Funding Day)
         if not cashflows_ext.empty:
-            mask = (cashflows_ext["date"] >= start) & (cashflows_ext["date"] <= as_of)
+            mask = (cashflows_ext["date"] >= start) & (cashflows_ext["date"] <= calc_end_pl)
             net_ext = float(cashflows_ext.loc[mask, "amount"].sum())
         else:
             net_ext = 0.0
     else:
-        mv_start = float(pv.loc[start])
+        if start in pv.index:
+            mv_start = float(pv.loc[start])
+        else:
+            # Should match logic in searchsorted above, but just safety
+            mv_start = float(pv.iloc[0])
+
         # Use > to exclude start date flows (Standard Period)
         if not cashflows_ext.empty:
-            mask = (cashflows_ext["date"] > start) & (cashflows_ext["date"] <= as_of)
+            mask = (cashflows_ext["date"] > start) & (cashflows_ext["date"] <= calc_end_pl)
             net_ext = float(cashflows_ext.loc[mask, "amount"].sum())
         else:
             net_ext = 0.0
 
-    mv_end = float(pv.loc[as_of])
+    # MV End must be at calc_end_pl
+    if calc_end_pl in pv.index:
+        mv_end = float(pv.loc[calc_end_pl])
+    else:
+        # Fallback/Snap
+        pv_idx = pv.index.sort_values()
+        pos = pv_idx.searchsorted(calc_end_pl)
+        if pos < len(pv_idx) and pv_idx[pos] == calc_end_pl:
+            mv_end = float(pv.iloc[pos])
+        elif pos > 0:
+            mv_end = float(pv.iloc[pos-1])
+        else:
+             mv_end = mv_start # Fallback
 
     pl_since_inception = mv_end - mv_start - net_ext
 
 
-    # ------ MV + weights (unchanged math) ------
-    latest_prices = prices.iloc[-1]
+    # ------ MV + weights ------
+    # GIPS FIX: Use effective_as_of for market value calculation to align with P/L & TWR
+    if effective_as_of in prices.index:
+        latest_prices = prices.loc[effective_as_of]
+    else:
+        # Fallback closest prior price if exact date missing
+        if not prices.empty:
+            pad_idx = prices.index.searchsorted(effective_as_of, side='right') - 1
+            if pad_idx >= 0:
+                latest_prices = prices.iloc[pad_idx]
+            else:
+                latest_prices = prices.iloc[-1]
+        else:
+             latest_prices = pd.Series(dtype=float)
+
     mv_rows = []
     total_mv = 0.0
 
@@ -296,7 +334,8 @@ def run_engine(end_date=None):
 
     # ------ Security-level MD (Unified Loop for ALL Horizons + SI) ------
     sec_md_df = compute_security_modified_dietz(
-        transactions_raw, prices, holdings, dividends=dividends, horizons=ALL_HORIZONS
+        transactions_raw, prices, holdings, dividends=dividends, horizons=ALL_HORIZONS,
+        effective_as_of=effective_as_of
     )
 
     if sec_md_df.empty:
@@ -345,11 +384,11 @@ def run_engine(end_date=None):
             else:
                 start_h = get_portfolio_horizon_start(pv, inception_date, h)
                 
-            if start_h is None or start_h >= as_of:
+            if start_h is None or start_h >= effective_as_of:
                 sec_table.loc[cash_mask, h] = np.nan
                 continue
                 
-            yld = compute_cash_yield(cash_trace, interest_subset, start_h, as_of, return_components=True)
+            yld = compute_cash_yield(cash_trace, interest_subset, start_h, effective_as_of, return_components=True)
             
             if isinstance(yld, dict):
                 sec_table.loc[cash_mask, h] = yld["return"]
@@ -362,8 +401,9 @@ def run_engine(end_date=None):
                 sec_table.loc[cash_mask, h] = yld
             
             # Populate basic meta for audit
-            sec_table.loc[cash_mask, f"meta_{h}_is_annualized"] = is_annualized(start_h, as_of)
-            sec_table.loc[cash_mask, f"meta_{h}_days"] = (as_of - start_h).days
+            sec_table.loc[cash_mask, f"meta_{h}_is_annualized"] = is_annualized(start_h, effective_as_of)
+            sec_table.loc[cash_mask, f"meta_{h}_days"] = (effective_as_of - start_h).days
+            sec_table.loc[cash_mask, f"meta_{h}_end_date"] = effective_as_of
 
     # ------ Asset-class MD (Unified Loop for ALL Horizons + SI) ------
     
@@ -404,11 +444,11 @@ def run_engine(end_date=None):
                 else:
                     start_h = get_portfolio_horizon_start(pv, inception_date, h)
                 
-                if start_h is None or start_h >= as_of:
+                if start_h is None or start_h >= effective_as_of:
                     row[h] = np.nan
                     continue
                     
-                yld = compute_cash_yield(cash_trace, interest_subset, start_h, as_of, return_components=True)
+                yld = compute_cash_yield(cash_trace, interest_subset, start_h, effective_as_of, return_components=True)
                 
                 if isinstance(yld, dict):
                     row[h] = yld["return"]
@@ -420,8 +460,9 @@ def run_engine(end_date=None):
                 else:
                     row[h] = yld
                 
-                row[f"meta_{h}_is_annualized"] = is_annualized(start_h, as_of)
-                row[f"meta_{h}_days"] = (as_of - start_h).days
+                row[f"meta_{h}_is_annualized"] = is_annualized(start_h, effective_as_of)
+                row[f"meta_{h}_days"] = (effective_as_of - start_h).days
+                row[f"meta_{h}_end_date"] = effective_as_of
         else:
             # Pre-calculate asset class inception for gating logic
             class_inception = None
@@ -456,7 +497,7 @@ def run_engine(end_date=None):
                     start_date = get_portfolio_horizon_start(pv, inception_date, h)
                     
                     # Check 1: Horizon is invalid (e.g. Portfolio too new for 3Y)
-                    if start_date is None or start_date >= as_of:
+                    if start_date is None or start_date >= effective_as_of:
                         row[h] = np.nan
                         continue
 
@@ -505,32 +546,32 @@ def run_engine(end_date=None):
                     prices=prices,
                     tx_all=transactions_raw,
                     start=start_date,
-                    end=as_of,
+                    end=effective_as_of,
                     dividends=dividends,
                     return_components=True,
                 )
                 
                 if isinstance(ret, dict):
                     # Apply Universal Gate
-                    row[h] = annualize_return(ret["return"], start_date, as_of)
+                    row[h] = annualize_return(ret["return"], start_date, effective_as_of)
                     
                     row[f"meta_{h}_start"] = ret["start_val"]
                     row[f"meta_{h}_end"] = ret["end_val"]
                     row[f"meta_{h}_flow"] = ret["net_flow"]
                     row[f"meta_{h}_inc"] = ret["income"]
                     row[f"meta_{h}_denom"] = ret["denom"]
-                    row[f"meta_{h}_is_annualized"] = is_annualized(start_date, as_of)
-                    row[f"meta_{h}_days"] = (as_of - start_date).days
+                    row[f"meta_{h}_is_annualized"] = is_annualized(start_date, effective_as_of)
+                    row[f"meta_{h}_days"] = (effective_as_of - start_date).days
                     # GIPS FIX: Use actual start/end from Modified Dietz calculation for consistency
                     row[f"meta_{h}_start_date"] = ret.get("start_date", start_date)
-                    row[f"meta_{h}_end_date"] = ret.get("end_date", as_of)
+                    row[f"meta_{h}_end_date"] = ret.get("end_date", effective_as_of)
                 else:
                     # Apply Universal Gate
-                    row[h] = annualize_return(ret, start_date, as_of)
-                    row[f"meta_{h}_is_annualized"] = is_annualized(start_date, as_of)
-                    row[f"meta_{h}_days"] = (as_of - start_date).days
+                    row[h] = annualize_return(ret, start_date, effective_as_of)
+                    row[f"meta_{h}_is_annualized"] = is_annualized(start_date, effective_as_of)
+                    row[f"meta_{h}_days"] = (effective_as_of - start_date).days
                     row[f"meta_{h}_start_date"] = start_date
-                    row[f"meta_{h}_end_date"] = as_of
+                    row[f"meta_{h}_end_date"] = effective_as_of
                     
         class_rows.append(row)
 
@@ -554,17 +595,23 @@ def run_engine(end_date=None):
 # Helpers from build_report.py (Logic Extracted)
 # ============================================================
 
-def calculate_horizon_pl(pv: pd.Series, inception_date: pd.Timestamp, cf_ext: pd.DataFrame, h: str):
+def calculate_horizon_pl(pv: pd.Series, inception_date: pd.Timestamp, cf_ext: pd.DataFrame, h: str, effective_as_of: pd.Timestamp = None):
     """
     Portfolio P/L over horizon h using the SAME horizon start as TWR.
     P/L = MV_end − MV_start − net_external_flows(start, end)
     """
     as_of = pv.index.max()
+    
+    # GIPS FIX: Snap to last valid trading day (e.g. Friday if today is Sunday)
+    if effective_as_of is not None:
+        calc_end = effective_as_of
+    else:
+        calc_end = get_effective_anchor_date(as_of)
 
     # Simplified: 'get_portfolio_horizon_start' now handles SI directly
     start = get_portfolio_horizon_start(pv, inception_date, h)
     
-    if start is None or start >= as_of:
+    if start is None or start >= calc_end:
         return None
 
     # ----- Map horizon start onto actual PV index -----
@@ -583,19 +630,38 @@ def calculate_horizon_pl(pv: pd.Series, inception_date: pd.Timestamp, cf_ext: pd
             start = pv_idx[0]
 
     mv_start = float(pv.loc[start])
-    mv_end   = float(pv.loc[as_of])
+    
+    # Use snapped calculation end date for MV End
+    # Note: pv must contain calc_end. If not, snap to closest previous.
+    if calc_end in pv.index:
+        mv_end = float(pv.loc[calc_end])
+    else:
+        # Backward snap
+        pv_idx = pv.index
+        pos = pv_idx.searchsorted(calc_end)
+        # If calc_end > max, pos=len. we want max.
+        if pos >= len(pv_idx):
+             mv_end = float(pv.iloc[-1])
+        elif pv_idx[pos] == calc_end:
+             mv_end = float(pv.iloc[pos])
+        else:
+             # pv_idx[pos] > calc_end. Take previous.
+             if pos > 0:
+                  mv_end = float(pv.iloc[pos-1])
+             else:
+                  return None # No data before calc_end?
 
 
-    # flows strictly after start, up to and including as_of
+    # flows strictly after start, up to and including calc_end
     net_flows = 0.0
     if cf_ext is not None and not cf_ext.empty:
-        mask = (cf_ext["date"] > start) & (cf_ext["date"] <= as_of)
+        mask = (cf_ext["date"] > start) & (cf_ext["date"] <= calc_end)
         net_flows = float(cf_ext.loc[mask, "amount"].sum())
 
     pl = mv_end - mv_start - net_flows
     return pl
 
-def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw_start=None, dividends=None, portfolio_inception=None, return_components=False):
+def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw_start=None, dividends=None, portfolio_inception=None, return_components=False, effective_as_of=None):
     """
     Correct economic P/L for a single ticker over a horizon.
     P/L = MV_end - MV_start - Net Capital Flows + Income
@@ -603,6 +669,12 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
     IMPORTANT: For SI calculations, aligns with portfolio inception to ensure
     Cash/Recon reconciliation is accurate.
     """
+    # GIPS FIX: Use Effective Anchor (Friday) if provided to prevent weekend drag
+    if effective_as_of is not None:
+        calc_end = effective_as_of
+    else:
+        calc_end = pv_as_of
+
     if ticker == "CASH":
         # Calculate Interest Income for CASH
         total_interest = 0.0
@@ -629,9 +701,9 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
              
              # Filter by Date
              if h == "SI" and portfolio_inception is not None:
-                 mask = (cash_divs["date"] >= start_date) & (cash_divs["date"] <= pv_as_of)
+                 mask = (cash_divs["date"] >= start_date) & (cash_divs["date"] <= calc_end)
              else:
-                 mask = (cash_divs["date"] > start_date) & (cash_divs["date"] <= pv_as_of)
+                 mask = (cash_divs["date"] > start_date) & (cash_divs["date"] <= calc_end)
                  
              total_interest = cash_divs.loc[mask, "amount"].sum()
         
@@ -644,7 +716,7 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
                 "inc": total_interest,
                 "denom": 0.0,
                 "start_date": start_date,
-                "end_date": pv_as_of
+                "end_date": calc_end
             }
         return total_interest
 
@@ -656,7 +728,7 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
         return None
 
     as_of_price = series.index.max()
-    as_of = min(pv_as_of, as_of_price)
+    as_of = min(calc_end, as_of_price)
 
     # ----- Load transactions for this ticker -----
     tx = transactions[transactions["ticker"] == ticker].copy()
@@ -672,10 +744,10 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
     net_shares = tx["shares"].sum()
     if abs(net_shares) < 1e-6:
         last_tx_date = tx["date"].max()
-        if last_tx_date < pv_as_of:
-            pv_as_of = last_tx_date
-            # Re-clamp local as_of variable since pv_as_of changed
-            as_of = min(pv_as_of, as_of_price)
+        if last_tx_date < calc_end:
+            calc_end = last_tx_date
+            # Re-clamp local as_of variable since calc_end changed
+            as_of = min(calc_end, as_of_price)
             # Ensure as_of is a valid price date to prevent failure in px_end lookup
             if as_of not in series.index:
                 snap_idx = series.index.searchsorted(as_of, side='right') - 1
@@ -781,9 +853,9 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
     # ----- Internal flows inside window -----
     # FIX: For SI, include flows ON inception day (they're part of the SI window)
     if h == "SI" and portfolio_inception is not None:
-        mask2 = (tx["date"] >= shares_boundary) & (tx["date"] <= as_of)
+        mask2 = (tx["date"] >= shares_boundary) & (tx["date"] <= calc_end)
     else:
-        mask2 = (tx["date"] > shares_boundary) & (tx["date"] <= as_of)
+        mask2 = (tx["date"] > shares_boundary) & (tx["date"] <= calc_end)
     # Our file uses amount negative for buys (cash out), positive for sells (cash in).
     # When computing economic P/L, we subtract net internal flows (same as before).
     # Net Capital Flow = -(Buy Amount + Sell Amount)
@@ -796,9 +868,9 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
         if not div_t.empty:
             # FIX: For SI, include dividends ON inception day
             if h == "SI" and portfolio_inception is not None:
-                mask_div = (div_t["date"] >= shares_boundary) & (div_t["date"] <= as_of)
+                mask_div = (div_t["date"] >= shares_boundary) & (div_t["date"] <= calc_end)
             else:
-                mask_div = (div_t["date"] > shares_boundary) & (div_t["date"] <= as_of)
+                mask_div = (div_t["date"] > shares_boundary) & (div_t["date"] <= calc_end)
             total_divs = div_t.loc[mask_div, "amount"].sum()
 
     # ----- Economic P/L -----
@@ -827,12 +899,12 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
             "inc": total_divs,
             "denom": mv_start + net_internal, # Approx
             "start_date": display_start,
-            "end_date": as_of
+            "end_date": calc_end
         }
 
     return pl
 
-def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw, sec_table, dividends, return_components=False):
+def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw, sec_table, dividends, return_components=False, effective_as_of=None):
     """
     Computes DIRECT asset class P/L (not by summing ticker P/Ls).
     Uses Modified Dietz methodology at the aggregate level to properly
@@ -854,6 +926,12 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
     # 1. Determine Horizon Window
     as_of = pv.index.max()
     
+    # GIPS FIX: Use Effective Anchor
+    if effective_as_of is not None:
+        calc_end = effective_as_of
+    else:
+        calc_end = get_effective_anchor_date(as_of)
+    
     # For SI, the start date needs to be handled carefully to align with how ticker P/L is calculated.
     # The ticker SI P/L uses the *portfolio* inception date for reconciliation purposes.
     # We must do the same here.
@@ -862,7 +940,7 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
     # Simplified: 'get_portfolio_horizon_start' now handles SI directly
     raw_start = get_portfolio_horizon_start(pv, inception_date, h)
 
-    if raw_start is None or raw_start >= as_of:
+    if raw_start is None or raw_start >= calc_end:
         return None
 
     # 2. Aggregate P/L Components
@@ -891,7 +969,8 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
             raw_start=raw_start if h != "SI" else None, # Pass raw_start only for non-SI, SI has its own logic
             dividends=dividends,
             portfolio_inception=portfolio_inception_for_ticker,
-            return_components=True
+            return_components=True,
+            effective_as_of=calc_end # Pass down the anchor
         )
         
         if components and isinstance(components, dict):
@@ -926,7 +1005,7 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
             "inc": divs_total,
             "denom": mv_start_total + net_flows_total, # Approximation
             "start_date": final_start_date,
-            "end_date": as_of
+            "end_date": calc_end
         }
         
     return pl

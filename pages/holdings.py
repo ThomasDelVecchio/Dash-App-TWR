@@ -125,6 +125,8 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
              col_def["minWidth"] = 190
         elif col == "market_value":
              col_def["minWidth"] = 150
+        elif col == "1D":
+             col_def["minWidth"] = 130
         elif col in ["first_date", "last_date", "days_held"]:
              col_def["minWidth"] = 140
         

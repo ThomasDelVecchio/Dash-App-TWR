@@ -517,6 +517,7 @@ def compute_horizon_twr(
     cf: pd.DataFrame,
     inception_date: pd.Timestamp,
     label: str,
+    effective_as_of: pd.Timestamp = None,
 ) -> float:
     """
     Compute TWR for labeled horizon: 1D, 1W, MTD, 1M, 3M, 6M, YTD, 1Y, 3Y, 5Y.
@@ -528,13 +529,24 @@ def compute_horizon_twr(
       - 1D/1W/1M/3M/6M/1Y/3Y/5Y: require full horizon length of live history.
     """
     as_of = pv.index.max()
+    
+    # GIPS FIX: Snap to last valid trading day (e.g. Friday if today is Sunday)
+    # This prevents artificial expanding of the denominator (days) on weekends
+    if effective_as_of is not None:
+        calc_end = effective_as_of
+    else:
+        calc_end = get_effective_anchor_date(as_of)
 
     start = get_portfolio_horizon_start(pv, inception_date, label)
     if start is None:
         return np.nan
+        
+    # Ensure start is not after calc_end
+    if start >= calc_end:
+        return np.nan
 
-    r_cum = compute_period_twr(pv, cf, start, as_of)
-    return annualize_return(r_cum, start, as_of)
+    r_cum = compute_period_twr(pv, cf, start, calc_end)
+    return annualize_return(r_cum, start, calc_end)
 
 
 # ------------------------------------------------------------
@@ -924,12 +936,19 @@ def compute_security_modified_dietz(
     holdings: pd.DataFrame,
     dividends: pd.DataFrame = None,
     horizons=HORIZONS,
+    effective_as_of: pd.Timestamp = None,
 ) -> pd.DataFrame:
 
     if transactions.empty:
         return pd.DataFrame(columns=["ticker"] + list(horizons))
 
     as_of = prices.index.max()
+
+    # GIPS FIX: Calculate Calculation End Date
+    if effective_as_of is not None:
+        calc_end = effective_as_of
+    else:
+        calc_end = get_effective_anchor_date(as_of)
 
     rows = []
 
@@ -1024,26 +1043,18 @@ def compute_security_modified_dietz(
                 divs_t = dividends[dividends["ticker"] == t].copy()
 
             # Early Exit Logic:
-            # If the position is fully closed (shares=0) at as_of, 
-            # we should calculate return ending on the Last Held Date (exit date)
-            # to avoid diluting the denominator with non-invested time.
-            # This matches GIPS requirements for "measuring performance while invested".
+            # If the position is fully closed (shares=0), we should calculate return 
+            # ending on the Last Held Date (exit date) if it is BEFORE our calculation end.
             
-            effective_end = as_of
+            effective_end = calc_end
             if abs(net_shares) < 1e-6:
-                # Position is closed. Clamp end to last_held_date.
-                # Only if last_held_date is actually within our potential window (<= as_of)
-                # which it always is by definition of last_tx_date logic above.
-                effective_end = last_held_date
+                # Position is closed. Clamp end to last_held_date if it precedes calc_end.
+                if last_held_date < calc_end:
+                    effective_end = last_held_date
                 
                 # Correction: If last_held_date is BEFORE the horizon start, 
                 # effectively the position didn't exist in this window?
                 # No, "last_held_date" is the ultimate exit.
-                # If we held it Jan-Feb, and now asking for Q4 return...
-                # effective_start = Oct 1. effective_end = Feb? No.
-                # We need to make sure we don't go BACK in time.
-                # If effective_end < effective_start, modified_dietz_for_ticker_window returns NaN.
-                # This is correct/desired.
 
             md_ret = modified_dietz_for_ticker_window(
                 t,
@@ -1058,7 +1069,7 @@ def compute_security_modified_dietz(
             if isinstance(md_ret, dict):
                 r_val = md_ret["return"]
                 # Apply Universal Gate
-                r_final = annualize_return(r_val, effective_start, as_of)
+                r_final = annualize_return(r_val, effective_start, calc_end)
                 
                 row[h] = r_final
                 # Add Audit Meta Columns
@@ -1067,15 +1078,15 @@ def compute_security_modified_dietz(
                 row[f"meta_{h}_flow"] = md_ret["net_flow"]
                 row[f"meta_{h}_inc"] = md_ret["income"]
                 row[f"meta_{h}_denom"] = md_ret["denom"]
-                row[f"meta_{h}_is_annualized"] = is_annualized(effective_start, as_of)
-                row[f"meta_{h}_days"] = (as_of - effective_start).days
+                row[f"meta_{h}_is_annualized"] = is_annualized(effective_start, calc_end)
+                row[f"meta_{h}_days"] = (calc_end - effective_start).days
                 row[f"meta_{h}_start_date"] = md_ret.get("start_date", effective_start)
                 row[f"meta_{h}_end_date"] = md_ret.get("end_date", effective_end)
             else:
                 # Apply Universal Gate
-                row[h] = annualize_return(md_ret, effective_start, as_of)
-                row[f"meta_{h}_is_annualized"] = is_annualized(effective_start, as_of)
-                row[f"meta_{h}_days"] = (as_of - effective_start).days
+                row[h] = annualize_return(md_ret, effective_start, calc_end)
+                row[f"meta_{h}_is_annualized"] = is_annualized(effective_start, calc_end)
+                row[f"meta_{h}_days"] = (calc_end - effective_start).days
                 row[f"meta_{h}_start_date"] = effective_start
                 row[f"meta_{h}_end_date"] = effective_end
 
