@@ -1159,6 +1159,22 @@ def get_daily_attribution_breakdown(data, date_str):
     df["meta_ac_start_date"] = prev_date
     df["meta_ac_end_date"] = target_date
     
+    # --- FIX: Calculate and Append Residual ---
+    residual_pct, residual_pl = _calculate_residual_return(data, df, start_date=prev_date, end_date=target_date)
+    
+    if abs(residual_pl) > 0.01 or abs(residual_pct) > 0.01:
+        df = pd.concat([df, pd.DataFrame([{
+            "Asset Class": "Recon/Residual",
+            "Effect": residual_pl,
+            "Contribution (%)": residual_pct,
+            "meta_denominator": denominator,
+            "meta_Return_denom": denominator,
+            "meta_Return_start": pv_start,
+            "meta_Return_flow": ext_flow_today,
+            "meta_Return_start_date": prev_date,
+            "meta_Return_end_date": target_date
+        }])], ignore_index=True)
+
     df = df.sort_values("Effect", ascending=False)
     
     return df
@@ -1646,9 +1662,18 @@ def get_monthly_attribution_breakdown(data, year_month_str):
     
     if df.empty: return pd.DataFrame()
     
-    # For Monthly/Weekly, we need to manually adjust for Residual/Recon 
-    # since _calculate_frongello_linking doesn't include it by default (it's for SI).
-    # However, for a single month, it's safer to just sort and return.
+    # --- FIX: Calculate and Append Residual ---
+    residual_pct, residual_pl = _calculate_residual_return(data, df, start_date, end_date)
+    
+    if abs(residual_pl) > 0.01 or abs(residual_pct) > 0.01:
+        df = pd.concat([df, pd.DataFrame([{
+            "Asset Class": "Recon/Residual",
+            "Effect": residual_pl,
+            "Contribution (%)": residual_pct,
+            "meta_frongello_sum_factors": 0,
+            "meta_frongello_avg_denom": 0
+        }])], ignore_index=True)
+
     return df.sort_values("Contribution (%)", ascending=False)
 
 
@@ -1692,6 +1717,19 @@ def get_weekly_attribution_breakdown(data, date_str):
     df = _calculate_frongello_linking(data, start_date=start_date, end_date=end_date)
     
     if df.empty: return pd.DataFrame()
+
+    # --- FIX: Calculate and Append Residual ---
+    residual_pct, residual_pl = _calculate_residual_return(data, df, start_date, end_date)
+    
+    # Only append if significant to avoid noise
+    if abs(residual_pl) > 0.01 or abs(residual_pct) > 0.01:
+        df = pd.concat([df, pd.DataFrame([{
+            "Asset Class": "Recon/Residual",
+            "Effect": residual_pl,
+            "Contribution (%)": residual_pct,
+            "meta_frongello_sum_factors": 0,
+            "meta_frongello_avg_denom": 0
+        }])], ignore_index=True)
     
     return df.sort_values("Contribution (%)", ascending=False)
 
@@ -3476,22 +3514,34 @@ def fetch_audit_details(request_data):
         
     return request_data
 
-def _calculate_residual_return(data, df_explained):
+def _calculate_residual_return(data, df_explained, start_date=None, end_date=None):
     """
     Helper to calculate the 'residual' return (Cash/Recon).
     Ensures P/L Source of Truth is clipped to exactly the same date range as the Attribution.
     """
     # 1. TWR Residual (Must be CUMULATIVE to match Frongello Sum)
-    # data["twr_si"] is Annualized by default in the engine.
-    # We must re-calculate the Cumulative TWR for valid comparison.
     pv = data["pv"]
     cf_ext = data.get("cf_ext")
     inception = data["inception_date"]
     
+    # Establish calculation window attributes
+    calc_start = inception if start_date is None else pd.Timestamp(start_date)
     if not pv.empty:
-        end_date = pv.index.max()
+        calc_end = pv.index.max() if end_date is None else pd.Timestamp(end_date)
+    else:
+        calc_end = calc_start
+
+    # TWR Calculation Logic
+    if not pv.empty:
+        # TWR Engine expects the exact Inception Date (Day 1) to capture the initial funding return
+        # But Frongello/Attribution logic often passes (Day 1 - 1 Day) as the anchor.
+        # We must snap forward to Inception Date if the passed start is before data exists.
+        twr_start = calc_start
+        if twr_start < pv.index.min():
+             twr_start = pv.index.min()
+             
         # Compute Cumulative TWR (no annualization)
-        twr_cum = compute_period_twr(pv, cf_ext, inception, end_date)
+        twr_cum = compute_period_twr(pv, cf_ext, twr_start, calc_end)
     else:
         twr_cum = 0.0
         
@@ -3501,23 +3551,45 @@ def _calculate_residual_return(data, df_explained):
     residual_pct = (twr_cum * 100.0) - explained_twr_pct
     
     # 2. P/L Residual
-    pv = data["pv"]
-    cf_ext = data.get("cf_ext")
-    
     if not pv.empty:
-        # Determine the EXACT end date of the attribution
-        last_date = pv.index.max()
-        current_val = float(pv.iloc[-1])
+        # Determine explicit MV Start/End for P/L
         
-        # CRITICAL: Only sum flows that happened on or before the last price date
-        # This matches the Attribution loop which stops at last_date
+        # A. Start Value
+        mv_start = 0.0
+        if calc_start in pv.index:
+            mv_start = float(pv.loc[calc_start])
+        elif calc_start < pv.index.min():
+            # Before inception -> 0 Value
+            mv_start = 0.0
+        else:
+            # Snap backward to nearest valid trading day (Anchor)
+            loc = pv.index.searchsorted(calc_start)
+            if loc > 0:
+                mv_start = float(pv.iloc[loc-1])
+            else: 
+                mv_start = 0.0
+
+        # B. End Value
+        if calc_end in pv.index:
+            mv_end = float(pv.loc[calc_end])
+        else:
+            # Snap backward (GIPS standard for reporting end date)
+            loc = pv.index.searchsorted(calc_end)
+            if loc < len(pv.index) and pv.index[loc] == calc_end:
+                 mv_end = float(pv.iloc[loc])
+            elif loc > 0:
+                 mv_end = float(pv.iloc[loc-1])
+            else:
+                 mv_end = float(pv.iloc[-1])
+
+        # C. Flows (strictly > calc_start, <= calc_end)
         if cf_ext is not None and not cf_ext.empty:
-            relevant_flows = cf_ext[cf_ext["date"] <= last_date]
+            relevant_flows = cf_ext[(cf_ext["date"] > calc_start) & (cf_ext["date"] <= calc_end)]
             total_invested = relevant_flows["amount"].sum()
         else:
             total_invested = 0.0
             
-        pl_si_robust = current_val - total_invested
+        pl_si_robust = mv_end - mv_start - total_invested
     else:
         pl_si_robust = 0.0
         
