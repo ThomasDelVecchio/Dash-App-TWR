@@ -331,7 +331,7 @@ $$\text{Sharpe} = \frac{R_p - R_f}{\sigma_p}$$
 $$\text{Sortino} = \frac{R_p - R_f}{\sigma_{down}}$$
 
 *   **Numerator**: Excess Return (same as Sharpe).
-*   **Denominator**: Downside Deviation ($\sigma_{down}$). This only considers returns that fall below 0% (or the target).
+*   **Denominator**: Downside Deviation ($\sigma_{down}$). This considers only returns that fall below the Minimum Acceptable Return (MAR), which is set to the **Risk-Free Rate** ($R_f$) defined in `config.py` (currently 4%).
 *   **Interpretation**: A better measure for strategies where upside volatility is desirable. It only penalizes "bad" volatility (losses).
 
 *Note: All calculations assume a Risk-Free Rate ($R_f$) as defined in `config.py`.*

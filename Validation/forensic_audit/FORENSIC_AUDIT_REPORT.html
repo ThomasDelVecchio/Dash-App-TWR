@@ -112,7 +112,7 @@
                 <div style="opacity: 0.8;">Executive Integrity Dashboard</div>
             </div>
             <div class="meta">
-                <div>Date: 2026-01-11 23:42:53</div>
+                <div>Date: 2026-01-12 09:52:17</div>
                 <div>Version: 3.0 (Modular Opus Suite)</div>
             </div>
         </header>
@@ -283,13 +283,17 @@ Reconciling Shares (Holdings vs Transactions)...
                     <div class="log-output">
 --- Testing P/L Attribution (The Accounting Ledger) ---
 Loading live data via Analytics Engine...
+[WARNING] Missing Price Data:
+  2026-01-12: IWM
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: IWM']
 Data loaded.
-[PASS] [1W] Match! Port: 754.61 | Sum: 754.61 | Gap: 0.00
-[PASS] [1M] Match! Port: 1,448.24 | Sum: 1,448.17 | Gap: 0.07
-[PASS] [MTD] Match! Port: 868.35 | Sum: 868.35 | Gap: -0.00
-[PASS] [YTD] Match! Port: 868.35 | Sum: 868.35 | Gap: -0.00
+[PASS] [1W] Match! Port: 397.50 | Sum: 397.75 | Gap: -0.26
+[PASS] [1M] Match! Port: 1,377.46 | Sum: 1,377.65 | Gap: -0.19
+[PASS] [MTD] Match! Port: 1,021.55 | Sum: 1,021.80 | Gap: -0.26
+[PASS] [YTD] Match! Port: 1,021.55 | Sum: 1,021.80 | Gap: -0.26
 [1Y] Insufficient data for Portfolio P/L.
-[PASS] [SI] Match! Port: 2,064.54 | Sum: 2,064.39 | Gap: 0.15
+[PASS] [SI] Match! Port: 2,217.73 | Sum: 2,217.84 | Gap: -0.11
 
 --- Dividend Integrity Check ---
 Checking Dividend: CASH on 2025-11-28 for $0.08
@@ -311,12 +315,19 @@ Checking Dividend: CASH on 2025-11-28 for $0.08
                     <div class="log-output">
 --- Testing Risk Intelligence (Institutional Upgrade) ---
 Loading live data...
+[WARNING] Missing Price Data:
+  2026-01-12: FBTC, BND, VOO
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2025-11-03: FBTC\n  2025-11-04: FBTC\n  2025-11-05: FBTC\n  2025-11-06: FBTC\n  2025-11-07: FBTC\n  2025-11-10: FBTC\n  2025-11-11: FBTC\n  2025-11-12: FBTC\n  2025-11-13: FBTC\n  2025-11-14: FBTC\n  2025-11-17: FBTC\n  2025-11-18: FBTC\n  2025-11-19: FBTC\n  2025-11-20: FBTC\n  2025-11-21: FBTC\n  2025-11-24: FBTC\n  2025-11-25: FBTC\n  2025-11-26: FBTC\n  2025-11-28: FBTC\n  2025-12-01: FBTC\n  2025-12-02: FBTC\n  2025-12-03: FBTC\n  2025-12-04: FBTC\n  2025-12-05: FBTC\n  2025-12-08: FBTC\n  2025-12-09: FBTC\n  2025-12-10: FBTC\n  2025-12-11: FBTC\n  2025-12-12: FBTC\n  2025-12-15: FBTC\n  2025-12-16: FBTC\n  2025-12-17: FBTC\n  2025-12-18: FBTC\n  2025-12-19: FBTC\n  2025-12-22: FBTC\n  2025-12-23: FBTC\n  2025-12-24: FBTC\n  2025-12-26: FBTC\n  2025-12-29: FBTC\n  2025-12-30: FBTC\n  2025-12-31: FBTC\n  2026-01-02: FBTC\n  2026-01-05: FBTC\n  2026-01-06: FBTC\n  2026-01-07: FBTC\n  2026-01-08: FBTC\n  2026-01-09: FBTC']
 Checking Correlation Matrix...
 [PASS] Correlation Matrix Diagonal is all 1.0
 [PASS] Correlation Matrix is Symmetric
 [PASS] Correlation Values within [-1, 1]
-[PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1177
+[PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1181
 Checking Active Metrics (Beta/TE)...
+[WARNING] Data stale: Latest 2026-01-09 (3d ago)
+DEBUG: data_loader returning 1 errors attached to prices.
 [PASS] Beta vs SPY calculated: 0.6090
 [PASS] Tracking Error calculated: 6.0579%
 Checking Drawdown Logic...
@@ -339,16 +350,20 @@ Checking Drawdown Logic...
                     <div class="log-output">
 --- Testing Consistency Matrix (The Truth-Teller) ---
 Loading live data...
+[WARNING] Missing Price Data:
+  2026-01-12: VOO, VXUS
+DEBUG: data_loader returning 1 errors attached to prices.
 Checking Snapshot vs Chart...
-[PASS] Cumulative SI TWR (0.0437) matches Chart Final Value (0.0437)
+[PASS] Cumulative SI TWR (0.0466) matches Chart Final Value (0.0466)
 Checking Snapshot vs Horizon Table...
-[PASS] Snapshot SI P/L (2,064.54) matches Horizon Table (2,064.54)
+[PASS] Snapshot SI P/L (2,200.09) matches Horizon Table (2,200.09)
 Checking Growth Table vs P/L...
-[PASS] Growth Table Total (2,064.54) matches SI P/L (2,064.54)
+[WARN] Growth Table (2,222.79) slightly divergent from SI P/L (2,200.09). Diff: -22.70
+[PASS] Growth Table within 5% tolerance.
 Checking Attribution vs SI TWR...
-[PASS] Attribution Sum (4.37%) matches SI TWR (4.37%)
+[PASS] Attribution Sum (4.66%) matches SI TWR (4.66%)
 Checking Risk Chart vs Horizon Table...
-Risk Chart US Large Cap Return: 22.64%
+Risk Chart US Large Cap Return: 23.21%
 [PASS] Risk Data exists.
 
 [SUCCESS] audit_05_consistency_matrix.py passed.
@@ -418,11 +433,11 @@ Final GIPS Score: 5/5
                     <div class="log-output">
 --- Testing Time Machine Consistency ---
 Running Live Engine...
-Time Machine Target: 2025-12-26
+Time Machine Target: 2025-12-29
 Running Historical Engine...
 
 Checking PV Consistency...
-[PASS] PV Matches: History=49042.38 vs Live=49042.38
+[PASS] PV Matches: History=48742.21 vs Live=48742.21
 
 Checking Future Leakage (Transactions)...
 [PASS] No future tickers detected in historical view.
@@ -443,12 +458,16 @@ Checking Future Leakage (Transactions)...
                     <div class="log-output">
 --- Testing Custom Report Logic (Curve Slicing) ---
 Loading Live Data...
+[WARNING] Missing Price Data:
+  2026-01-12: GLD, BND, SPY, VOO
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: GLD, BND, SPY, VOO']
 
-Scanning Last 30 Days (2025-12-10 to 2026-01-09)...
-[PASS] Last 30 Days: Match! Slice=0.023403 vs Rigorous=0.023403
+Scanning Last 30 Days (2025-12-13 to 2026-01-12)...
+[PASS] Last 30 Days: Match! Slice=0.028858 vs Rigorous=0.028858
 
-Scanning Middle 20 Days (2025-12-06 to 2025-12-26)...
-[PASS] Middle 20 Days: Match! Slice=0.025507 vs Rigorous=0.025507
+Scanning Middle 20 Days (2025-12-08 to 2025-12-28)...
+[PASS] Middle 20 Days: Match! Slice=0.027620 vs Rigorous=0.027620
 
 [SUCCESS] audit_09_custom_report.py passed.
 </div>
@@ -490,6 +509,10 @@ Scanning Middle 20 Days (2025-12-06 to 2025-12-26)...
 --- Testing Single-Ticker Asset Class Consistency (GIPS Standards) ---
 Objective: Ensure Asset Class returns match Ticker returns exactly when 1:1.
 Loading engine data...
+[WARNING] Missing Price Data:
+  2026-01-12: VXUS, SCHG, SPY
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: VXUS, SCHG, SPY']
 Found 3 single-ticker asset classes: {'International Equity': 'VXUS', 'Gold / Precious Metals': 'GLD', 'Digital Assets': 'FBTC'}
 
 Checking International Equity vs VXUS...

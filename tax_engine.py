@@ -186,17 +186,22 @@ def build_tax_lots(strategy="FIFO", signal=None, as_of_date=None):
     realized_df = pd.DataFrame(realized_events)
     
     # ==========================
-    # WASH SALE GUARD (Robust)
+    # WASH SALE GUARD (Share-Matching)
     # ==========================
-    # Rule: If Loss, check for Buy within +/- 30 days.
-    # If found, disallow loss (Zero Tax Impact) AND add loss to basis of replacement lot.
+    # Matches disallowed loss shares to replacement shares to adjust basis correctly.
+    # Prorates logic: Wash Shares = min(Loss Shares, Replacement Shares Available)
     
-    if not realized_df.empty:
-        # Initialize default columns if not present
+    if not realized_df.empty and not open_lots_df.empty:
         if "Is Wash Sale" not in realized_df.columns:
             realized_df["Is Wash Sale"] = False
+        if "Disallowed Loss" not in realized_df.columns:
+            realized_df["Disallowed Loss"] = 0.0
+
+        # Track usage of replacement shares to prevent double-counting
+        # Initialize with 0.0
+        open_lots_df["Wash Shares Used"] = 0.0
         
-        # Iterate over LOSSES only
+        # Iterate over LOSSES only (sorted chronologically by Sell Date from the FIFO processing)
         loss_indices = realized_df[realized_df["Realized P/L"] < -0.01].index
         
         for idx in loss_indices:
@@ -204,41 +209,72 @@ def build_tax_lots(strategy="FIFO", signal=None, as_of_date=None):
             ticker = loss_row["Ticker"]
             sold_date = loss_row["Date Sold"]
             shares_sold = loss_row["Shares"]
-            loss_amount = -loss_row["Realized P/L"] # Positive magnitude of loss
+            realized_pl = loss_row["Realized P/L"]
+            loss_amount = -realized_pl # Positive magnitude of loss
+            
+            # Loss per share (to prorate)
+            loss_per_share = loss_amount / shares_sold if shares_sold > 0 else 0
             
             # Define Window: [Sold - 30, Sold + 30]
             start_window = sold_date - pd.Timedelta(days=30)
             end_window = sold_date + pd.Timedelta(days=30)
             
             # Find candidate replacement lots in OPEN LOTS
-            # (Matches Ticker + Acquired in Window)
-            if not open_lots_df.empty:
-                candidates_mask = (
-                    (open_lots_df["Ticker"] == ticker) & 
-                    (open_lots_df["Date Acquired"] >= start_window) & 
-                    (open_lots_df["Date Acquired"] <= end_window)
-                )
+            # Criteria: Same Ticker, Acquired in Window, Has Unused Capacity
+            # Note: We must look up current values in open_lots_df to check 'Wash Shares Used'
+            candidate_mask = (
+                (open_lots_df["Ticker"] == ticker) & 
+                (open_lots_df["Date Acquired"] >= start_window) & 
+                (open_lots_df["Date Acquired"] <= end_window) &
+                (open_lots_df["Shares"] > open_lots_df["Wash Shares Used"])
+            )
+            
+            if candidate_mask.any():
+                # Sort candidates by Date Acquired (standard wash sale matching order)
+                candidates = open_lots_df[candidate_mask].sort_values("Date Acquired")
                 
-                if candidates_mask.any():
-                    # FOUND REPLACEMENT
+                shares_to_wash = shares_sold
+                total_wash_amount = 0.0
+                
+                for repl_idx, repl_row in candidates.iterrows():
+                    if shares_to_wash <= 1e-6:
+                        break
+                        
+                    # Calculate capacity on this replacement lot
+                    # Must re-read from DF in case it was updated in this loop (unlikely for sorted list but safe)
+                    current_used = open_lots_df.at[repl_idx, "Wash Shares Used"]
+                    capacity = repl_row["Shares"] - current_used
                     
-                    # 1. Mark as Wash Sale (Disallow Loss)
-                    realized_df.at[idx, "Is Wash Sale"] = True
-                    realized_df.at[idx, "Tax Impact"] = 0.0 # Loss cannot be claimed
+                    if capacity <= 1e-6: continue
                     
-                    # 2. Adjust Basis of Replacement Lot
-                    # Applying entire loss to the first matching replacement lot found
-                    # (Simplified "All-or-Nothing" approach sufficient for this analytics scope)
-                    repl_idx = open_lots_df[candidates_mask].index[0]
+                    # Match shares
+                    match_qty = min(shares_to_wash, capacity)
                     
+                    # Calculate basis adjustment
+                    basis_adj = match_qty * loss_per_share
+                    
+                    # Update Replacement Lot directly in the DataFrame
                     current_basis = open_lots_df.at[repl_idx, "Cost Basis"]
-                    new_basis = current_basis + loss_amount
-                    shares_repl = open_lots_df.at[repl_idx, "Shares"]
+                    new_basis = current_basis + basis_adj
                     
-                    # Update Basis and derived Cost Per Share
                     open_lots_df.at[repl_idx, "Cost Basis"] = new_basis
+                    open_lots_df.at[repl_idx, "Wash Shares Used"] += match_qty
+                    
+                    # Update metrics
+                    shares_repl = open_lots_df.at[repl_idx, "Shares"]
                     if shares_repl > 0:
                         open_lots_df.at[repl_idx, "Cost Per Share"] = new_basis / shares_repl
+                        
+                    # Track totals
+                    shares_to_wash -= match_qty
+                    total_wash_amount += basis_adj
+                
+                # Update the Loss Record if any washing occurred
+                if total_wash_amount > 0:
+                    realized_df.at[idx, "Is Wash Sale"] = True
+                    realized_df.at[idx, "Disallowed Loss"] = total_wash_amount
+                    # Tax Impact is usually 0 for a loss anyway, but this confirms the loss is disallowed.
+                    realized_df.at[idx, "Tax Impact"] = 0.0
 
     # Enrich Open Lots with Market Data
     if not open_lots_df.empty:
