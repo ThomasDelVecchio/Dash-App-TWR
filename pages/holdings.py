@@ -1,5 +1,5 @@
 import dash
-from dash import dcc, html, callback, Input, Output
+from dash import dcc, html, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import dash_wrappers as dw
@@ -35,11 +35,16 @@ layout = html.Div([
     [Input('data-signal', 'data'),
      Input('filter-store', 'data'),
      Input('chatbot-command', 'data'),
-     Input('include-exited-store', 'data')]
+     Input('include-exited-store', 'data')],
+    [State('date-range-store', 'data')]
 )
-def update_holdings(signal, filters, chat_cmd, include_exited):
+def update_holdings(signal, filters, chat_cmd, include_exited, dates):
     data = dw.get_data()
     if not data: return "Loading...", {}, {}
+    
+    # Dynamic 1D Label
+    report_end_date = dates.get("end") if dates else None
+    label_1d = dw.get_display_label_for_1d(report_end_date)
     
     # Logic: Toggle view based on include_exited
     if include_exited:
@@ -102,7 +107,9 @@ def update_holdings(signal, filters, chat_cmd, include_exited):
     
     for col in df.columns:
         # Format Header Name: capitalize first letters and replace underscores/hyphens
-        if col in return_cols:
+        if col == "1D":
+            header_name = label_1d
+        elif col in return_cols:
             header_name = col
         else:
             header_name = col.replace('_', ' ').replace('-', ' ').title()

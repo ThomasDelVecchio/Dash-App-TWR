@@ -474,6 +474,10 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
     pv = data.get("pv")
     start_date = None
     is_short_history = False
+    
+    # Dynamic 1D Label
+    end_date_report = pv.index.max() if pv is not None and not pv.empty else datetime.now()
+    label_1d = dw.get_display_label_for_1d(end_date_report)
 
     if pv is not None and not pv.empty:
         end_date = pv.index.max()
@@ -1085,22 +1089,27 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
             grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
             cols = ["Asset Class / Ticker"] + horizons
             
+            # Map 1D column header
+            final_col_defs = []
+            for c in cols:
+                h_name = c
+                if c == "1D": h_name = label_1d
+                
+                final_col_defs.append({
+                    "field": c, 
+                    "headerName": h_name, 
+                    "flex": 1, 
+                    "pinned": "left" if c == "Asset Class / Ticker" else None, 
+                    "minWidth": (120 if print_preview else 150) if c == "Asset Class / Ticker" else (60 if print_preview else 80)
+                })
+            
             perf_table_section = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.H4("Asset Class Performance", className="section-title mb-3"),
                         dag.AgGrid(
                             rowData=rows,
-                            columnDefs=[
-                                {
-                                    "field": c, 
-                                    "headerName": c, 
-                                    "flex": 1, 
-                                    "pinned": "left" if c == "Asset Class / Ticker" else None, 
-                                    "minWidth": (120 if print_preview else 150) if c == "Asset Class / Ticker" else (60 if print_preview else 80)
-                                } 
-                                for c in cols
-                            ],
+                            columnDefs=final_col_defs,
                             defaultColDef={"sortable": False, "resizable": True}, # Disable sort to keep hierarchy
                             className=grid_class,
                             dashGridOptions={
@@ -1166,22 +1175,27 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
             grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
             cols = ["Asset Class / Ticker"] + horizons
             
+            # Map 1D column header
+            final_col_defs_pl = []
+            for c in cols:
+                h_name = c
+                if c == "1D": h_name = label_1d
+                
+                final_col_defs_pl.append({
+                    "field": c, 
+                    "headerName": h_name, 
+                    "flex": 1, 
+                    "pinned": "left" if c == "Asset Class / Ticker" else None, 
+                    "minWidth": (120 if print_preview else 150) if c == "Asset Class / Ticker" else (60 if print_preview else 80)
+                })
+            
             pl_table_section = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.H4("Asset Class P/L (Economic)", className="section-title mb-3"),
                         dag.AgGrid(
                             rowData=rows,
-                            columnDefs=[
-                                {
-                                    "field": c, 
-                                    "headerName": c, 
-                                    "flex": 1, 
-                                    "pinned": "left" if c == "Asset Class / Ticker" else None, 
-                                    "minWidth": (120 if print_preview else 150) if c == "Asset Class / Ticker" else (60 if print_preview else 80)
-                                } 
-                                for c in cols
-                            ],
+                            columnDefs=final_col_defs_pl,
                             defaultColDef={"sortable": False, "resizable": True},
                             className=grid_class,
                             dashGridOptions={

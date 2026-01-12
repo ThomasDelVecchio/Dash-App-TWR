@@ -36,7 +36,8 @@ from financial_math import (
     modified_dietz_for_ticker_window,
     annualize_return,
     is_annualized,
-    get_effective_anchor_date
+    get_effective_anchor_date,
+    is_market_holiday
 )
 from tax_engine import calculate_tax_optimized_sales
 from report_formatting import fmt_pct_clean, fmt_dollar_clean
@@ -64,6 +65,24 @@ ASSET_CLASS_PROXIES = {
     "Gold / Precious Metals": "GLD",
     "Digital Assets": "BTC-USD"
 }
+
+# ============================================================
+# HELPER: Dynamic UI Labels
+# ============================================================
+def get_display_label_for_1d(report_date=None):
+    """
+    Returns '1D' if report_date is a trading day.
+    Returns 'Last Close' (or 'Last Trading Day') if report_date is a Weekend/Holiday.
+    Used to prevent misleading '1D Return' labels on Sundays showing Friday's return.
+    """
+    if report_date is None:
+        report_date = datetime.now()
+        
+    ts = pd.Timestamp(report_date)
+    
+    if is_market_holiday(ts):
+        return "Last Close"
+    return "1D"
 
 # --- UPDATE FUNCTION ---
 def send_to_drive(content, filename, mimetype='text/csv'):
@@ -446,6 +465,16 @@ def calculate_efficiency_metrics(twr_series):
     if daily_rets.empty:
         return default_res
     
+    # [GIPS FIX] Filter for TRADING DAYS ONLY
+    # Removing 0.0 returns from weekends/holidays prevents artificial dampening of Volatility.
+    # This aligns the Annualization Factor (252) with the actual data frequency.
+    if isinstance(daily_rets.index, pd.DatetimeIndex):
+        trading_day_mask = ~daily_rets.index.map(is_market_holiday)
+        daily_rets = daily_rets[trading_day_mask]
+
+        if daily_rets.empty:
+            return default_res
+
     # 1. Volatility (Annualized Standard Deviation)
     # GIPS / Industry Standard for daily data
     std_dev_daily = daily_rets.std()
@@ -614,8 +643,14 @@ def get_horizon_analysis(data):
     
     as_of = pv.index.max()
     
+    # Dynamic Label for 1D
+    label_1d = get_display_label_for_1d(as_of)
+
     rows = []
     for h in horizons:
+        # Use dynamic label for 1D, otherwise standard
+        display_h = label_1d if h == "1D" else h
+
         ret = snap_map.get(h, np.nan)
         
         # Calculate PL components locally to expose meta data
@@ -683,7 +718,7 @@ def get_horizon_analysis(data):
              sharpe_rf = 0.0
 
         rows.append({
-            "Horizon": h,
+            "Horizon": display_h,
             "Return": ret,
             "P/L": pl_val,
             "Sharpe": sharpe,
@@ -1956,6 +1991,12 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
     if twr_df.empty: return go.Figure()
     
     horizons = ["1D", "1W", "MTD", "YTD", "1M", "3M", "6M", "1Y", "SI"]
+
+    # Dynamic Label Logic
+    as_of = pv.index.max()
+    label_1d = get_display_label_for_1d(as_of)
+    display_horizons = [label_1d if h == "1D" else h for h in horizons]
+    
     port_rets = twr_df.set_index("Horizon")["Return"]
     
     # Add SI if missing
@@ -2034,7 +2075,7 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
             tooltip_data.append([p_val * 100, b_ret * 100, diff])
                 
         fig.add_trace(go.Bar(
-            x=horizons,
+            x=display_horizons,
             y=excess_vals,
             name=bm_name,
             marker_color=GLOBAL_PALETTE[i % len(GLOBAL_PALETTE)] if len(benchmark_tickers) > 1 else GLOBAL_PALETTE[0],
@@ -2272,6 +2313,9 @@ def get_performance_highlights(data):
              rows.append({"Metric": "Bottom 1M Performer", "Value": "N/A"})
              
     # 1D
+    as_of = data["pv"].index.max() if not data["pv"].empty else None
+    label_1d = get_display_label_for_1d(as_of)
+    
     if "1D" in perf_universe.columns:
         valid = perf_universe.dropna(subset=["1D"])
         if not valid.empty:
@@ -2279,16 +2323,16 @@ def get_performance_highlights(data):
             bot = valid.loc[valid["1D"].idxmin()]
             
             rows.append({
-                "Metric": "Best 1D Performer",
+                "Metric": f"Best {label_1d} Performer",
                 "Value": f"{top['ticker']} ({top['1D']*100:.2f}%, {get_pl(top['ticker'], '1D')})"
             })
             rows.append({
-                "Metric": "Bottom 1D Performer",
+                "Metric": f"Bottom {label_1d} Performer",
                 "Value": f"{bot['ticker']} ({bot['1D']*100:.2f}%, {get_pl(bot['ticker'], '1D')})"
             })
         else:
-             rows.append({"Metric": "Best 1D Performer", "Value": "N/A"})
-             rows.append({"Metric": "Bottom 1D Performer", "Value": "N/A"})
+             rows.append({"Metric": f"Best {label_1d} Performer", "Value": "N/A"})
+             rows.append({"Metric": f"Bottom {label_1d} Performer", "Value": "N/A"})
              
     return pd.DataFrame(rows)
 

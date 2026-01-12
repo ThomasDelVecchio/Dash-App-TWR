@@ -124,6 +124,10 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
     # Start date is always inception (handled by wrapper if None)
     start_date = None 
     bm_map = benchmarks if benchmarks else {"S&P 500": "SPY"}
+
+    # Dynamic 1D Label
+    report_end_date = dates.get("end") if dates else None
+    label_1d = dw.get_display_label_for_1d(report_end_date)
     
     # 1. Charts
     cum_fig = dw.get_cumulative_return_chart(data, start_date, bm_map, "dark")
@@ -152,9 +156,12 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
     is_ret_target = "return" in chat_target or (not chat_target and not "p/l" in chat_target)
     
     for col in cols:
+        header_text = col
+        if col == "1D": header_text = label_1d
+            
         col_def = {
             "field": col, 
-            "headerName": col, 
+            "headerName": header_text, 
             "comparator": {"function": "GroupedRowComparator"}
         }
         
@@ -321,9 +328,12 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
     for col in cols:
         if "Sharpe" in col or "Vol" in col: continue # Exclude Risk
         
+        header_text = col
+        if col == "1D": header_text = label_1d
+        
         col_def = {
             "field": col, 
-            "headerName": col, 
+            "headerName": header_text, 
             "comparator": {"function": "GroupedRowComparator"}
         }
         if col == "Asset Class / Ticker":
