@@ -796,6 +796,14 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
     pl = mv_end - mv_start - net_internal + total_divs
 
     if return_components:
+        # GIPS/Audit Fix: For SI, show the actual First Trade date as the start
+        # rather than Portfolio Inception, so the user sees the relevant period for this ticker.
+        # Math is identical because P/L is 0 prior to first trade.
+        display_start = start
+        if h == "SI" and first_trade is not None:
+             if start < first_trade:
+                 display_start = first_trade
+
         return {
             "pl": pl,
             "start": mv_start,
@@ -803,7 +811,7 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
             "flow": net_internal,
             "inc": total_divs,
             "denom": mv_start + net_internal, # Approx
-            "start_date": start,
+            "start_date": display_start,
             "end_date": as_of
         }
 
@@ -848,6 +856,9 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
     net_flows_total = 0.0
     divs_total = 0.0
     
+    # Logic to track earliest actual activity for Asset Class SI start date
+    earliest_activity_date = None
+    
     # Iterate over each ticker in the asset class
     for t in tickers_in_ac:
         # if t == "CASH": continue (We want to include CASH now)
@@ -873,10 +884,24 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
             mv_end_total += components.get("end", 0.0)
             net_flows_total += components.get("flow", 0.0)
             divs_total += components.get("inc", 0.0)
+
+            # Track earliest start date returned by tickers (which now respect first trade for SI)
+            c_start = components.get("start_date")
+            if c_start is not None:
+                if earliest_activity_date is None:
+                    earliest_activity_date = c_start
+                else:
+                    earliest_activity_date = min(earliest_activity_date, c_start)
             
     # 3. Final Calculation
     pl = mv_end_total - mv_start_total - net_flows_total + divs_total
     
+    # Decide which start date to report
+    # For SI, we prefer the aggregated earliest trade date of the components
+    final_start_date = raw_start
+    if h == "SI" and earliest_activity_date is not None:
+        final_start_date = earliest_activity_date
+
     if return_components:
         return {
             "pl": pl,
@@ -885,7 +910,7 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
             "flow": net_flows_total,
             "inc": divs_total,
             "denom": mv_start_total + net_flows_total, # Approximation
-            "start_date": raw_start,
+            "start_date": final_start_date,
             "end_date": as_of
         }
         

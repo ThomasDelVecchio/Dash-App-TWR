@@ -175,6 +175,17 @@ def run_analytics_engine(end_date=None):
         
     prices_cached = fetch_price_history(all_tickers) if all_tickers else pd.DataFrame()
     
+    # FIX: Align prices with end_date (Time Machine & Weekend Handling)
+    # Matches portfolio_engine.py logic to ensure P/L calc sees the same end date as PV
+    if end_date is not None:
+        end_date_ts = pd.Timestamp(end_date)
+        prices_cached = prices_cached[prices_cached.index <= end_date_ts]
+        
+        if not prices_cached.empty and prices_cached.index.max() < end_date_ts:
+            last_row = prices_cached.iloc[[-1]].copy()
+            last_row.index = [end_date_ts]
+            prices_cached = pd.concat([prices_cached, last_row])
+    
     # Robustly extract errors from dataframe metadata
     errors = getattr(prices_cached, "attrs", {}).get("errors", [])
     if errors: print(f"DEBUG: dash_wrappers found errors: {errors}")
