@@ -1255,24 +1255,31 @@ def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, t
                      if not ser[ser.index <= start_date].empty:
                          base_price = float(ser.asof(start_date))
 
-                # Filter strictly >= start_date for plotting X-axis
-                ser_plot = ser[ser.index >= start_date]
-                ser_plot = ser_plot[ser_plot.index <= pv.index.max()]
+                # FIX: Align Benchmark to Portfolio Calendar (Weekends/Holidays)
+                # Reindex entire available history to the Portfolio's specific daily/weekend index
+                # This ensures consistent X-axis alignment and forward-fills Friday prices to weekends.
+                # Use twr_window.index which is the exact plotting X-axis for the portfolio.
+                ser_aligned = ser.reindex(twr_window.index, method='ffill')
+
+                # If we found a prior close (base_price), use it as base. 
+                # Otherwise attempt to use the first valid price in the aligned series as the 0% anchor.
+                if base_price is None:
+                     valid_aligned = ser_aligned.dropna()
+                     if not valid_aligned.empty:
+                         base_price = float(valid_aligned.iloc[0])
+                     else:
+                         continue # Cannot normalize without a base
+
+                ser_norm = (ser_aligned / base_price - 1.0) * 100.0
                 
-                if not ser_plot.empty:
-                    # If we found a prior close, use it as base. Otherwise default to Day 1 Open/Close (0% start)
-                    if base_price is None:
-                        base_price = float(ser_plot.iloc[0])
-                        
-                    ser_norm = (ser_plot / base_price - 1.0) * 100.0
-                    fig.add_trace(go.Scatter(
-                        x=ser_norm.index,
-                        y=ser_norm.values,
-                        mode='lines',
-                        name=name,
-                        line=dict(color=colors[i % len(colors)], width=1.5),
-                        hovertemplate=f"<b>{name}</b>: %{{y:.2f}}%<extra></extra>"
-                    ))
+                fig.add_trace(go.Scatter(
+                    x=ser_norm.index,
+                    y=ser_norm.values,
+                    mode='lines',
+                    name=name,
+                    line=dict(color=colors[i % len(colors)], width=1.5),
+                    hovertemplate=f"<b>{name}</b>: %{{y:.2f}}%<extra></extra>"
+                ))
             except:
                 pass
                 
