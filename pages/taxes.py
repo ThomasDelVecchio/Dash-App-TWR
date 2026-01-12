@@ -377,7 +377,7 @@ def update_tax_dashboard(signal, chat_cmd, strategy, date_range):
         if "Is Wash Sale" in realized_df.columns:
             realized_df["Is Wash Sale"] = realized_df["Is Wash Sale"].apply(lambda x: "⚠️ YES" if x else "No")
             
-        cols_currency = ["Realized P/L", "Tax Impact"]
+        cols_currency = ["Realized P/L", "Tax Impact", "Disallowed Loss"]
         col_defs = []
         for c in realized_df.columns:
             if c == "Ticker":

@@ -32,24 +32,39 @@ from io import BytesIO
 # CONSTANTS
 # ============================================================
 REPORT_SECTIONS_OPTIONS = [
-    {"label": " Morning AI Summary", "value": "morning_brief"},
-    {"label": " Executive Summary", "value": "summary"},
-    {"label": " Performance Chart", "value": "performance_chart"},
-    {"label": " Horizon Analysis Table", "value": "horizon_table"},
-    {"label": " Asset Allocation", "value": "allocation"},
-    {"label": " Sector Breakdown", "value": "sector"},
-    {"label": " Top Holdings", "value": "holdings"},
-    {"label": " Risk Metrics", "value": "risk"},
-    {"label": " Flows Summary", "value": "flows"},
-    {"label": " Tax Lot Explorer (Open Lots)", "value": "tax_lots"},
-    {"label": " Risk Analysis Charts", "value": "risk_charts"},
-    {"label": " Performance Deep Dive", "value": "perf_deep_dive"},
-    {"label": " Attribution Analysis", "value": "attribution"},
-    {"label": " Asset Class Performance Table", "value": "ac_perf_table"},
-    {"label": " Asset Class P/L Table", "value": "ac_pl_table"},
+    {"label": "01. Morning AI Summary", "value": "morning_brief"},
+    {"label": "02. Executive Summary (KPIs)", "value": "summary"},
+    {"label": "03. Performance Chart", "value": "performance_chart"},
+    {"label": "04. Attribution Analysis (Waterfall)", "value": "attribution"},
+    {"label": "05. Asset Class Perf. Table", "value": "ac_perf_table"},
+    {"label": "06. Asset Class P/L Table", "value": "ac_pl_table"},
+    {"label": "07. Performance Deep Dive", "value": "perf_deep_dive"},
+    {"label": "08. Active Strategy (Beta/TE)", "value": "active_strategy"},
+    {"label": "09. Horizon Analysis Table", "value": "horizon_table"},
+    {"label": "10. Asset Allocation", "value": "allocation"},
+    {"label": "11. Sector Breakdown", "value": "sector"},
+    {"label": "12. Top Holdings", "value": "holdings"},
+    {"label": "13. Contribution Schedule", "value": "contrib_schedule"},
+    {"label": "14. Flows Report (Enhanced)", "value": "flows"},
+    {"label": "15. Risk Metrics (Sharpe/Vol)", "value": "risk"},
+    {"label": "16. Risk Analysis Charts", "value": "risk_charts"},
+    {"label": "17. Tax Liability Sunburst", "value": "tax_sunburst"},
+    {"label": "18. Tax Lot Explorer", "value": "tax_lots"},
 ]
 
-DEFAULT_SELECTION = ["summary", "performance_chart", "horizon_table", "allocation", "holdings"]
+# User-Defined Default Selection
+DEFAULT_SELECTION = [
+    "morning_brief",
+    "summary",
+    "performance_chart",
+    "attribution",
+    "ac_perf_table",
+    "ac_pl_table",
+    "perf_deep_dive",
+    "horizon_table",
+    "allocation"
+]
+
 DEFAULT_ORDER = [opt["value"] for opt in REPORT_SECTIONS_OPTIONS]
 
 
@@ -876,27 +891,97 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
             ], className="report-section no-break")
             report_sections.append(risk_section)
         
+        # 15. Active Strategy
+        elif section_key == "active_strategy":
+            active_df = dw.get_active_strategy_table(data)
+            grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
+            
+            strat_section = html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.H4("Active Strategy Metrics (vs Benchmarks)", className="section-title mb-3"),
+                        dag.AgGrid(
+                            rowData=active_df.to_dict('records'),
+                            columnDefs=[
+                                {"field": "Benchmark", "headerName": "Benchmark", "flex": 2},
+                                {"field": "Beta", "headerName": "Beta", "flex": 1},
+                                {"field": "Tracking Error", "headerName": "Tracking Error", "flex": 1}
+                            ],
+                            defaultColDef={"sortable": True, "resizable": True},
+                            className=grid_class,
+                            dashGridOptions={"domLayout": "autoHeight"},
+                            style={"width": "100%"}
+                        )
+                    ], width=12)
+                ])
+            ], className="report-section no-break")
+            report_sections.append(strat_section)
+
+        # 16. Contribution Schedule
+        elif section_key == "contrib_schedule":
+            # Generate the schedule
+            sched_df, sched_footer, is_empty = dw.get_monthly_contribution_schedule(data)
+            
+            if not is_empty:
+                grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
+                
+                contrib_section = html.Div([
+                    dbc.Row([
+                        dbc.Col([
+                            html.H4("Monthly Contribution Schedule (Illustrative)", className="section-title mb-3"),
+                            dag.AgGrid(
+                                rowData=sched_df.to_dict('records'),
+                                columnDefs=[
+                                    {"field": "Ticker", "headerName": "Ticker", "flex": 1},
+                                    {"field": "Gap to Target", "headerName": "Gap to Target", "flex": 1},
+                                    {"field": "Monthly Contrib", "headerName": "Monthly Allocation", "flex": 1},
+                                    {"field": "Share of Monthly", "headerName": "% of Monthly", "flex": 1}
+                                ],
+                                defaultColDef={"sortable": True, "resizable": True},
+                                className=grid_class,
+                                dashGridOptions={"domLayout": "autoHeight"},
+                                style={"width": "100%"}
+                            ),
+                            html.P(sched_footer, className="text-muted mt-2 small")
+                        ], width=12)
+                    ])
+                ], className="report-section no-break")
+                report_sections.append(contrib_section)
+        
         # 8. Flows Summary
         elif section_key == "flows":
             # Use local period-aware flows logic
             flows_df, flow_subtitle = _get_flows_summary_period(data, start_date=start_date, end_date=end_date)
             grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
             
+            flows_fig = dw.get_flows_chart(data, theme)
+            if print_preview:
+                flows_fig = apply_print_theme(flows_fig)
+            flows_fig.update_layout(height=400, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            
             flows_section = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.H4(f"Cash Flow Summary ({flow_subtitle})", className="section-title mb-3"),
-                        dag.AgGrid(
-                            rowData=flows_df.to_dict('records'),
-                            columnDefs=[
-                                {"field": "Metric", "headerName": "Metric", "flex": 2},
-                                {"field": "Value", "headerName": "Value", "flex": 1}
-                            ],
-                            defaultColDef={"sortable": True, "resizable": True},
-                            className=grid_class,
-                            dashGridOptions={"domLayout": "autoHeight", "headerHeight": 0},
-                            style={"width": "100%"}
-                        )
+                        
+                        dbc.Row([
+                            dbc.Col([
+                                dag.AgGrid(
+                                    rowData=flows_df.to_dict('records'),
+                                    columnDefs=[
+                                        {"field": "Metric", "headerName": "Metric", "flex": 2},
+                                        {"field": "Value", "headerName": "Value", "flex": 1}
+                                    ],
+                                    defaultColDef={"sortable": True, "resizable": True},
+                                    className=grid_class,
+                                    dashGridOptions={"domLayout": "autoHeight", "headerHeight": 0},
+                                    style={"width": "100%"}
+                                )
+                            ], width=12, md=6),
+                            dbc.Col([
+                                dcc.Graph(figure=flows_fig, config={'displayModeBar': False}, style={'height': '350px', 'width': '100%'}, responsive=True)
+                            ], width=12, md=6),
+                        ])
                     ], width=12)
                 ])
             ], className="report-section no-break")
@@ -908,7 +993,8 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
             # If no specific period, use As Of Now (default behavior)
             as_of_dt = end_date if end_date else datetime.now()
             
-            open_lots, _ = build_tax_lots(strategy="FIFO", as_of_date=as_of_dt)
+            # Capture realized events even if not displayed in this specific table (for consistency)
+            open_lots, realized_events = build_tax_lots(strategy="FIFO", as_of_date=as_of_dt)
             grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
             
             title_suffix = f" (As of {as_of_dt.strftime('%Y-%m-%d')})" if end_date else ""
@@ -961,6 +1047,29 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                         ], width=12)
                     ])
                 ], className="report-section no-break"))
+
+        # 17. Tax Liability Sunburst (New)
+        elif section_key == "tax_sunburst":
+            # Generate Data
+            as_of_dt = end_date if end_date else datetime.now()
+            open_lots, realized_events = build_tax_lots(strategy="FIFO", as_of_date=as_of_dt)
+            
+            tax_fig = dw.get_tax_liability_sunburst(open_lots, realized_events, theme)
+            
+            if print_preview:
+                tax_fig = apply_print_theme(tax_fig)
+                
+            tax_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            
+            sunburst_section = html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.H4("Tax Liability Breakdown", className="section-title mb-3"),
+                        dcc.Graph(figure=tax_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True)
+                    ], width=12)
+                ])
+            ], className="report-section no-break")
+            report_sections.append(sunburst_section)
 
         # 11. Risk Analysis Charts
         elif section_key == "risk_charts":
