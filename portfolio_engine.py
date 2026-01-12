@@ -704,20 +704,6 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
              if idx < 0: start = raw_start
              else: start = series_dates[idx]
              
-    elif h == "MTD":
-        # raw_start = prior-month-end; use FIRST price *after* that date
-        idx = series_dates.searchsorted(raw_start)
-        if idx >= len(series_dates):
-            return None
-        start = series_dates[idx]
-
-    elif h == "1D":
-        # 1D should match the portfolio horizon exactly
-        idx = series_dates.searchsorted(raw_start)
-        if idx >= len(series_dates):
-            return None
-        start = series_dates[idx]
-
     else:
         # All other horizons: nearest prior price
         idx = series_dates.searchsorted(raw_start, side="right") - 1

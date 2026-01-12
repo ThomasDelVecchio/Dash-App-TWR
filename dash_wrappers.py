@@ -35,7 +35,8 @@ from financial_math import (
     fv_contrib,
     modified_dietz_for_ticker_window,
     annualize_return,
-    is_annualized
+    is_annualized,
+    get_effective_anchor_date
 )
 from tax_engine import calculate_tax_optimized_sales
 from report_formatting import fmt_pct_clean, fmt_dollar_clean
@@ -1585,7 +1586,8 @@ def get_weekly_attribution_breakdown(data, date_str):
     # Calculate Start Date matching Portfolio TWR "1W" logic:
     # 1. Target = Calendar 7 days prior
     # 2. Snap Backward to nearest valid trading day
-    target_date = end_date - pd.Timedelta(days=7)
+    effective_end = get_effective_anchor_date(end_date)
+    target_date = effective_end - pd.Timedelta(days=7)
     
     # Backward Snap: Find last valid PV date <= target_date
     pv_idx = pv.index

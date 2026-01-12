@@ -118,9 +118,10 @@ def test_twr_synthetic():
 def test_md_synthetic():
     print("\n--- Testing Modified Dietz Logic ---")
     
-    d_start = pd.Timestamp("2023-01-01")
-    d_flow = pd.Timestamp("2023-01-10")
-    d_end = pd.Timestamp("2023-01-20")
+    # Use trading days (June 2023) to avoid weekend/holiday gaps
+    d_start = pd.Timestamp("2023-06-01") # Thursday
+    d_flow = pd.Timestamp("2023-06-12")  # Monday
+    d_end = pd.Timestamp("2023-06-20")   # Tuesday
     
     prices = pd.Series([10.0, 12.0, 15.0], index=[d_start, d_flow, d_end])
     tx_df = pd.DataFrame([
@@ -130,7 +131,10 @@ def test_md_synthetic():
     
     # 1. Basic MD
     ret = modified_dietz_for_ticker_window("TEST", prices, tx_df, d_start, d_end)
-    expected = (225.0 - 160.0) / (100.0 + 0.55 * 60.0)
+    # Weight calc: Total days (June 1-20 inclusive) = 20.
+    # Flow on June 12: Active days (12-20 inclusive) = 9.
+    # Weight = 9/20 = 0.45
+    expected = (225.0 - 160.0) / (100.0 + 0.45 * 60.0)
     if abs(ret - expected) < 1e-6:
         log_success(f"Modified Dietz: {ret:.6f} == {expected:.6f}")
     else:
@@ -164,7 +168,8 @@ def test_md_synthetic():
 
 def test_asset_class_md_synthetic():
     print("\n--- Testing Asset Class Modified Dietz Logic ---")
-    d_start, d_flow, d_end = pd.Timestamp("2023-01-01"), pd.Timestamp("2023-01-10"), pd.Timestamp("2023-01-20")
+    # Use trading days (June 2023) to avoid weekend/holiday gaps
+    d_start, d_flow, d_end = pd.Timestamp("2023-06-01"), pd.Timestamp("2023-06-12"), pd.Timestamp("2023-06-20")
     
     prices = pd.DataFrame({
         "T1": pd.Series([10.0, 10.0, 12.0], index=[d_start, d_flow, d_end]),
@@ -176,7 +181,9 @@ def test_asset_class_md_synthetic():
     ])
     
     ret = modified_dietz_for_asset_class_window(["T1", "T2"], prices, tx_df, d_start, d_end)
-    expected = 30.0 / 127.5
+    # Gain: V1(120+60)-V0(100)-NetInv(50) = 30.
+    # Denom: V0(100) + Flow(50)*0.45 = 122.5
+    expected = 30.0 / 122.5
     if abs(ret - expected) < 1e-6:
         log_success(f"Asset Class MD: {ret:.6f} == {expected:.6f}")
     else:
@@ -184,7 +191,8 @@ def test_asset_class_md_synthetic():
 
 def test_pl_math_synthetic():
     print("\n--- Testing P/L Math (Sum of Parts) ---")
-    d_start, d_end = pd.Timestamp("2023-01-01"), pd.Timestamp("2023-01-02")
+    # Use trading days: June 1 (Thu) to June 2 (Fri)
+    d_start, d_end = pd.Timestamp("2023-06-01"), pd.Timestamp("2023-06-02")
     pv = pd.Series([100.0, 110.0], index=[d_start, d_end])
     # Empty flows for PL calc
     port_pl = calculate_horizon_pl(pv, d_start, pd.DataFrame(columns=["date", "amount"]), "1D")

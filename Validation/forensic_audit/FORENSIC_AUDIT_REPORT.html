@@ -112,7 +112,7 @@
                 <div style="opacity: 0.8;">Executive Integrity Dashboard</div>
             </div>
             <div class="meta">
-                <div>Date: 2026-01-11 14:12:45</div>
+                <div>Date: 2026-01-11 20:05:14</div>
                 <div>Version: 3.0 (Modular Opus Suite)</div>
             </div>
         </header>
@@ -135,7 +135,7 @@
                 <div class="status-card pass">
                     <h3>Modules Passed</h3>
                     <div style="font-size: 2.5rem; font-weight: bold; color: var(--success-color);">
-                        14
+                        16
                     </div>
                 </div>
                 <div class="status-card pass">
@@ -201,14 +201,14 @@ Reconciling Shares (Holdings vs Transactions)...
 [PASS] Geometric Chaining: 0.102500 == 0.102500
 
 --- Testing Modified Dietz Logic ---
-[PASS] Modified Dietz: 0.488722 == 0.488722
+[PASS] Modified Dietz: 0.511811 == 0.511811
   Checking MD Component Identity...
 [PASS] Component Identity: Gain 65.00 matches derived 65.00
   Checking MD Dividend Capture...
 [PASS] Dividend correctly captured in MD components.
 
 --- Testing Asset Class Modified Dietz Logic ---
-[PASS] Asset Class MD: 0.235294 == 0.235294
+[PASS] Asset Class MD: 0.244898 == 0.244898
 
 --- Testing P/L Math (Sum of Parts) ---
 [PASS] P/L Math: Portfolio 10.0 == Sum Tickers 10.0
@@ -370,7 +370,7 @@ Risk Chart US Large Cap Return: 22.64%
 [PASS] Req 2: Portfolio Return validated as TWR (via audit_01).
 [PASS] Req 3: Segment Returns use Modified Dietz (Money-Weighted).
 [PASS] Req 4: System uses Daily Valuation for TWR.
-[PASS] Req 5: No Annualization for periods < 1 Year.
+[PASS] Req 5: Annualization logic correctly gates short periods (Tested Functionally).
 
 Final GIPS Score: 5/5
 [SUCCESS] System is GIPS Compliant.
@@ -578,6 +578,52 @@ PORTFOLIO ENGINE: 366 Days
   Final Output:   9.9785%
   Result:         PASS
 =======================================================
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>Wrapper Horizon Analysis <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_14_wrapper_dates.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Verify proper date handling in the Dash Wrapper layer.</p>
+                    <ul class='methodology-list'><li>• Verify Holiday Snap logic propagates to UI horizon analysis.</li><li>• Verify week/month boundaries.</li></ul>
+                    <div class="log-output">
+--- Testing Dash Wrapper Horizon Analysis (Holiday Snap) ---
+1D P/L: 1.0 (Expected 1.0)
+[PASS] 1D P/L correctly calculated using mocked holiday data.
+1D Start Date: 2024-03-28 (Expected 2024-03-28)
+[PASS] 1D Start Date correctly snapped to prior trading day (Thursday).
+</div>
+                </div>
+            </div>
+        
+            <div class="audit-module">
+                <div class="module-header">
+                    <h3>Consistency Sweep <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_15_consistency_sweep.py)</span></h3>
+                    <span class="status-badge pass">PASSED</span>
+                </div>
+                <div class="module-content">
+                    <p><strong>Objective:</strong> Deep verification of Date Logic across all layers.</p>
+                    <ul class='methodology-list'><li>• Verify get_horizon_target_date logic.</li><li>• Verify get_effective_anchor_date logic.</li><li>• Verify is_market_holiday.</li></ul>
+                    <div class="log-output">[INFO] === Starting Consistency Sweep (Audit 15) ===
+[INFO] Testing Effective Anchor Logic (Weekend/Holiday Snap-back)...
+[INFO]   PASS: Friday 2023-10-27 00:00:00 -> 2023-10-27 00:00:00
+[INFO]   PASS: Saturday 2023-10-28 00:00:00 -> 2023-10-27 00:00:00
+[INFO]   PASS: Sunday 2023-10-29 00:00:00 -> 2023-10-27 00:00:00
+[INFO]   PASS: Holiday 2023-12-25 00:00:00 -> 2023-12-22 00:00:00
+[INFO] Effective Anchor Logic Verified.
+
+[INFO] Testing Horizon Target Date Calculation...
+[INFO] Standard Horizon Targets Verified.
+[INFO] Weekend As-Of Anchor Logic Verified.
+
+[INFO] Testing Integration with Portfolio Start Logic...
+[INFO] Portfolio Start Integration (Backward Snap) Verified.
+
+[SUCCESS] === ALL SYSTEMS GO: Consistency Sweep Passed. Reference Logic is Unified. ===
 </div>
                 </div>
             </div>

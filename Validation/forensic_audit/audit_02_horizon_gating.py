@@ -26,7 +26,8 @@ def log_fail(msg):
 def test_portfolio_gating():
     print("\n--- Testing Portfolio Horizon Gating ---")
     
-    end_date = pd.Timestamp("2023-12-31")
+    # Use Friday June 30, 2023 to avoid weekend effective anchor snapping
+    end_date = pd.Timestamp("2023-06-30")
     
     # Define exact day counts for horizons
     horizon_days_map = {

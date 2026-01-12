@@ -63,6 +63,60 @@ def is_market_holiday(date: pd.Timestamp) -> bool:
     holidays = cal.holidays(start=date, end=date)
     return not holidays.empty
 
+def get_effective_anchor_date(date: pd.Timestamp) -> pd.Timestamp:
+    """
+    Returns the last valid trading day on or before 'date'.
+    If 'date' is a holiday/weekend, snaps backward to the most recent trading close.
+    Used for rolling horizon calculations to ensure weekend reports match Friday reports.
+    """
+    d = pd.Timestamp(date)
+    # Simple loop back (max 10 days to be safe)
+    for _ in range(10):
+        if not is_market_holiday(d):
+            return d
+        d -= pd.Timedelta(days=1)
+    return d # Fallback
+
+def get_horizon_target_date(as_of: pd.Timestamp, label: str) -> pd.Timestamp:
+    """
+    Returns the ideal TARGET calendar date for a given horizon, before snapping to any trading calendar.
+    Centralized logic for Portfolio, Asset Class, and Security calculations.
+    
+    Logic:
+      - 1D:  one day prior to effective anchor (to capture prev close)
+      - 1W:  7 days prior to effective anchor
+      - MTD: Last day of prior month
+      - 1M:  1 month prior (calendar offset)
+      - YTD: Last day of prior year
+      - 3M..5Y: Fixed day counts
+    """
+    effective_as_of = get_effective_anchor_date(as_of)
+
+    if label == "1D":
+        # Target is strictly 1 day before the effective anchor
+        # (e.g. Fri -> Thu). Snapping <= Thu will catch Thu Close.
+        return effective_as_of - pd.Timedelta(days=1)
+
+    if label == "1W":
+        return effective_as_of - pd.Timedelta(days=7)
+
+    if label == "MTD":
+        return as_of.replace(day=1) - pd.Timedelta(days=1)
+
+    if label == "1M":
+        return effective_as_of - pd.DateOffset(months=1)
+
+    if label == "YTD":
+        return as_of.replace(month=1, day=1) - pd.Timedelta(days=1)
+    
+    days_map = {
+        "3M": 90, "6M": 180, "1Y": 365, "3Y": 365 * 3, "5Y": 365 * 5
+    }
+    if label in days_map:
+        return effective_as_of - timedelta(days=days_map[label])
+        
+    return None
+
 # ------------------------------------------------------------
 # Universal Annualization Logic Gate
 # ------------------------------------------------------------
@@ -412,138 +466,21 @@ def get_portfolio_horizon_start(
     Canonical horizon start logic used for both:
       - compute_horizon_twr (portfolio TWR)
       - build_report horizon anchoring (P/L, charts, etc.)
-    Returns:
-      - pd.Timestamp start date if horizon is valid
-      - None if horizon is 'insufficient data'
+      
+    UPDATED: Uses 'get_effective_anchor_date' to ensure that if as_of is a 
+    Weekend/Holiday, the lookback anchors to the last valid trading day (e.g. Friday),
+    ensuring "1 Week" means "Friday to Friday" even if report is run on Sunday.
     """
     as_of = pv.index.max()
-
-    # =============================
-    # MTD: from calendar month start or inception (whichever is later)
-    #      anchored at last trading day of prior month
-    # =============================
+    
+    # SI Special Case: Always return inception
     if label == "SI":
         return inception_date
 
-    # =============================
-    # MTD: from calendar month start or inception (whichever is later)
-    #      anchored at last trading day of prior month
-    # =============================
-    if label == "MTD":
-        prior_month_end = as_of.replace(day=1) - pd.Timedelta(days=1)
-
-        pv_idx = pv.index
-        prev_dates = pv_idx[pv_idx <= prior_month_end]
-        if len(prev_dates) == 0:
-            return None
-
-        start = prev_dates.max()
-
-        full_horizon_days = (as_of - start).days + 1
-        lived_days = (as_of - inception_date).days + 1
-
-        if lived_days < full_horizon_days:
-            return None
-        if start >= as_of:
-            return None
-
-        return start
-
-    # =============================
-    # YTD: ONLY if portfolio live on Jan 1
-    # =============================
-    if label == "YTD":
-        # Anchor at last trading day of prior year for GIPS-correct chaining
-        prior_year_end = as_of.replace(month=1, day=1) - pd.Timedelta(days=1)
-
-        pv_idx = pv.index
-        prev_dates = pv_idx[pv_idx <= prior_year_end]
-        
-        if len(prev_dates) == 0:
-            if inception_date > as_of.replace(month=1, day=1):
-                return None
-            start = inception_date
-        else:
-            start = prev_dates.max()
-
-        if start >= as_of:
-            return None
-
-        return start
-
-    # =============================
-    # FIXED 1D: previous trading day → as_of
-    # =============================
-    if label == "1D":
-        pv_dates = pv.index.sort_values()
-        prev_dates = pv_dates[pv_dates < as_of]
-        if len(prev_dates) == 0:
-            return None
-
-        start = prev_dates.max()
-
-        # [GIPS Compliance: Non-Trading Day Snap-Back]
-        # If as_of is a Weekend OR Holiday, the 'start' found above is the last trading day (Close T-1).
-        # This creates a "Close T-1 -> Holiday" window which has 0% return because prices are static.
-        # To show the last active trading session (Close T-2 -> Close T-1), we need
-        # to snap 'start' back one additional step.
-        if is_market_holiday(as_of):
-            prior_dates = pv_dates[pv_dates < start]
-            if not prior_dates.empty:
-                start = prior_dates.max()
-
-        if inception_date > start:
-            return None
-
-        return start
-
-    # =============================
-    # Calendar 1M (GIPS-style)
-    # =============================
-    if label == "1M":
-        one_month_prior = as_of - pd.DateOffset(months=1)
-
-        # Backward Snap (Calendar Lookback)
-        # Find the last PV date on or before the 1-month-prior calendar date.
-        # This ensures we capture the full economic period (e.g. Fri -> Mon move).
-        pv_idx = pv.index
-        prev_dates = pv_idx[pv_idx <= one_month_prior]
-        
-        if len(prev_dates) == 0:
-            return None
-
-        start = prev_dates.max()
-
-        full_horizon_days = (as_of - start).days + 1
-        lived_days = (as_of - inception_date).days + 1
-
-        if lived_days < full_horizon_days:
-            return None
-        if start >= as_of:
-            return None
-
-        return start
-
-    # =============================
-    # Rolling OTHER horizons
-    # =============================
-    days_map = {
-        "1W": 7,
-        "3M": 90,
-        "6M": 180,
-        "1Y": 365,
-        "3Y": 365 * 3,
-        "5Y": 365 * 5,
-    }
-
-    if label not in days_map:
-        raise ValueError(f"Unsupported horizon label: {label}")
-
-    full_horizon_days = days_map[label]
-    target_date = as_of - timedelta(days=full_horizon_days)
-
-    lived_days = (as_of - inception_date).days + 1
-    if lived_days < full_horizon_days:
+    # Centralized Calculation of Target Date
+    target_date = get_horizon_target_date(as_of, label)
+    
+    if target_date is None:
         return None
 
     # Backward Snap: Find last valid PV date <= target_date
@@ -551,15 +488,26 @@ def get_portfolio_horizon_start(
     prev_dates = pv_idx[pv_idx <= target_date]
     
     if len(prev_dates) == 0:
+        # If no history before the target date, we cannot calculate a valid horizon return
         return None
 
     start = prev_dates.max()
 
-    if start < inception_date:
-        start = inception_date
-
+    # VALIDATION: Strict Duration Check
+    # For rolling horizons (1D, 1W, 1M, MTD, etc.) AND YTD, we require full history.
+    # If Inception > Target, we don't have the full period.
+    # Strictly enforce gating for all metrics.
+    
+    if inception_date > target_date:
+         return None
+             
+    # Ensure start is not after as_of
     if start >= as_of:
         return None
+
+    # Clamp start to inception if it somehow precedes it
+    if start < inception_date:
+        start = inception_date
 
     return start
 
@@ -1026,170 +974,45 @@ def compute_security_modified_dietz(
         for h in horizons:
 
             # ------------------------------
-            # Step 1 — Horizon window logic
+            # Step 1 — Horizon window logic (Unified with Portfolio TWR)
             # ------------------------------
-            if h == "1D":
-                # Find the nearest prior trading day in the price index
-                price_idx = prices.index
-
-                # The last trading day *before* as_of
-                prev_idx = price_idx[price_idx < as_of]
-
-                if len(prev_idx) == 0:
-                    row[h] = np.nan
-                    continue
-
-                start = prev_idx.max()
-
-                # [GIPS Compliance: Non-Trading Day Snap-Back]
-                # If as_of is a Weekend OR Holiday, snap back one extra day to capture
-                # the last active trading session.
-                if is_market_holiday(as_of):
-                    prior_dates = price_idx[price_idx < start]
-                    if not prior_dates.empty:
-                        start = prior_dates.max()
-
-                horizon_days = (as_of - start).days
-            elif h == "1W":
-                # Fixed 1-week horizon (Calendar Lookback)
-                # GIPS FIX: Backward snap to actual trading day (matches Portfolio TWR logic)
-                target_date = as_of - pd.Timedelta(days=7)
-                
-                # Backward Snap: Find last available price date on or before target_date
-                price_idx = price_series.index
-                prev_dates = price_idx[price_idx <= target_date]
-                if len(prev_dates) == 0:
-                    row[h] = np.nan
-                    continue
-                    
-                start = prev_dates.max()
-                horizon_days = 7
-            elif h == "MTD":
-                # MTD anchored to EOD of last trading day of the prior month
-                prev_month_end = as_of.replace(day=1) - pd.Timedelta(days=1)
-
-                # Use the last available price date on or before prev_month_end
-                price_idx = price_series.index  # non-NaN prices for this ticker
-                prev_dates = price_idx[price_idx <= prev_month_end]
-                if len(prev_dates) == 0:
-                    row[h] = np.nan
-                    continue
-
-                start = prev_dates.max()
-                horizon_days = (as_of - start).days + 1
-                
-                # GIPS GATE: Security must have existed STRICTLY BEFORE MTD start
-                # Using >= prevents V0=0 for securities bought ON the start date
-                if first_tx_date >= start:
-                    row[h] = np.nan
-                    continue
-
-            elif h == "1M":
-                # Calendar 1M (GIPS-style)
-                # Aligns with Portfolio TWR logic (Backward Snap).
-                # Uses as_of - 1 Month. modified_dietz_for_ticker_window will use .asof() 
-                # to find the price on or before this date.
-                start = as_of - pd.DateOffset(months=1)
-                
-                # Horizon Length is variable (28-31 days) but start is fixed calendar date
-                horizon_days = (as_of - start).days
-                
-                # GIPS GATE: Security must have existed STRICTLY BEFORE 1M start
-                if first_tx_date >= start:
-                    row[h] = np.nan
-                    continue
-
-
-            elif h == "3M":
-                # GIPS FIX: Backward snap to actual trading day
-                target_date = as_of - timedelta(days=90)
-                price_idx = price_series.index
-                prev_dates = price_idx[price_idx <= target_date]
-                if len(prev_dates) == 0:
-                    row[h] = np.nan
-                    continue
-                start = prev_dates.max()
-                horizon_days = 90
-            elif h == "6M":
-                # GIPS FIX: Backward snap to actual trading day
-                target_date = as_of - timedelta(days=180)
-                price_idx = price_series.index
-                prev_dates = price_idx[price_idx <= target_date]
-                if len(prev_dates) == 0:
-                    row[h] = np.nan
-                    continue
-                start = prev_dates.max()
-                horizon_days = 180
-            elif h == "YTD":
-                # Align with Portfolio YTD (Prior Year End)
-                start = as_of.replace(month=1, day=1) - pd.Timedelta(days=1)
-                horizon_days = (as_of - start).days + 1
-            elif h == "1Y":
-                # GIPS FIX: Backward snap to actual trading day
-                target_date = as_of - timedelta(days=365)
-                price_idx = price_series.index
-                prev_dates = price_idx[price_idx <= target_date]
-                if len(prev_dates) == 0:
-                    row[h] = np.nan
-                    continue
-                start = prev_dates.max()
-                horizon_days = 365
-            elif h == "3Y":
-                # GIPS FIX: Backward snap to actual trading day
-                target_date = as_of - timedelta(days=365 * 3)
-                price_idx = price_series.index
-                prev_dates = price_idx[price_idx <= target_date]
-                if len(prev_dates) == 0:
-                    row[h] = np.nan
-                    continue
-                start = prev_dates.max()
-                horizon_days = 365 * 3
-            elif h == "5Y":
-                # GIPS FIX: Backward snap to actual trading day
-                target_date = as_of - timedelta(days=365 * 5)
-                price_idx = price_series.index
-                prev_dates = price_idx[price_idx <= target_date]
-                if len(prev_dates) == 0:
-                    row[h] = np.nan
-                    continue
-                start = prev_dates.max()
-                horizon_days = 365 * 5
-            elif h == "SI":
-                # For Ticker SI, start is one day BEFORE the first trade
-                # to ensure V0 is zero and the first purchase is a flow.
-                start = first_tx_date - pd.Timedelta(days=1)
-                horizon_days = (as_of - start).days + 1
-            else:
-                row[h] = np.nan
-                continue
-
-            # ------------------------------
-            # Step 2 — HARD GATE (fix)
-            # ------------------------------
-            # For SI, this check is not needed, as the horizon is defined by the life of the asset.
-            if h != "SI":
-                lived_days = (as_of - first_tx_date).days + 1
-                if lived_days < horizon_days:
-                    row[h] = np.nan
-                    continue
-
-            # ------------------------------
-            # Step 3 — Clamp start to THIS TICKER's earliest price and first trade
-            #         and do NOT compute if that destroys the full horizon.
-            # ------------------------------
-            # FIX: For SI, the start MUST be allowed to be before the first trade
-            # to correctly capture V0=0.
             if h == "SI":
+                start = first_tx_date - pd.Timedelta(days=1)
                 effective_start = start
             else:
+                target_date = get_horizon_target_date(as_of, h)
+                if target_date is None:
+                    row[h] = np.nan
+                    continue
+
+                # Backward Snap: Find last valid Price Date <= target_date
+                # Ensures we align with the specific ticker's trading history
+                price_idx = price_series.index
+                prev_dates = price_idx[price_idx <= target_date]
+
+                if len(prev_dates) == 0:
+                    # YTD Exception: Ticker started this year
+                    if h == "YTD" and first_tx_date > target_date:
+                        start = first_tx_date - pd.Timedelta(days=1)
+                    else:
+                        row[h] = np.nan
+                        continue
+                else:
+                    start = prev_dates.max()
+                    # GIPS GATE: Security must have existed STRICTLY BEFORE horizon start
+                    if h != "YTD" and first_tx_date >= start:
+                        row[h] = np.nan
+                        continue
+
+                # Step 2: Clamp to available data
+                # We need prices and transaction history to compute return
                 effective_start = max(start, earliest_price_ticker, first_tx_date)
 
-            # If clamping pushed the start too far forward, we no longer have
-            # a full horizon → treat as insufficient data
-            actual_days = (as_of - effective_start).days + 1
-            if actual_days < horizon_days:
-                row[h] = np.nan
-                continue
+                # Step 3: Strict Duration Check (Except YTD)
+                # If clamping pushed start forward (e.g. missing prices), we lack full history
+                if h != "YTD" and effective_start > start:
+                    row[h] = np.nan
+                    continue
 
             # ------------------------------
             # Step 4 — Safe MD computation

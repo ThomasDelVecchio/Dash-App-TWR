@@ -1,12 +1,14 @@
 import sys
 import os
 import inspect
+from datetime import datetime, timedelta
+import pandas as pd
 
 # Add parent directory to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 import financial_math
-from financial_math import ANNUALIZE_HORIZONS, compute_period_twr
+from financial_math import compute_period_twr, annualize_return
 
 def log_pass(msg):
     print(f"[PASS] {msg}")
@@ -21,8 +23,6 @@ def audit_gips_scorecard():
     total = 5
     
     # 1. External Flows Distinct?
-    # Verification: compute_period_twr signature takes 'cf' dataframe.
-    # And logic separates base (PV) from flows.
     sig = inspect.signature(compute_period_twr)
     if "cf" in sig.parameters:
         log_pass("Req 1: External Flows are passed as separate argument to TWR engine.")
@@ -31,13 +31,10 @@ def audit_gips_scorecard():
         log_fail("Req 1: TWR engine does not accept external flows explicitly.")
 
     # 2. Portfolio Return = TWR?
-    # Verification: Check if compute_period_twr uses chain linking.
-    # We verified this in audit_01.
     log_pass("Req 2: Portfolio Return validated as TWR (via audit_01).")
     score += 1
 
     # 3. Segment Return = Money-Weighted?
-    # Verification: Check existence of modified_dietz functions.
     if hasattr(financial_math, "modified_dietz_for_ticker_window") and \
        hasattr(financial_math, "modified_dietz_for_asset_class_window"):
         log_pass("Req 3: Segment Returns use Modified Dietz (Money-Weighted).")
@@ -46,26 +43,30 @@ def audit_gips_scorecard():
         log_fail("Req 3: Modified Dietz functions missing.")
 
     # 4. Daily Valuation Enabled?
-    # Verification: financial_math.py uses 'daily' loop or revaluation.
-    # Verified in audit_01 (TWR iterates daily).
     log_pass("Req 4: System uses Daily Valuation for TWR.")
     score += 1
 
     # 5. No Annualization < 1 Year?
-    # Verification: Check ANNUALIZE_HORIZONS.
-    # It should NOT contain "1M", "3M", "6M", "YTD".
-    banned = ["1W", "1M", "3M", "6M", "YTD"]
-    violation = False
-    for b in banned:
-        if b in ANNUALIZE_HORIZONS:
-            violation = True
-            print(f"  [VIOLATION] Horizon {b} is in ANNUALIZE_HORIZONS.")
+    start = pd.Timestamp("2023-01-01")
     
-    if not violation:
-        log_pass("Req 5: No Annualization for periods < 1 Year.")
+    # Test A: 6 Months (180 days) -> Should be Cumulative
+    end_6m = start + timedelta(days=180)
+    input_ret = 0.10 
+    
+    res_6m = annualize_return(input_ret, start, end_6m)
+    
+    # Test B: 2 Years (730 days) -> Should be Annualized
+    end_2y = start + timedelta(days=730)
+    
+    res_2y = annualize_return(input_ret, start, end_2y)
+    
+    if abs(res_6m - 0.10) < 1e-6 and abs(res_2y - 0.048808) < 1e-4:
+        log_pass("Req 5: Annualization logic correctly gates short periods (Tested Functionally).")
         score += 1
     else:
-        log_fail("Req 5: Annualization detected for short periods.")
+        print(f"  [DEBUG] 6M Result: {res_6m} (Exp 0.10)")
+        print(f"  [DEBUG] 2Y Result: {res_2y} (Exp 0.0488)")
+        log_fail("Req 5: Annualization logic failed functional test.")
 
     print(f"\nFinal GIPS Score: {score}/{total}")
     if score == total:
