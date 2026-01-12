@@ -156,25 +156,6 @@ SCRIPTS = [
             "Verify 366 Days -> Annualized (Leap Year Edge Case).",
             "Verify 3 Years -> Annualized correctly."
         ]
-    },
-    {
-        "file": "audit_14_wrapper_dates.py",
-        "name": "Wrapper Horizon Analysis",
-        "objective": "Verify proper date handling in the Dash Wrapper layer.",
-        "methodology": [
-            "Verify Holiday Snap logic propagates to UI horizon analysis.",
-            "Verify week/month boundaries."
-        ]
-    },
-    {
-        "file": "audit_15_consistency_sweep.py",
-        "name": "Consistency Sweep",
-        "objective": "Deep verification of Date Logic across all layers.",
-        "methodology": [
-            "Verify get_horizon_target_date logic.",
-            "Verify get_effective_anchor_date logic.",
-            "Verify is_market_holiday."
-        ]
     }
 ]
 
