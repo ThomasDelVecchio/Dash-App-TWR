@@ -509,6 +509,17 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
             if rows:
                  headers = ["Metric", "Value"]
                  add_table(doc, headers, rows, right_align=[1])
+            
+            # Add Net Flows Chart (period-aware)
+            try:
+                flows_fig = dw.get_flows_chart(data, theme='light', 
+                                               start_date=start_date, 
+                                               end_date=end_date)
+                add_figure_to_doc(doc, flows_fig, height_inches=4)
+            except Exception as e:
+                print(f"Flows chart export failed: {e}")
+            
+            if mobile_mode: add_page_break(doc)
 
         # -----------------------------------------------------------------
         # 9. Tax Lot Explorer (Open Lots)

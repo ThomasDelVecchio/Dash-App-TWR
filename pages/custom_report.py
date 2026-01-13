@@ -939,7 +939,8 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             flows_df, flow_subtitle = _get_flows_summary_period(data, start_date=start_date, end_date=end_date)
             grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
             
-            flows_fig = dw.get_flows_chart(data, theme)
+            # Pass dates to chart for period-aware filtering
+            flows_fig = dw.get_flows_chart(data, theme, start_date=start_date, end_date=end_date)
             if print_preview:
                 flows_fig = apply_print_theme(flows_fig)
             flows_fig.update_layout(height=400, margin=dict(l=0, r=0, t=30, b=30), autosize=True)

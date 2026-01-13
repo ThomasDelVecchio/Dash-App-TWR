@@ -2069,12 +2069,26 @@ def get_projections_chart(data, theme="light", rate_pct=None, monthly_contrib=No
     )
     return fig
 
-def get_flows_chart(data, theme="light"):
-    """Generates Internal Flows by Asset Class chart."""
+def get_flows_chart(data, theme="light", start_date=None, end_date=None):
+    """Generates Internal Flows by Asset Class chart.
+    
+    Args:
+        data: Data cache dict
+        theme: Theme for styling (default "light")
+        start_date: Optional start date to filter flows (default None = all history)
+        end_date: Optional end date to filter flows (default None = today)
+    """
     tx_raw = data["tx_raw"]
     holdings = data["holdings"]
     
     if tx_raw.empty: return go.Figure()
+    
+    # Filter by date range if provided (for period-specific analysis)
+    if start_date is not None:
+        end_dt = pd.Timestamp(end_date) if end_date else pd.Timestamp.now()
+        start_dt = pd.Timestamp(start_date)
+        mask = (tx_raw["date"] >= start_dt) & (tx_raw["date"] <= end_dt)
+        tx_raw = tx_raw[mask].copy()
     
     ac_map = holdings.set_index("ticker")["asset_class"].to_dict()
     tx_raw["asset_class"] = tx_raw["ticker"].map(ac_map).fillna("Other")

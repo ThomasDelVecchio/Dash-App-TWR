@@ -112,7 +112,7 @@
                 <div style="opacity: 0.8;">Executive Integrity Dashboard</div>
             </div>
             <div class="meta">
-                <div>Date: 2026-01-12 22:05:54</div>
+                <div>Date: 2026-01-13 10:22:38</div>
                 <div>Version: 3.0 (Modular Opus Suite)</div>
             </div>
         </header>
@@ -126,22 +126,22 @@
             </p>
             
             <div class="status-grid">
-                <div class="status-card pass">
+                <div class="status-card fail">
                     <h3>System Health</h3>
                     <div style="font-size: 2.5rem; font-weight: bold; color: var(--primary-color);">
-                        100%
+                        92%
                     </div>
                 </div>
                 <div class="status-card pass">
                     <h3>Modules Passed</h3>
                     <div style="font-size: 2.5rem; font-weight: bold; color: var(--success-color);">
-                        14
+                        13
                     </div>
                 </div>
-                <div class="status-card pass">
+                <div class="status-card fail">
                     <h3>Modules Failed</h3>
-                    <div style="font-size: 2.5rem; font-weight: bold; color: var(--border-color);">
-                        0
+                    <div style="font-size: 2.5rem; font-weight: bold; color: var(--danger-color);">
+                        1
                     </div>
                 </div>
             </div>
@@ -275,7 +275,7 @@ Reconciling Shares (Holdings vs Transactions)...
             <div class="audit-module">
                 <div class="module-header">
                     <h3>P/L Attribution Ledger <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_03_pl_attribution.py)</span></h3>
-                    <span class="status-badge pass">PASSED</span>
+                    <span class="status-badge fail">FAILED</span>
                 </div>
                 <div class="module-content">
                     <p><strong>Objective:</strong> Prove that no money is disappearing from the portfolio.</p>
@@ -284,22 +284,25 @@ Reconciling Shares (Holdings vs Transactions)...
 --- Testing P/L Attribution (The Accounting Ledger) ---
 Loading live data via Analytics Engine...
 [WARNING] Missing Price Data:
-  2026-01-12: BTC-USD
+  2026-01-13: VOO, SPY, BND, SCHG (+1)
 DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: BTC-USD']
+[WARNING] Missing Price Data:
+  2026-01-13: VXUS, IWM
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: VXUS, IWM']
 Data loaded.
-[PASS] [1W] Match! Port: 484.53 | Sum: 484.53 | Gap: -0.00
-[PASS] [1M] Match! Port: 1,464.49 | Sum: 1,464.42 | Gap: 0.07
-[PASS] [MTD] Match! Port: 1,108.57 | Sum: 1,108.57 | Gap: -0.00
-[PASS] [YTD] Match! Port: 1,108.57 | Sum: 1,108.57 | Gap: -0.00
+[FAIL] [1W] Mismatch. Port: 49.82 | Sum: 34.70 | Gap: 15.12
+[FAIL] [1M] Mismatch. Port: 1,378.11 | Sum: 1,362.91 | Gap: 15.19
+[FAIL] [MTD] Mismatch. Port: 1,022.19 | Sum: 1,007.07 | Gap: 15.12
+[FAIL] [YTD] Mismatch. Port: 1,022.19 | Sum: 1,007.07 | Gap: 15.12
 [1Y] Insufficient data for Portfolio P/L.
-[PASS] [SI] Match! Port: 2,304.76 | Sum: 2,304.61 | Gap: 0.15
+[FAIL] [SI] Mismatch. Port: 2,218.38 | Sum: 2,203.10 | Gap: 15.27
 
 --- Dividend Integrity Check ---
 Checking Dividend: CASH on 2025-11-28 for $0.08
 [PASS] Dividend accounted for. Total Income for CASH: $0.15000000000000002 >= Sample $0.08
 
-[SUCCESS] audit_03_pl_attribution.py passed.
+[FAILURE] Audits failed.
 </div>
                 </div>
             </div>
@@ -316,15 +319,20 @@ Checking Dividend: CASH on 2025-11-28 for $0.08
 --- Testing Risk Intelligence (Institutional Upgrade) ---
 Loading live data...
 [WARNING] Missing Price Data:
-  2026-01-12: BTC-USD
+  2026-01-13: SPY, AMZN
 DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: BTC-USD']
+[WARNING] Missing Price Data:
+  2026-01-13: SPY, IWM
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: SPY, IWM']
 Checking Correlation Matrix...
 [PASS] Correlation Matrix Diagonal is all 1.0
 [PASS] Correlation Matrix is Symmetric
 [PASS] Correlation Values within [-1, 1]
-[PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1181
+[PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1182
 Checking Active Metrics (Beta/TE)...
+[WARNING] Data stale: Latest 2026-01-12 (1d ago)
+DEBUG: data_loader returning 1 errors attached to prices.
 [PASS] Beta vs SPY calculated: 0.6103
 [PASS] Tracking Error calculated: 6.0270%
 Checking Drawdown Logic...
@@ -348,19 +356,23 @@ Checking Drawdown Logic...
 --- Testing Consistency Matrix (The Truth-Teller) ---
 Loading live data...
 [WARNING] Missing Price Data:
-  2026-01-12: BTC-USD
+  2026-01-13: GLD, SPY, VOO
 DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: BTC-USD']
+[WARNING] Missing Price Data:
+  2026-01-13: GLD, IWM, VOO, VXUS
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: GLD, IWM, VOO, VXUS']
 Checking Snapshot vs Chart...
-[PASS] Cumulative SI TWR (0.0488) matches Chart Final Value (0.0488)
+[PASS] Cumulative SI TWR (0.0465) matches Chart Final Value (0.0465)
 Checking Snapshot vs Horizon Table...
-[PASS] Snapshot SI P/L (2,304.76) matches Horizon Table (2,304.76)
+[PASS] Snapshot SI P/L (2,192.57) matches Horizon Table (2,192.57)
 Checking Growth Table vs P/L...
-[PASS] Growth Table Total (2,304.76) matches SI P/L (2,304.76)
+[WARN] Growth Table (2,232.21) slightly divergent from SI P/L (2,192.57). Diff: -39.64
+[PASS] Growth Table within 5% tolerance.
 Checking Attribution vs SI TWR...
-[PASS] Attribution Sum (4.88%) matches SI TWR (4.88%)
+[PASS] Attribution Sum (4.65%) matches SI TWR (4.65%)
 Checking Risk Chart vs Horizon Table...
-Risk Chart US Large Cap Return: 24.57%
+Risk Chart US Large Cap Return: 24.42%
 [PASS] Risk Data exists.
 
 [SUCCESS] audit_05_consistency_matrix.py passed.
@@ -430,11 +442,15 @@ Final GIPS Score: 5/5
                     <div class="log-output">
 --- Testing Time Machine Consistency ---
 Running Live Engine...
-Time Machine Target: 2025-12-29
+[WARNING] Missing Price Data:
+  2026-01-13: AMZN, SPY
+DEBUG: data_loader returning 1 errors attached to prices.
+Time Machine Target: 2025-12-30
 Running Historical Engine...
+DEBUG: data_loader returning CACHED prices with 1 errors.
 
 Checking PV Consistency...
-[PASS] PV Matches: History=48742.21 vs Live=48742.21
+[PASS] PV Matches: History=48683.55 vs Live=48683.55
 
 Checking Future Leakage (Transactions)...
 [PASS] No future tickers detected in historical view.
@@ -456,12 +472,15 @@ Checking Future Leakage (Transactions)...
 --- Testing Custom Report Logic (Curve Slicing) ---
 Loading Live Data...
 [WARNING] Missing Price Data:
-  2026-01-12: BTC-USD
+  2026-01-13: SPY, VOO, AMZN, FBTC (+2)
 DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: BTC-USD']
+[WARNING] Missing Price Data:
+  2026-01-13: SPY, VOO, AMZN, IWM (+2)
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: SPY, VOO, AMZN, IWM, GLD, NDAQ']
 
-Scanning Last 30 Days (2025-12-13 to 2026-01-12)...
-[PASS] Last 30 Days: Match! Slice=0.030485 vs Rigorous=0.030485
+Scanning Last 30 Days (2025-12-14 to 2026-01-13)...
+[PASS] Last 30 Days: Match! Slice=0.028977 vs Rigorous=0.028977
 
 Scanning Middle 20 Days (2025-12-08 to 2025-12-28)...
 [PASS] Middle 20 Days: Match! Slice=0.027620 vs Rigorous=0.027620
@@ -507,9 +526,12 @@ Scanning Middle 20 Days (2025-12-08 to 2025-12-28)...
 Objective: Ensure Asset Class returns match Ticker returns exactly when 1:1.
 Loading engine data...
 [WARNING] Missing Price Data:
-  2026-01-12: BTC-USD
+  2026-01-13: GLD, SPY, AMZN
 DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: BTC-USD']
+[WARNING] Missing Price Data:
+  2026-01-13: GLD, SCHG, SPY, AMZN
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: GLD, SCHG, SPY, AMZN']
 Found 3 single-ticker asset classes: {'International Equity': 'VXUS', 'Gold / Precious Metals': 'GLD', 'Digital Assets': 'FBTC'}
 
 Checking International Equity vs VXUS...
