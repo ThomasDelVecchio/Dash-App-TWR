@@ -221,6 +221,14 @@ layout = html.Div(className="custom-report-page", children=[
                         persistence=True,
                         persistence_type="session"
                     ),
+                    dbc.Switch(
+                        id="report-include-exited",
+                        label="Include Exited Holdings",
+                        value=False,
+                        className="mb-2",
+                        persistence=True,
+                        persistence_type="session"
+                    ),
                 ], width=12, md=4),
                 
                 # Column 2: Section Selection
@@ -460,9 +468,10 @@ def update_toggle_button_label(current_selection):
      Input("report-order-store", "data"),
      Input("report-selection-store", "data"),
      Input("report-title-input", "value"),
-     Input("report-period-select", "value")]
+     Input("report-period-select", "value"),
+     Input("report-include-exited", "value")]
 )
-def update_report(n_clicks, signal, order_list, selected_list, title, period):
+def update_report(n_clicks, signal, order_list, selected_list, title, period, include_exited):
     print_preview = False # Defaults to dark mode for screen preview
 
     """
@@ -807,7 +816,8 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                     ], width=12, className="mb-4"),
                     dbc.Col([
                         html.H5("Allocation History", className="mt-2 mb-2"),
-                        dcc.Graph(figure=hist_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True)
+                        dcc.Graph(figure=hist_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        html.Small("Historical evolution of asset class weights over time.", className="text-muted d-block mt-2", style={"fontSize": "0.85rem"})
                     ], width=12),
                 ])
             ], className="report-section page-break-before")
@@ -832,6 +842,20 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
         
         # 6. Top Holdings
         elif section_key == "holdings":
+            # Dynamic switch for exited
+            sec_source = data['sec_table'] if include_exited else data['sec_table_current']
+            # Filter > 0 MV even if using full list for Top 10 display logic usually implies active
+            # But user might want to see top historic losers? 
+            # Standard Report behavior: Top Holdings usually implies CURRENT weight.
+            # If Exited is ON, we should probably stick to current for "Top Holdings" chart?
+            # Actually, let's respect the toggle. If they want Exited, we show them if they were large?
+            # No, "Top Holdings" usually means "Current largest positions".
+            # Exited positions have 0 MV. They won't show up in "nlargest" anyway.
+            # So this change might be moot for the Top 10 logic unless we change sort criteria.
+            # BUT, we might want to list them in the full table if we had one here.
+            # This section seems to just calculate weights for Top 10.
+            
+            # Let's keep it simple: Use current for Top 10 logic always to avoid 0s.
             sec_table = data.get('sec_table_current', pd.DataFrame())
             
             if not sec_table.empty:
@@ -1033,7 +1057,11 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                                 className=grid_class,
                                 dashGridOptions={"domLayout": "autoHeight"},
                                 style={"width": "100%"}
-                            )
+                            ),
+                            html.Div([
+                                html.Small("⚠️ Cliff Watch: Lots maturing to Long-Term (>365 days) within 30 days. Recommend HOLD to lower tax rate.", className="text-warning d-block mt-2"),
+                                html.Small("ℹ️ Harvesting Rules: Wash Sale window is ±30 days (61 days total). Losses in this window may be disallowed.", className="text-muted d-block")
+                            ])
                         ], width=12)
                     ])
                 ], className="report-section page-break-before")
@@ -1065,7 +1093,8 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                 dbc.Row([
                     dbc.Col([
                         html.H4("Tax Liability Breakdown", className="section-title mb-3"),
-                        dcc.Graph(figure=tax_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True)
+                        dcc.Graph(figure=tax_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        html.Small("Breakdown of Estimated Tax Liability by Status (Realized vs Unrealized) and Term (Short-Term vs Long-Term).", className="text-muted d-block mt-2", style={"fontSize": "0.85rem"})
                     ], width=12)
                 ])
             ], className="report-section no-break")
@@ -1094,9 +1123,18 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                     dbc.Col([
                         html.H4("Risk Analysis", className="section-title mb-3"),
                     ], width=12),
-                    dbc.Col(dcc.Graph(figure=risk_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True), width=12, className="mb-4"),
-                    dbc.Col(dcc.Graph(figure=corr_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True), width=12, className="mb-4"),
-                    dbc.Col(dcc.Graph(figure=dd_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True), width=12)
+                    dbc.Col([
+                        dcc.Graph(figure=risk_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        html.Small("Risk/Return Profile: Calculated using 10-year realized volatility and geometric returns. Markers represent asset classes.", className="text-muted d-block mt-2 mb-4", style={"fontSize": "0.85rem"})
+                    ], width=12),
+                    dbc.Col([
+                        dcc.Graph(figure=corr_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        html.Small("90-Day Rolling Correlation matrix of top holdings. Red indicates high correlation, Blue indicates diversification benefit.", className="text-muted d-block mt-2 mb-4", style={"fontSize": "0.85rem"})
+                    ], width=12),
+                    dbc.Col([
+                        dcc.Graph(figure=dd_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        html.Small("Underwater Plot: Peak-to-trough decline over time. Shaded area represents deviation from all-time highs.", className="text-muted d-block mt-2", style={"fontSize": "0.85rem"})
+                    ], width=12)
                 ])
             ], className="report-section page-break-before")
             report_sections.append(risk_section)
@@ -1164,7 +1202,11 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
         # 14. Asset Class Performance Table
         elif section_key == "ac_perf_table":
             class_df = data['class_df']
-            sec_table = data['sec_table_current'] # Default to current holdings
+            # Conditional Selection based on include_exited
+            sec_table = data['sec_table'] if include_exited else data['sec_table_current']
+            
+            visibility_text = "Tables display ALL positions (active and exited) with valid history in the period." if include_exited else "Tables display currently active positions only."
+
             horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
             
             rows = []
@@ -1233,7 +1275,11 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                                 }
                             },
                             style={"width": "100%"}
-                        )
+                        ),
+                        html.Small([
+                            html.I(className="fa-solid fa-info-circle me-1"),
+                            visibility_text
+                        ], className="text-muted d-block mt-2", style={"fontSize": "0.85rem", "fontStyle": "italic"})
                     ], width=12)
                 ])
             ], className="report-section page-break-before")
@@ -1242,7 +1288,14 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
         # 15. Asset Class P/L Table
         elif section_key == "ac_pl_table":
             class_df = data['class_df']
-            sec_table = data['sec_table_current']
+            # Dynamic switch for PL table
+            sec_table = data['sec_table'] if include_exited else data['sec_table_current']
+            
+            # Footer text if mode is active
+            pl_vis_text = None
+            if include_exited:
+                 pl_vis_text = html.P("Includes realized P/L from closed positions.", className="text-muted small mt-2 fst-italic")
+            
             horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
             
             # Pre-fetch ticker P/L for all horizons
@@ -1319,7 +1372,8 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period):
                                 }
                             },
                             style={"width": "100%"}
-                        )
+                        ),
+                        pl_vis_text
                     ], width=12)
                 ])
             ], className="report-section page-break-before")
