@@ -608,8 +608,8 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
                     sub_curve = twr_curve[(twr_curve.index >= start_date) & (twr_curve.index <= end_date)]
 
                     if not sub_curve.empty:
-                        # Efficiency
-                        eff = dw.calculate_efficiency_metrics(sub_curve)
+                        # Efficiency (GIPS-compliant: pass dates for duration-aware annualization)
+                        eff = dw.calculate_efficiency_metrics(sub_curve, start_date=start_date, end_date=end_date)
                         metrics['sharpe'] = eff['sharpe']
                         metrics['sortino'] = eff['sortino']
                         

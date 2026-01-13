@@ -453,11 +453,20 @@ def _get_daily_twr_curve(data):
         
     return pd.Series(curve_data).sort_index()
 
-def calculate_efficiency_metrics(twr_series):
+def calculate_efficiency_metrics(twr_series, start_date=None, end_date=None):
     """
     Calculates Sharpe and Sortino Ratios based on daily TWR series.
     Uses RISK_FREE_RATE from config.
     Returns dictionary with ratios AND components for Audit Trail.
+    
+    Args:
+        twr_series: Daily TWR curve (Growth of $1)
+        start_date: Optional period start for duration-aware annualization
+        end_date: Optional period end for duration-aware annualization
+        
+    GIPS Compliance:
+        - Only annualizes if period > 365 days (matches annualize_return() logic)
+        - For sub-annual periods, returns cumulative metrics to avoid misleading figures
     """
     default_res = {
         "sharpe": "N/A", "sortino": "N/A",
@@ -483,47 +492,71 @@ def calculate_efficiency_metrics(twr_series):
         if daily_rets.empty:
             return default_res
 
-    # 1. Volatility (Annualized Standard Deviation)
-    # GIPS / Industry Standard for daily data
+    # Determine if we should annualize based on period duration
+    should_annualize = True
+    if start_date is not None and end_date is not None:
+        days = (pd.Timestamp(end_date) - pd.Timestamp(start_date)).days
+        years = days / 365.25
+        # GIPS Compliance: Only annualize if > 1 year (matches annualize_return() logic)
+        should_annualize = (years > 1.0)
+
+    # 1. Volatility Calculation
     std_dev_daily = daily_rets.std()
-    vol_annualized = std_dev_daily * np.sqrt(252)
     
-    # 2. Return (Arithmetic Mean Annualized)
-    # Used for Sharpe numerator to be consistent with StdDev denominator
+    # 2. Return Calculation (Arithmetic Mean)
     mean_daily_ret = daily_rets.mean()
-    ret_annualized = mean_daily_ret * 252
     
-    # 3. Risk Free Rate (Annualized)
+    # 3. Risk Free Rate
     rf = RISK_FREE_RATE
-    
-    # 4. Sharpe Ratio
-    # (Rp - Rf) / Sigma
-    excess_ret = ret_annualized - rf
-    sharpe = excess_ret / vol_annualized if vol_annualized > 0 else 0.0
-    
-    # 5. Sortino Ratio
-    # Downside Deviation (MAR = Risk Free Rate)
-    # Calculate daily excess returns vs daily Rf equivalent
     rf_daily = (1 + rf) ** (1/252) - 1
-    daily_excess = daily_rets - rf_daily
     
-    downside_rets = daily_excess[daily_excess < 0]
-    
-    if downside_rets.empty:
-        sortino = 10.0 # Capped high value
-    else:
-        # Root Mean Squared of Downside Deviations
-        downside_dev_daily = np.sqrt((downside_rets ** 2).mean())
-        downside_dev_ann = downside_dev_daily * np.sqrt(252)
+    if should_annualize:
+        # Full annualization for periods > 1 year
+        vol_result = std_dev_daily * np.sqrt(252)
+        ret_result = mean_daily_ret * 252
+        rf_result = rf
         
-        sortino = excess_ret / downside_dev_ann if downside_dev_ann > 0 else 0.0
+        # 4. Sharpe Ratio (Annualized)
+        excess_ret = ret_result - rf_result
+        sharpe = excess_ret / vol_result if vol_result > 0 else 0.0
+        
+        # 5. Sortino Ratio (Annualized)
+        daily_excess = daily_rets - rf_daily
+        downside_rets = daily_excess[daily_excess < 0]
+        
+        if downside_rets.empty:
+            sortino = 10.0  # Capped high value
+        else:
+            downside_dev_daily = np.sqrt((downside_rets ** 2).mean())
+            downside_dev_ann = downside_dev_daily * np.sqrt(252)
+            sortino = excess_ret / downside_dev_ann if downside_dev_ann > 0 else 0.0
+    else:
+        # Cumulative metrics for sub-annual periods (GIPS-compliant)
+        # Don't annualize to avoid misleading inflation of ratios
+        vol_result = std_dev_daily  # Daily volatility
+        ret_result = mean_daily_ret  # Daily return
+        rf_result = rf_daily  # Daily risk-free rate
+        
+        # 4. Sharpe Ratio (Daily Basis)
+        excess_ret = ret_result - rf_result
+        sharpe = excess_ret / vol_result if vol_result > 0 else 0.0
+        
+        # 5. Sortino Ratio (Daily Basis)
+        daily_excess = daily_rets - rf_daily
+        downside_rets = daily_excess[daily_excess < 0]
+        
+        if downside_rets.empty:
+            sortino = 10.0  # Capped high value
+        else:
+            downside_dev_daily = np.sqrt((downside_rets ** 2).mean())
+            sortino = excess_ret / downside_dev_daily if downside_dev_daily > 0 else 0.0
         
     return {
         "sharpe": sharpe,
         "sortino": sortino,
-        "vol": vol_annualized,    # For display/audit (decimal, e.g. 0.15 = 15%)
-        "ret": ret_annualized,    # For display/audit
-        "rf": rf                  # For display/audit
+        "vol": vol_result,    # For display/audit (decimal, e.g. 0.15 = 15% or daily)
+        "ret": ret_result,    # For display/audit (annualized or daily)
+        "rf": rf_result       # For display/audit (annualized or daily)
     }
 
 def calculate_active_metrics(data, benchmark_ticker="SPY"):
