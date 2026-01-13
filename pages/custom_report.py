@@ -183,7 +183,7 @@ layout = html.Div(className="custom-report-page", children=[
             dbc.Row([
                 # Column 1: General Settings
                 dbc.Col([
-                    html.H5("General Settings", className="mb-3"),
+                    html.H5("General Settings", className="mb-3 text-body"),
                     dbc.Label("Report Title", className="fw-bold"),
                     dbc.Input(
                         id="report-title-input",
@@ -230,7 +230,7 @@ layout = html.Div(className="custom-report-page", children=[
                 # Column 2: Section Selection
                 dbc.Col([
                     html.Div([
-                        html.H5("Report Sections", className="d-inline-block me-3"),
+                        html.H5("Report Sections", className="d-inline-block me-3 text-body"),
                         dbc.Button(
                             "Select All",
                             id="toggle-all-sections",
@@ -258,7 +258,7 @@ layout = html.Div(className="custom-report-page", children=[
                 
                 # Column 3: Actions
                 dbc.Col([
-                    html.H5("Actions", className="mb-3"),
+                    html.H5("Actions", className="mb-3 text-body"),
                     dbc.Button(
                         [html.I(className="bi bi-arrow-clockwise me-2"), "Refresh Preview"],
                         id="btn-refresh-report",
@@ -405,7 +405,7 @@ def render_draggable_list(order_list, selected_list):
             html.Span(
                 html.I(className="bi bi-grip-vertical"),
                 className="drag-handle me-3 p-2",
-                style={"cursor": "grab", "color": "#666", "fontSize": "1.2rem"}
+                style={"cursor": "grab", "color": "#000000", "fontSize": "1.2rem"}
             ),
             # Label
             html.Div(label, className="flex-grow-1 user-select-none"),

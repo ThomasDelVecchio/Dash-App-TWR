@@ -20,7 +20,10 @@ from pages import overview, performance, allocations, attribution, flows, holdin
 # Initialize App
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.themes.CYBORG],
+    external_stylesheets=[
+        dbc.themes.CYBORG,
+        "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    ],
     external_scripts=["https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"],
     suppress_callback_exceptions=True,
     title="Portfolio Analytics"
