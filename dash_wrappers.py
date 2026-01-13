@@ -3649,8 +3649,13 @@ def get_active_strategy_table(data, benchmarks=None):
         beta_str = f"{beta:.2f}" if isinstance(beta, (int, float)) else "N/A"
         te_str = f"{te:.2f}%" if isinstance(te, (int, float)) else "N/A"
         
+        # Avoid duplicate ticker display if already in name
+        display_name = name
+        if f"({ticker})" not in name:
+            display_name = f"{name} ({ticker})"
+            
         rows.append({
-            "Benchmark": f"{name} ({ticker})",
+            "Benchmark": display_name,
             "Beta": beta_str,
             "Tracking Error": te_str
         })

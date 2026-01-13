@@ -112,7 +112,7 @@
                 <div style="opacity: 0.8;">Executive Integrity Dashboard</div>
             </div>
             <div class="meta">
-                <div>Date: 2026-01-12 18:23:16</div>
+                <div>Date: 2026-01-12 21:09:30</div>
                 <div>Version: 3.0 (Modular Opus Suite)</div>
             </div>
         </header>
@@ -283,8 +283,12 @@ Reconciling Shares (Holdings vs Transactions)...
                     <div class="log-output">
 --- Testing P/L Attribution (The Accounting Ledger) ---
 Loading live data via Analytics Engine...
+[WARNING] Missing Price Data:
+  2026-01-12: BTC-USD
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: BTC-USD']
 Data loaded.
-[PASS] [1W] Match! Port: 484.53 | Sum: 484.53 | Gap: -0.00
+[PASS] [1W] Match! Port: 484.53 | Sum: 484.53 | Gap: 0.00
 [PASS] [1M] Match! Port: 1,464.49 | Sum: 1,464.42 | Gap: 0.07
 [PASS] [MTD] Match! Port: 1,108.57 | Sum: 1,108.57 | Gap: -0.00
 [PASS] [YTD] Match! Port: 1,108.57 | Sum: 1,108.57 | Gap: -0.00
@@ -311,6 +315,10 @@ Checking Dividend: CASH on 2025-11-28 for $0.08
                     <div class="log-output">
 --- Testing Risk Intelligence (Institutional Upgrade) ---
 Loading live data...
+[WARNING] Missing Price Data:
+  2026-01-12: BTC-USD
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: BTC-USD']
 Checking Correlation Matrix...
 [PASS] Correlation Matrix Diagonal is all 1.0
 [PASS] Correlation Matrix is Symmetric
@@ -339,6 +347,10 @@ Checking Drawdown Logic...
                     <div class="log-output">
 --- Testing Consistency Matrix (The Truth-Teller) ---
 Loading live data...
+[WARNING] Missing Price Data:
+  2026-01-12: BTC-USD
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: BTC-USD']
 Checking Snapshot vs Chart...
 [PASS] Cumulative SI TWR (0.0488) matches Chart Final Value (0.0488)
 Checking Snapshot vs Horizon Table...
@@ -348,7 +360,7 @@ Checking Growth Table vs P/L...
 Checking Attribution vs SI TWR...
 [PASS] Attribution Sum (4.88%) matches SI TWR (4.88%)
 Checking Risk Chart vs Horizon Table...
-Risk Chart US Large Cap Return: 23.49%
+Risk Chart US Large Cap Return: 24.57%
 [PASS] Risk Data exists.
 
 [SUCCESS] audit_05_consistency_matrix.py passed.
@@ -443,6 +455,10 @@ Checking Future Leakage (Transactions)...
                     <div class="log-output">
 --- Testing Custom Report Logic (Curve Slicing) ---
 Loading Live Data...
+[WARNING] Missing Price Data:
+  2026-01-12: BTC-USD
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: BTC-USD']
 
 Scanning Last 30 Days (2025-12-13 to 2026-01-12)...
 [PASS] Last 30 Days: Match! Slice=0.030485 vs Rigorous=0.030485
@@ -490,6 +506,10 @@ Scanning Middle 20 Days (2025-12-08 to 2025-12-28)...
 --- Testing Single-Ticker Asset Class Consistency (GIPS Standards) ---
 Objective: Ensure Asset Class returns match Ticker returns exactly when 1:1.
 Loading engine data...
+[WARNING] Missing Price Data:
+  2026-01-12: BTC-USD
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-12: BTC-USD']
 Found 3 single-ticker asset classes: {'International Equity': 'VXUS', 'Gold / Precious Metals': 'GLD', 'Digital Assets': 'FBTC'}
 
 Checking International Equity vs VXUS...
