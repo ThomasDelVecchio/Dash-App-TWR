@@ -39,17 +39,13 @@ REPORT_SECTIONS_OPTIONS = [
     {"label": "05. Asset Class Perf. Table", "value": "ac_perf_table"},
     {"label": "06. Asset Class P/L Table", "value": "ac_pl_table"},
     {"label": "07. Performance Deep Dive", "value": "perf_deep_dive"},
-    {"label": "08. Active Strategy (Beta/TE)", "value": "active_strategy"},
     {"label": "09. Horizon Analysis Table", "value": "horizon_table"},
     {"label": "10. Asset Allocation", "value": "allocation"},
     {"label": "11. Sector Breakdown", "value": "sector"},
     {"label": "12. Top Holdings", "value": "holdings"},
-    {"label": "13. Contribution Schedule", "value": "contrib_schedule"},
-    {"label": "14. Flows Report (Enhanced)", "value": "flows"},
-    {"label": "15. Risk Metrics (Sharpe/Vol)", "value": "risk"},
-    {"label": "16. Risk Analysis Charts", "value": "risk_charts"},
-    {"label": "17. Tax Liability Sunburst", "value": "tax_sunburst"},
-    {"label": "18. Tax Lot Explorer", "value": "tax_lots"},
+    {"label": "13. Flows Report (Enhanced)", "value": "flows"},
+    {"label": "14. Risk Analysis Charts", "value": "risk_charts"},
+    {"label": "15. Tax Lot Explorer", "value": "tax_lots"},
 ]
 
 # User-Defined Default Selection
@@ -844,18 +840,7 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
         elif section_key == "holdings":
             # Dynamic switch for exited
             sec_source = data['sec_table'] if include_exited else data['sec_table_current']
-            # Filter > 0 MV even if using full list for Top 10 display logic usually implies active
-            # But user might want to see top historic losers? 
-            # Standard Report behavior: Top Holdings usually implies CURRENT weight.
-            # If Exited is ON, we should probably stick to current for "Top Holdings" chart?
-            # Actually, let's respect the toggle. If they want Exited, we show them if they were large?
-            # No, "Top Holdings" usually means "Current largest positions".
-            # Exited positions have 0 MV. They won't show up in "nlargest" anyway.
-            # So this change might be moot for the Top 10 logic unless we change sort criteria.
-            # BUT, we might want to list them in the full table if we had one here.
-            # This section seems to just calculate weights for Top 10.
-            
-            # Let's keep it simple: Use current for Top 10 logic always to avoid 0s.
+
             sec_table = data.get('sec_table_current', pd.DataFrame())
             
             if not sec_table.empty:
@@ -915,31 +900,7 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             ], className="report-section no-break")
             report_sections.append(risk_section)
         
-        # 15. Active Strategy
-        elif section_key == "active_strategy":
-            active_df = dw.get_active_strategy_table(data)
-            grid_class = "ag-theme-alpine" if print_preview else "ag-theme-alpine-dark"
-            
-            strat_section = html.Div([
-                dbc.Row([
-                    dbc.Col([
-                        html.H4("Active Strategy Metrics (vs Benchmarks)", className="section-title mb-3"),
-                        dag.AgGrid(
-                            rowData=active_df.to_dict('records'),
-                            columnDefs=[
-                                {"field": "Benchmark", "headerName": "Benchmark", "flex": 2},
-                                {"field": "Beta", "headerName": "Beta", "flex": 1},
-                                {"field": "Tracking Error", "headerName": "Tracking Error", "flex": 1}
-                            ],
-                            defaultColDef={"sortable": True, "resizable": True},
-                            className=grid_class,
-                            dashGridOptions={"domLayout": "autoHeight"},
-                            style={"width": "100%"}
-                        )
-                    ], width=12)
-                ])
-            ], className="report-section no-break")
-            report_sections.append(strat_section)
+
 
         # 16. Contribution Schedule
         elif section_key == "contrib_schedule":

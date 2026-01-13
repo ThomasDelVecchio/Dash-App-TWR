@@ -691,20 +691,7 @@ def modified_dietz_for_ticker_window(
         # Handle small denominators or zero-basis cases
         return np.nan
 
-    # GIPS Total Return Formula:
-    # R = (V1 - V0 - C + I) / (V0 + W*C)
-    # where:
-    #   V1 = End Value
-    #   V0 = Start Value
-    #   C  = Net External Flows (net_external_flows)
-    #   I  = Income (total_divs)
-    #   W*C = Weighted External Flows (sum_weighted_flows)
-    
-    # Note: Dividends are NOT external flows for the security itself;
-    # they are return OF the security.
-    
-    # FIX: Using Unadjusted Close implies dividends are NOT accounted for in the price change.
-    # We must add total_divs explicitly (Income).
+
     gain = V1 - V0 - net_external_flows + total_divs
     
     if return_components:

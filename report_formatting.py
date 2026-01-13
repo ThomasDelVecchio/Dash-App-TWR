@@ -366,6 +366,12 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
                 bar_fig = res[1] 
                 add_figure_to_doc(doc, bar_fig, width_inches=w_split, height_inches=h_std)
 
+            # Allocation History Chart
+            check_break()
+            add_paragraph_centered(doc, "Allocation History", keep_after=True)
+            hist_fig = dw.get_allocation_history_chart(data, theme='light')
+            add_figure_to_doc(doc, hist_fig, width_inches=w_full, height_inches=h_std)
+
         # -----------------------------------------------------------------
         # 5. Sector Breakdown
         # -----------------------------------------------------------------
@@ -383,6 +389,10 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
             add_header(doc, "Top Holdings", level=2)
             sec_table = data.get('sec_table_current', pd.DataFrame()).copy()
             if not sec_table.empty:
+                # Filter out CASH row
+                if 'asset_class' in sec_table.columns:
+                     sec_table = sec_table[sec_table['asset_class'] != 'CASH']
+                     
                 # Sort by weight if possible, else market value
                 if 'weight' in sec_table.columns:
                     sort_col = 'weight'
@@ -427,23 +437,77 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
         elif section_key == "flows":
             check_break()
             add_header(doc, "Net Flows", level=2)
-            flows_df = dw.get_flows_summary_ytd(data)
-            if not flows_df.empty:
-                 headers = ["Metric", "Value"] # Match keys from diff
-                 rows = []
-                 # YTD summary returns keys like: "Start Value", "Net Inflow", "End Value" in 'Metric' col
-                 for _, row in flows_df.iterrows():
-                     rows.append([
-                         str(row.get('Metric', '')),
-                         str(row.get('Value', '')) # Value is already formatted in get_flows_summary_ytd probably, or we check
-                     ])
-                 # Check if we need formatting? 
-                 # Looking at dash_wrappers.py get_flows_summary_ytd, it returns formatted strings?
-                 # Let's assume it matches the UI which handles formatted strings or raw. 
-                 # Actually, looking at custom_report.py Section 8:
-                 # dag.AgGrid(rowData=flows_df.to_dict('records')...)
-                 # It displays exactly what's in the DF. So we just dump str(Value).
-                 
+            
+            # REPLACED: Use dynamic calculations based on report date range (not just YTD)
+            # Replicates logic from dash_wrappers.get_flows_summary_ytd but with dynamic dates
+            
+            pv = data.get("pv")
+            cf_ext = data.get("cf_ext")
+            tx_raw = data.get("tx_raw")
+            dividends = data.get("dividends")
+            
+            rows = []
+            
+            if not pv.empty:
+                # Determine effective calculation window
+                # Start: use start_date or inception
+                eff_start = pd.Timestamp(start_date) if start_date else data.get("inception_date")
+                # End: use end_date or max available
+                eff_end = pd.Timestamp(end_date) if end_date else pv.index.max()
+                
+                # External Flows
+                if cf_ext is not None and not cf_ext.empty:
+                    flows_ext = cf_ext[(cf_ext["date"] >= eff_start) & (cf_ext["date"] <= eff_end)]
+                    deposits = flows_ext.loc[flows_ext["amount"] > 0, "amount"].sum()
+                    withdrawals = flows_ext.loc[flows_ext["amount"] < 0, "amount"].sum()
+                    net_ext = flows_ext["amount"].sum()
+                    most_recent_ext = flows_ext["date"].max()
+                else:
+                    deposits = 0.0
+                    withdrawals = 0.0
+                    net_ext = 0.0
+                    most_recent_ext = pd.NaT
+
+                # Internal Activity
+                if tx_raw is not None and not tx_raw.empty:
+                    tx_window = tx_raw[(tx_raw["date"] >= eff_start) & (tx_raw["date"] <= eff_end)]
+                    buys = tx_window.loc[tx_window["amount"] < 0, "amount"].sum()
+                    sells = tx_window.loc[tx_window["amount"] > 0, "amount"].sum()
+                    most_recent_tx = tx_window["date"].max()
+                else:
+                    buys = 0.0
+                    sells = 0.0
+                    most_recent_tx = pd.NaT
+
+                # Dividends
+                if dividends is not None and not dividends.empty:
+                    div_window = dividends[(dividends["date"] >= eff_start) & (dividends["date"] <= eff_end)]
+                    income = div_window["amount"].sum()
+                    most_recent_div = div_window["date"].max()
+                else:
+                    income = 0.0
+                    most_recent_div = pd.NaT
+                
+                net_internal = buys + sells + income
+                
+                # Determine most recent date
+                dates = [d for d in [most_recent_ext, most_recent_tx, most_recent_div] if pd.notna(d)]
+                most_recent_str = max(dates).strftime("%Y-%m-%d") if dates else "N/A"
+                
+                # Format Rows
+                rows = [
+                    ["Net External Flows", fmt_dollar_clean(net_ext)],
+                    ["• Deposits", fmt_dollar_clean(deposits)],
+                    ["• Withdrawals", fmt_dollar_clean(withdrawals)],
+                    ["Net Internal Activity", fmt_dollar_clean(net_internal)],
+                    ["• Buys (Cash Out)", fmt_dollar_clean(buys)],
+                    ["• Sells (Cash In)", fmt_dollar_clean(sells)],
+                    ["• Income (Divs)", fmt_dollar_clean(income)],
+                    ["Most Recent Flow", most_recent_str]
+                ]
+
+            if rows:
+                 headers = ["Metric", "Value"]
                  add_table(doc, headers, rows, right_align=[1])
 
         # -----------------------------------------------------------------
@@ -467,7 +531,7 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
                     open_lots["Date Acquired"] = pd.to_datetime(open_lots["Date Acquired"]).dt.strftime("%Y-%m-%d")
 
                 # Filter columns to match UI (hiding technical ones)
-                cols_hide = ["Is Near Cliff", "Days to LT", "Cost Per Share"]
+                cols_hide = []
                 display_cols = [c for c in open_lots.columns if c not in cols_hide]
                 
                 # Format rows
