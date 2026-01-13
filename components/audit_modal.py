@@ -41,11 +41,24 @@ def get_audit_modal_content(request_data):
                row_data.get("meta_P/L_end_date")
 
     date_str = ""
+    period_label = ""
+    
     if start_date and end_date:
         try:
-            s = pd.Timestamp(start_date).strftime('%b %d, %Y')
-            e = pd.Timestamp(end_date).strftime('%b %d, %Y')
+            ts_start = pd.Timestamp(start_date)
+            ts_end = pd.Timestamp(end_date)
+            
+            s = ts_start.strftime('%b %d, %Y')
+            e = ts_end.strftime('%b %d, %Y')
             date_str = f"Period: {s} to {e}"
+            
+            # Use 366 days threshold for annualization label (Excluding P/L)
+            is_pl = "PL" in str(col_id).upper() or "P/L" in str(col_id).upper() or "pl-grid" in str(grid_id)
+            if not is_pl:
+                if (ts_end - ts_start).days > 366:
+                    period_label = " (Annualized)"
+                else:
+                    period_label = " (Cumulative)"
         except:
             pass
 
@@ -77,7 +90,7 @@ def get_audit_modal_content(request_data):
         ]))
         
         content = [
-            html.H4(f"Audit: {ticker} (Value Breakdown)", className="mb-3"),
+            html.H4(f"Audit: {ticker} (Value Breakdown){period_label}", className="mb-3"),
             dbc.Table(html.Tbody(tbl_rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '400px'})
         ]
         return dbc.ModalBody(content)
@@ -112,7 +125,7 @@ def get_audit_modal_content(request_data):
         ]))
         
         content = [
-            html.H4(f"Audit: {ticker} - {col_id}", className="mb-3"),
+            html.H4(f"Audit: {ticker} - {col_id}{period_label}", className="mb-3"),
             html.P("Underlying transactions constituting this value:", className="text-muted"),
             dbc.Table(html.Tbody(tbl_rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '400px'})
         ]
@@ -172,7 +185,7 @@ def get_audit_modal_content(request_data):
         """
         
         content = []
-        content.append(html.H4(f"Audit: {ticker} (Contribution to Return)", className="mb-3"))
+        content.append(html.H4(f"Audit: {ticker} (Contribution to Return){period_label}", className="mb-3"))
         if date_str: content.append(html.Div(date_str, className="text-muted small mb-3"))
         
         # Add Effect Section
@@ -279,7 +292,7 @@ def get_audit_modal_content(request_data):
         ]
         
         content = []
-        content.append(html.H4(f"Audit: {ticker} (Frongello)", className="mb-3"))
+        content.append(html.H4(f"Audit: {ticker} (Frongello){period_label}", className="mb-3"))
         if date_str: content.append(html.Div(date_str, className="text-muted small mb-3"))
         
         content.extend([
@@ -308,7 +321,7 @@ def get_audit_modal_content(request_data):
         metric_val = request_data.get('value', 'N/A')
         
         content = []
-        content.append(html.H4(f"Audit: {ticker} ({col_id})", className="mb-3"))
+        content.append(html.H4(f"Audit: {ticker} ({col_id}) (Annualized)", className="mb-3"))
         
         def fmt_num(n): return f"{n:,.2f}"
 
@@ -904,7 +917,7 @@ def get_audit_modal_content(request_data):
         """
         
         content = []
-        content.append(html.H4(f"Audit: Portfolio Return ({horizon})", className="mb-3"))
+        content.append(html.H4(f"Audit: Portfolio Return ({horizon}){period_label}", className="mb-3"))
         if date_str: content.append(html.Div(date_str, className="text-muted small mb-3"))
         content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
         
@@ -917,10 +930,12 @@ def get_audit_modal_content(request_data):
 
         if is_annualized:
              # Show Cumulative first, then Annualized below
-             summary_rows.append(html.Tr([html.Td("Cumulative Return"), html.Td(f"{r_cum_val*100:,.2f}%", className="text-end")]))
-             summary_rows.append(html.Tr([html.Td("Annualized Return", className="fw-bold"), html.Td(str(request_data.get('value', 'N/A')), className="text-end fw-bold", style={'borderTop': '1px solid white'})]))
+             summary_rows.append(html.Tr([html.Td("Period Cumulative Return"), html.Td(f"{r_cum_val*100:,.2f}%", className="text-end")]))
+             summary_rows.append(html.Tr([html.Td("Annualized Return (CAGR)", className="fw-bold"), html.Td(str(request_data.get('value', 'N/A')), className="text-end fw-bold", style={'borderTop': '1px solid white'})]))
         else:
-             summary_rows.append(html.Tr([html.Td("Final Return", className="fw-bold"), html.Td(str(request_data.get('value', 'N/A')), className="text-end fw-bold", style={'borderTop': '1px solid white'})]))
+             header_label = "Final Return"
+             if horizon == "SI": header_label = "Cumulative Return (SI)"
+             summary_rows.append(html.Tr([html.Td(header_label, className="fw-bold"), html.Td(str(request_data.get('value', 'N/A')), className="text-end fw-bold", style={'borderTop': '1px solid white'})]))
 
         content.append(dbc.Table(html.Tbody(summary_rows), bordered=False, size="sm", className="mt-3 mb-4", style={'maxWidth': '400px'}))
         
@@ -1028,8 +1043,7 @@ def get_audit_modal_content(request_data):
     is_return = not is_pl
     
     content = []
-    content.append(html.H4(f"Audit: {ticker} ({col_id})", className="mb-3"))
-    if date_str: content.append(html.Div(date_str, className="text-muted small mb-3"))
+    content.append(html.H4(f"Audit: {ticker} ({col_id}){period_label}", className="mb-3"))
     
     def fmt_num(n): return f"{n:,.2f}"
     
@@ -1109,6 +1123,30 @@ def get_audit_modal_content(request_data):
             html.Tr([html.Td("Income (Dividends)"), html.Td(fmt_dollar_clean(inc), className="text-end")]),
             html.Tr([html.Td("Avg Capital (Denom)", className="fw-bold"), html.Td(fmt_dollar_clean(denom), className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
         ]
+
+        # Add Result Rows
+        rows.append(html.Tr([html.Td(html.Hr(className="my-1"), colSpan=2)]))
+        
+        cum_ret = r_cum_val * 100
+        
+        if is_annualized:
+             rows.append(html.Tr([
+                 html.Td("Period Return (Cumulative)"), 
+                 html.Td(f"{cum_ret:+.2f}%", className="text-end")
+             ]))
+             
+             final_ret = row_data.get(col_id, 0.0)
+             final_ret_pct = final_ret * 100 if isinstance(final_ret, (int, float)) else 0.0
+             
+             rows.append(html.Tr([
+                 html.Td("Annualized Return (CAGR)", className="fw-bold text-info"), 
+                 html.Td(f"{final_ret_pct:+.2f}%", className="text-end fw-bold text-info")
+             ]))
+        else:
+             rows.append(html.Tr([
+                 html.Td("Modified Dietz Return", className="fw-bold text-success"), 
+                 html.Td(f"{cum_ret:+.2f}%", className="text-end fw-bold text-success")
+             ]))
         content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '400px'}))
         
     else:
