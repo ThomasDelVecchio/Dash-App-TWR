@@ -218,14 +218,19 @@ def add_figure_to_doc(doc, fig, width_inches=7.5, height_inches=4.5):
 # Main Generator
 # =====================================================================
 
-def generate_word_report(data, sections, report_title, subtitle, period_label, mobile_mode=False, start_date=None, end_date=None):
+def generate_word_report(data, sections, report_title, subtitle, period_label, mobile_mode=False, start_date=None, end_date=None, data_unclipped=None):
     """
     Generates a Word Document based on selected sections.
     Args:
         end_date (datetime): Time Machine cutoff for tax lot calculations.
         mobile_mode (bool): If True, forces 1 chart per page and full width for readability.
         start_date (datetime): Optional anchor for period-based AI summaries.
+        data_unclipped (dict): Original unclipped data for accurate P/L calculations (defaults to data if None).
     """
+    # Use unclipped data for P/L calculations if provided, otherwise use clipped data
+    if data_unclipped is None:
+        data_unclipped = data
+    
     doc = Document()
     set_narrow_margins(doc)
     
@@ -637,8 +642,9 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
             add_page_break(doc)
             add_header(doc, "Asset Class Performance", level=2)
             
-            class_df = data.get('class_df', pd.DataFrame())
-            sec_table = data.get('sec_table_current', pd.DataFrame())
+            # USE UNCLIPPED DATA for accurate return calculations
+            class_df = data_unclipped.get('class_df', pd.DataFrame())
+            sec_table = data_unclipped.get('sec_table_current', pd.DataFrame())
             # Full list of horizons to match App
             horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
             
@@ -682,15 +688,16 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
         elif section_key == "ac_pl_table":
             add_header(doc, "Asset Class P/L (Economic)", level=2)
             
-            class_df = data.get('class_df', pd.DataFrame())
-            sec_table = data.get('sec_table_current', pd.DataFrame())
+            # USE UNCLIPPED DATA for accurate P/L calculations
+            class_df = data_unclipped.get('class_df', pd.DataFrame())
+            sec_table = data_unclipped.get('sec_table_current', pd.DataFrame())
             horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
             
-            # Pre-fetch ticker P/L for all horizons to avoid re-calc in loop
+            # Pre-fetch ticker P/L for all horizons using UNCLIPPED data
             ticker_pl_cache = {}
             for h in horizons:
                 try:
-                    ticker_pl_cache[h] = dw.get_ticker_pl_df(data, h)
+                    ticker_pl_cache[h] = dw.get_ticker_pl_df(data_unclipped, h)
                 except:
                     ticker_pl_cache[h] = pd.DataFrame() # Fallback
                 
@@ -704,10 +711,10 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
                 # Map to Short Name if available
                 ac_short = ASSET_CLASS_SHORT_MAP.get(ac, ac)
                 
-                # 1. Class Row
+                # 1. Class Row - use UNCLIPPED data
                 r_vals = [ac_short]
                 for h in horizons:
-                    res = dw.get_asset_class_pl(data, ac, h, return_components=False)
+                    res = dw.get_asset_class_pl(data_unclipped, ac, h, return_components=False)
                     r_vals.append(fmt_dollar_clean(res))
                 rows.append(r_vals)
                 

@@ -1434,7 +1434,10 @@ def download_word_report(n_clicks, order_list, selected_list, title, period, mob
         end_date = datetime.now() # Default effective date
         start_date = None
 
-        # CLIP DATA FOR REPORT ACCURACY
+        # CLIP DATA FOR CHARTS BUT PRESERVE UNCLIPPED FOR P/L CALCULATIONS
+        data_unclipped = data  # Keep original data for P/L calculations
+        data_clipped = data    # Will be clipped for visual elements
+        
         if period and period != "SI":
             # MAP UI LABEL TO MATH LABEL (Crucial: 12M -> 1Y)
             math_period = "1Y" if period == "12M" else period
@@ -1444,12 +1447,13 @@ def download_word_report(n_clicks, order_list, selected_list, title, period, mob
                 inception_date = pv.index.min()
                 start_date = get_portfolio_horizon_start(pv, inception_date, math_period)
                 if start_date:
-                    data = _clip_data(data, start_date=start_date, end_date=end_date)
+                    data_clipped = _clip_data(data, start_date=start_date, end_date=end_date)
             
         p_label = period_labels.get(period, period)
-        # Pass end_date to ensure consistent Time Machine logic in sub-generators (Tax Lots)
-        doc = generate_word_report(data, sections, title, subtitle, p_label, 
-                                   mobile_mode=mobile_mode, start_date=start_date, end_date=end_date)
+        # Pass both datasets: unclipped for P/L, clipped for charts
+        doc = generate_word_report(data_clipped, sections, title, subtitle, p_label, 
+                                   mobile_mode=mobile_mode, start_date=start_date, end_date=end_date,
+                                   data_unclipped=data_unclipped)
         
         # Save to buffer
         buffer = BytesIO()
@@ -1517,6 +1521,10 @@ def export_word_to_drive(n_clicks, order_list, selected_list, title, period, mob
         end_date = datetime.now() # Default effective date
         start_date = None
 
+        # CLIP DATA FOR CHARTS BUT PRESERVE UNCLIPPED FOR P/L CALCULATIONS
+        data_unclipped = data  # Keep original data for P/L calculations
+        data_clipped = data    # Will be clipped for visual elements
+        
         if period and period != "SI":
             math_period = "1Y" if period == "12M" else period
             pv = data.get("pv")
@@ -1524,13 +1532,14 @@ def export_word_to_drive(n_clicks, order_list, selected_list, title, period, mob
                 inception_date = pv.index.min()
                 start_date = get_portfolio_horizon_start(pv, inception_date, math_period)
                 if start_date:
-                    data = _clip_data(data, start_date=start_date, end_date=end_date)
+                    data_clipped = _clip_data(data, start_date=start_date, end_date=end_date)
             
         p_label = period_labels.get(period, period)
         
-        # 3. Generate Word Document
-        doc = generate_word_report(data, sections, title, subtitle, p_label, 
-                                   mobile_mode=mobile_mode, start_date=start_date, end_date=end_date)
+        # 3. Generate Word Document - pass both datasets
+        doc = generate_word_report(data_clipped, sections, title, subtitle, p_label, 
+                                   mobile_mode=mobile_mode, start_date=start_date, end_date=end_date,
+                                   data_unclipped=data_unclipped)
         
         # 4. Save to buffer
         buffer = BytesIO()
