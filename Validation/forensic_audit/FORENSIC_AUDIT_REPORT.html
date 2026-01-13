@@ -112,7 +112,7 @@
                 <div style="opacity: 0.8;">Executive Integrity Dashboard</div>
             </div>
             <div class="meta">
-                <div>Date: 2026-01-13 11:09:26</div>
+                <div>Date: 2026-01-13 14:04:02</div>
                 <div>Version: 3.0 (Modular Opus Suite)</div>
             </div>
         </header>
@@ -284,19 +284,19 @@ Reconciling Shares (Holdings vs Transactions)...
 --- Testing P/L Attribution (The Accounting Ledger) ---
 Loading live data via Analytics Engine...
 [WARNING] Missing Price Data:
-  2026-01-13: FBTC, BND, AMZN, GLD
+  2026-01-13: BND, GLD, VXUS
 DEBUG: data_loader returning 1 errors attached to prices.
 [WARNING] Missing Price Data:
-  2026-01-13: IWM, VOO, AMZN, GLD
+  2026-01-13: BND, IWM
 DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: IWM, VOO, AMZN, GLD']
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: BND, IWM']
 Data loaded.
-[FAIL] [1W] Mismatch. Port: 8.71 | Sum: 63.29 | Gap: -54.58
-[FAIL] [1M] Mismatch. Port: 1,337.00 | Sum: 1,391.51 | Gap: -54.51
-[FAIL] [MTD] Mismatch. Port: 981.09 | Sum: 1,035.66 | Gap: -54.58
-[FAIL] [YTD] Mismatch. Port: 981.09 | Sum: 1,035.66 | Gap: -54.58
+[FAIL] [1W] Mismatch. Port: 28.57 | Sum: -10.57 | Gap: 39.14
+[FAIL] [1M] Mismatch. Port: 1,356.86 | Sum: 1,317.65 | Gap: 39.21
+[FAIL] [MTD] Mismatch. Port: 1,000.94 | Sum: 961.80 | Gap: 39.14
+[FAIL] [YTD] Mismatch. Port: 1,000.94 | Sum: 961.80 | Gap: 39.14
 [1Y] Insufficient data for Portfolio P/L.
-[FAIL] [SI] Mismatch. Port: 2,177.27 | Sum: 2,231.70 | Gap: -54.43
+[FAIL] [SI] Mismatch. Port: 2,197.13 | Sum: 2,157.84 | Gap: 39.29
 
 --- Dividend Integrity Check ---
 Checking Dividend: CASH on 2025-11-28 for $0.08
@@ -319,17 +319,17 @@ Checking Dividend: CASH on 2025-11-28 for $0.08
 --- Testing Risk Intelligence (Institutional Upgrade) ---
 Loading live data...
 [WARNING] Missing Price Data:
-  2026-01-13: NDAQ, AMZN, GLD
+  2026-01-13: AMZN, SPY, GLD, VOO
 DEBUG: data_loader returning 1 errors attached to prices.
 [WARNING] Missing Price Data:
-  2026-01-13: SPY, AMZN, VOO, SPMO (+1)
+  2026-01-13: SPY, GLD, NDAQ
 DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: SPY, AMZN, VOO, SPMO, GLD']
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: SPY, GLD, NDAQ']
 Checking Correlation Matrix...
 [PASS] Correlation Matrix Diagonal is all 1.0
 [PASS] Correlation Matrix is Symmetric
 [PASS] Correlation Values within [-1, 1]
-[PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1182
+[PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1181
 Checking Active Metrics (Beta/TE)...
 [WARNING] Data stale: Latest 2026-01-12 (1d ago)
 DEBUG: data_loader returning 1 errors attached to prices.
@@ -356,23 +356,23 @@ Checking Drawdown Logic...
 --- Testing Consistency Matrix (The Truth-Teller) ---
 Loading live data...
 [WARNING] Missing Price Data:
-  2026-01-13: AMZN, VOO, SPY, FBTC (+1)
+  2026-01-13: SPY, AMZN
 DEBUG: data_loader returning 1 errors attached to prices.
 [WARNING] Missing Price Data:
-  2026-01-13: AMZN, VOO, SPY, IWM
+  2026-01-13: VOO, SPY, AMZN, IWM (+1)
 DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: AMZN, VOO, SPY, IWM']
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: VOO, SPY, AMZN, IWM, GLD']
 Checking Snapshot vs Chart...
-[PASS] Cumulative SI TWR (0.0467) matches Chart Final Value (0.0467)
+[PASS] Cumulative SI TWR (0.0459) matches Chart Final Value (0.0459)
 Checking Snapshot vs Horizon Table...
-[PASS] Snapshot SI P/L (2,204.31) matches Horizon Table (2,204.31)
+[PASS] Snapshot SI P/L (2,167.52) matches Horizon Table (2,167.52)
 Checking Growth Table vs P/L...
-[WARN] Growth Table (2,245.94) slightly divergent from SI P/L (2,204.31). Diff: -41.63
+[WARN] Growth Table (2,217.90) slightly divergent from SI P/L (2,167.52). Diff: -50.38
 [PASS] Growth Table within 5% tolerance.
 Checking Attribution vs SI TWR...
-[PASS] Attribution Sum (4.67%) matches SI TWR (4.67%)
+[PASS] Attribution Sum (4.59%) matches SI TWR (4.59%)
 Checking Risk Chart vs Horizon Table...
-Risk Chart US Large Cap Return: 24.49%
+Risk Chart US Large Cap Return: 24.47%
 [PASS] Risk Data exists.
 
 [SUCCESS] audit_05_consistency_matrix.py passed.
@@ -443,7 +443,7 @@ Final GIPS Score: 5/5
 --- Testing Time Machine Consistency ---
 Running Live Engine...
 [WARNING] Missing Price Data:
-  2026-01-13: GLD, FBTC, SPY
+  2026-01-13: FBTC, SPY, AMZN, VXUS
 DEBUG: data_loader returning 1 errors attached to prices.
 Time Machine Target: 2025-12-30
 Running Historical Engine...
@@ -472,74 +472,20 @@ Checking Future Leakage (Transactions)...
 --- Testing Custom Report Logic (Curve Slicing) ---
 Loading Live Data...
 [WARNING] Missing Price Data:
-  2025-11-03: VOO
-  2025-11-04: VOO
-  2025-11-05: VOO
-  2025-11-06: VOO
-  2025-11-07: VOO
-  2025-11-10: VOO
-  2025-11-11: VOO
-  2025-11-12: VOO
-  2025-11-13: VOO
-  2025-11-14: VOO
-  2025-11-17: VOO
-  2025-11-18: VOO
-  2025-11-19: VOO
-  2025-11-20: VOO
-  2025-11-21: VOO
-  2025-11-24: VOO
-  2025-11-25: VOO
-  2025-11-26: VOO
-  2025-11-28: VOO
-  2025-12-01: VOO
-  2025-12-02: VOO
-  2025-12-03: VOO
-  2025-12-04: VOO
-  2025-12-05: VOO
-  2025-12-08: VOO
-  2025-12-09: VOO
-  2025-12-10: VOO
-  2025-12-11: VOO
-  2025-12-12: VOO
-  2025-12-15: VOO
-  2025-12-16: VOO
-  2025-12-17: VOO
-  2025-12-18: VOO
-  2025-12-19: VOO
-  2025-12-22: VOO
-  2025-12-23: VOO
-  2025-12-24: VOO
-  2025-12-26: VOO
-  2025-12-29: VOO
-  2025-12-30: VOO
-  2025-12-31: VOO
-  2026-01-02: VOO
-  2026-01-05: VOO
-  2026-01-06: VOO
-  2026-01-07: VOO
-  2026-01-08: VOO
-  2026-01-09: VOO
-  2026-01-12: VOO
-  2026-01-13: SPY, VOO
+  2026-01-13: SPY, GLD, AMZN, VOO
 DEBUG: data_loader returning 1 errors attached to prices.
 [WARNING] Missing Price Data:
-  2026-01-13: GLD, SPY, FBTC, AMZN (+3)
+  2026-01-13: SPY, AMZN, IWM, BND (+1)
 DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: GLD, SPY, FBTC, AMZN, IWM, BND, SCHG']
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: SPY, AMZN, IWM, BND, VOO']
 
 Scanning Last 30 Days (2025-12-14 to 2026-01-13)...
-[PASS] Last 30 Days: Match! Slice=0.014702 vs Rigorous=0.014702
+[PASS] Last 30 Days: Match! Slice=0.028647 vs Rigorous=0.028647
 
 Scanning Middle 20 Days (2025-12-08 to 2025-12-28)...
-[PASS] Middle 20 Days: Match! Slice=0.032730 vs Rigorous=0.032730
+[PASS] Middle 20 Days: Match! Slice=0.027620 vs Rigorous=0.027620
 
 [SUCCESS] audit_09_custom_report.py passed.
-
-
-[STDERR]
-
-1 Failed download:
-['VOO']: JSONDecodeError('unexpected character: line 1 column 1 (char 0)')
 </div>
                 </div>
             </div>
@@ -580,12 +526,12 @@ Scanning Middle 20 Days (2025-12-08 to 2025-12-28)...
 Objective: Ensure Asset Class returns match Ticker returns exactly when 1:1.
 Loading engine data...
 [WARNING] Missing Price Data:
-  2026-01-13: FBTC, GLD
+  2026-01-13: BND, AMZN
 DEBUG: data_loader returning 1 errors attached to prices.
 [WARNING] Missing Price Data:
-  2026-01-13: AVUV
+  2026-01-13: VXUS, SPY, AMZN, GLD
 DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: AVUV']
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-13: VXUS, SPY, AMZN, GLD']
 Found 3 single-ticker asset classes: {'International Equity': 'VXUS', 'Gold / Precious Metals': 'GLD', 'Digital Assets': 'FBTC'}
 
 Checking International Equity vs VXUS...

@@ -58,29 +58,77 @@ def safe(x):
 # =====================================================================
 
 def set_narrow_margins(doc):
-    """Sets page margins to 0.3 inches."""
+    """Sets page margins to 0.25 inches for maximum content area."""
     sections = doc.sections
     for section in sections:
-        section.top_margin = Inches(0.3)
-        section.bottom_margin = Inches(0.3)
-        section.left_margin = Inches(0.3)
-        section.right_margin = Inches(0.3)
+        section.top_margin = Inches(0.25)
+        section.bottom_margin = Inches(0.25)
+        section.left_margin = Inches(0.25)
+        section.right_margin = Inches(0.25)
+
+# DOCX Spacing Constants (in points)
+HEADER_SPACE_BEFORE_L1 = Pt(18)  # Level 1 headers (main sections)
+HEADER_SPACE_AFTER_L1 = Pt(6)
+HEADER_SPACE_BEFORE_L2 = Pt(14)  # Level 2 headers (subsections)
+HEADER_SPACE_AFTER_L2 = Pt(4)
+SUBHEADER_SPACE_BEFORE = Pt(10)  # Chart sub-headers
+SUBHEADER_SPACE_AFTER = Pt(2)
+CHART_SPACE_BEFORE = Pt(0)       # Tight against header
+CHART_SPACE_AFTER = Pt(8)        # Small gap after chart
+
+# Font Constants
+HEADER_FONT_NAME = 'Calibri'
+HEADER_FONT_SIZE_L1 = Pt(18)
+HEADER_FONT_SIZE_L2 = Pt(14)
+SUBHEADER_FONT_SIZE = Pt(11)
+BODY_FONT_NAME = 'Calibri'
+BODY_FONT_SIZE = Pt(10)
 
 def add_header(doc, text, level=1):
-    """Adds a centered header."""
+    """Adds a centered header with explicit spacing and Calibri font."""
     p = doc.add_heading(text, level=level)
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
     # Keep with next paragraph (the table or chart)
     p.paragraph_format.keep_with_next = True
+    
+    # Set explicit spacing based on level
+    if level == 1:
+        p.paragraph_format.space_before = HEADER_SPACE_BEFORE_L1
+        p.paragraph_format.space_after = HEADER_SPACE_AFTER_L1
+        font_size = HEADER_FONT_SIZE_L1
+    else:
+        p.paragraph_format.space_before = HEADER_SPACE_BEFORE_L2
+        p.paragraph_format.space_after = HEADER_SPACE_AFTER_L2
+        font_size = HEADER_FONT_SIZE_L2
+    
+    # Apply consistent Calibri font to all runs
+    for run in p.runs:
+        run.font.name = HEADER_FONT_NAME
+        run.font.size = font_size
+        run.font.bold = True
 
-def add_paragraph_centered(doc, text, bold=False, keep_after=False):
-    """Adds a centered paragraph."""
+def add_paragraph_centered(doc, text, bold=False, keep_after=False, is_chart_header=False):
+    """Adds a centered paragraph with explicit spacing and Calibri font."""
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
     if keep_after:
         p.paragraph_format.keep_with_next = True
+    
+    # Apply tight spacing for chart headers
+    if is_chart_header or keep_after:
+        p.paragraph_format.space_before = SUBHEADER_SPACE_BEFORE
+        p.paragraph_format.space_after = SUBHEADER_SPACE_AFTER
+    else:
+        p.paragraph_format.space_before = Pt(4)
+        p.paragraph_format.space_after = Pt(4)
+    
     run = p.add_run(text)
-    if bold:
+    run.font.name = BODY_FONT_NAME
+    run.font.size = SUBHEADER_FONT_SIZE if (is_chart_header or keep_after) else BODY_FONT_SIZE
+    
+    if bold or is_chart_header or keep_after:
         run.bold = True
 
 def add_page_break(doc):
@@ -89,6 +137,7 @@ def add_page_break(doc):
 def add_markdown_paragraph(doc, text):
     """
     Parses simple markdown (bold only via **) and adds to doc.
+    Uses consistent Calibri font.
     """
     if not text: return
     
@@ -101,11 +150,15 @@ def add_markdown_paragraph(doc, text):
             
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p.paragraph_format.space_before = Pt(2)
+        p.paragraph_format.space_after = Pt(4)
         
         # Split by ** for bolding
         parts = paragraph_text.split("**")
         for i, part in enumerate(parts):
             run = p.add_run(part)
+            run.font.name = BODY_FONT_NAME
+            run.font.size = BODY_FONT_SIZE
             if i % 2 == 1: # Odd parts are inside **...**
                 run.bold = True
 
@@ -116,6 +169,7 @@ def add_markdown_paragraph(doc, text):
 def add_table(doc, headers, rows, right_align=None):
     """
     Adds a table with 'Light Grid Accent 1' style, autofitted to ~7.5 inches.
+    Uses consistent Calibri font throughout.
     """
     try:
         table = doc.add_table(rows=1, cols=len(headers))
@@ -126,8 +180,8 @@ def add_table(doc, headers, rows, right_align=None):
         table.autofit = True
         table.allow_autofit = True
 
-        # Target width = 7.5" (8.5 - 0.5 - 0.5)
-        max_width = Inches(7.5)
+        # Target width = 8.0" (8.5 - 0.5 margins)
+        max_width = Inches(8.0)
         col_width = max_width / len(headers)
 
         for col in table.columns:
@@ -145,8 +199,12 @@ def add_table(doc, headers, rows, right_align=None):
             hdr[i].text = str(h)
             for p in hdr[i].paragraphs:
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p.paragraph_format.space_before = Pt(2)
+                p.paragraph_format.space_after = Pt(2)
                 for r in p.runs:
                     r.bold = True
+                    r.font.name = BODY_FONT_NAME
+                    r.font.size = BODY_FONT_SIZE
 
         # Rows
         for row in rows:
@@ -165,6 +223,11 @@ def add_table(doc, headers, rows, right_align=None):
                 
                 for p in row_cells[i].paragraphs:
                     p.alignment = align
+                    p.paragraph_format.space_before = Pt(1)
+                    p.paragraph_format.space_after = Pt(1)
+                    for r in p.runs:
+                        r.font.name = BODY_FONT_NAME
+                        r.font.size = BODY_FONT_SIZE
 
         # Prevent row splitting
         for row in table.rows:
@@ -173,7 +236,10 @@ def add_table(doc, headers, rows, right_align=None):
             cant = OxmlElement("w:cantSplit")
             trPr.append(cant)
             
-        doc.add_paragraph() # Spacer
+        # Small spacer after table
+        spacer = doc.add_paragraph()
+        spacer.paragraph_format.space_before = Pt(4)
+        spacer.paragraph_format.space_after = Pt(4)
         return table
     except Exception as e:
         print(f"Error adding table: {e}")
@@ -186,27 +252,32 @@ def add_table(doc, headers, rows, right_align=None):
 def add_figure_to_doc(doc, fig, width_inches=7.5, height_inches=4.5):
     """
     Converts a Plotly fig to image and adds it to the Word doc.
-    Uses kaleido.
+    Uses kaleido. Applies tight spacing for professional layout.
     """
     if fig is None:
         return
     
-    # 1. Update layout for static export (white background)
+    # 1. Update layout for static export (white background, Calibri font)
+    # Suppress title (Word headers handle titles) and minimize top margin
     fig.update_layout(
          template='plotly_white',
          paper_bgcolor='white',
          plot_bgcolor='white',
-         font=dict(size=10, color='black'),
-         margin=dict(l=20, r=20, t=40, b=20),
+         font=dict(family='Calibri', size=10, color='black'),
+         margin=dict(l=20, r=20, t=5, b=20),
+         title=None,  # Remove Plotly title - Word doc has headers
     )
     
     # 2. Convert to image bytes
     try:
         img_bytes = fig.to_image(format="png", width=width_inches*100, height=height_inches*100, scale=3)
         
-        # 3. Add to doc
+        # 3. Add to doc with tight spacing
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_before = CHART_SPACE_BEFORE
+        p.paragraph_format.space_after = CHART_SPACE_AFTER
+        
         run = p.add_run()
         run.add_picture(BytesIO(img_bytes), width=Inches(width_inches))
     except Exception as e:
@@ -240,16 +311,19 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
             # Continuous scroll effect for mobile (Spacer instead of Break)
             p = doc.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p.add_run("─" * 20).bold = True # Horizontal rule
-            doc.add_paragraph() # Extra spacer
+            p.paragraph_format.space_before = Pt(6)
+            p.paragraph_format.space_after = Pt(6)
+            run = p.add_run("─" * 20)
+            run.bold = True
+            run.font.name = BODY_FONT_NAME
         # Note: Desktop layout relies on explicit breaks or flow as designed previously.
 
-    # Standard width is 7.5" (8.5 page - 1.0 margins). 
+    # Standard width is 8.0" (8.5 page - 0.5 margins). 
     # In split mode (desktop default), we use 6" for side-by-side feel or smaller figs.
-    # In mobile mode, we use full 7.5" for everything.
-    w_full = 7.5
-    w_split = 7.5 if mobile_mode else 6.0
-    h_std = 5.0 if mobile_mode else 4.5
+    # In mobile mode, we use full 8.0" for everything.
+    w_full = 8.0
+    w_split = 8.0 if mobile_mode else 6.0
+    h_std = 4.5 if mobile_mode else 4.0
     
     # Title Page / Header
     add_header(doc, report_title, level=1)
@@ -257,7 +331,11 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
         add_paragraph_centered(doc, subtitle)
     add_paragraph_centered(doc, f"Period: {period_label}", bold=True)
     add_paragraph_centered(doc, f"Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}")
-    doc.add_paragraph() # Spacer
+    
+    # Controlled spacer after title block
+    spacer = doc.add_paragraph()
+    spacer.paragraph_format.space_before = Pt(8)
+    spacer.paragraph_format.space_after = Pt(8)
 
     # =================================================================
     # Dynamic Section Loop
