@@ -229,13 +229,17 @@ def update_si_attribution(signal):
     df["Effect Fmt"] = df["Effect"].apply(fmt_dollar_clean)
     df["Contrib Fmt"] = df["Contribution (%)"].map(lambda x: f"{x:+.2f}%")
     
+    # Dynamic Header to clarify Cumulative vs Annualized Context
+    is_ann = dw.is_annualized(data["inception_date"], data.get("effective_as_of"))
+    contrib_header = "Contribution (Cum. %)" if is_ann else "Contribution (%)"
+    
     grid = dag.AgGrid(
         id="attribution-si-grid",
         rowData=df.to_dict("records"),
         columnDefs=[
             {"field": "Asset Class", "minWidth": 185},
             {"field": "Effect Fmt", "headerName": "Effect ($)", "type": "rightAligned", "sort": "desc", "comparator": {"function": "MoneyComparator"}},
-            {"field": "Contrib Fmt", "headerName": "Contribution (%)", "type": "rightAligned", "comparator": {"function": "MoneyComparator"},
+            {"field": "Contrib Fmt", "headerName": contrib_header, "type": "rightAligned", "comparator": {"function": "MoneyComparator"},
              "cellStyle": {"styleConditions": [
                 {"condition": "params.value.includes('+')", "style": {"color": "#9BBB59"}},
                 {"condition": "params.value.includes('-')", "style": {"color": "#C0504D"}}

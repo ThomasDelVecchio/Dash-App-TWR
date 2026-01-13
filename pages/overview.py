@@ -238,7 +238,12 @@ def update_overview(signal, chat_cmd, _filters):
     
     # TWR card with indicator
     twr_is_positive = metrics['twr_si'] >= 0 if metrics['twr_si'] is not None else None
-    twr_card = create_kpi_card("Inception TWR (Ann)", twr, subtext=None, is_positive=twr_is_positive)
+    
+    # Dynamic Labeling for Annualization
+    twr_label = "Inception TWR (Ann)" if metrics.get("is_annualized") else "Inception TWR"
+    sub_label = "Ann. CAGR" if metrics.get("is_annualized") else "Cumulative"
+    
+    twr_card = create_kpi_card(twr_label, twr, subtext=sub_label, is_positive=twr_is_positive)
     
     # P/L card with indicator
     pl_is_positive = metrics['pl_si'] >= 0 if metrics['pl_si'] is not None else None

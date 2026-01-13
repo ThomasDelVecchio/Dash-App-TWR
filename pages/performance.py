@@ -152,13 +152,20 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
     # Define Columns (Shared across all accordion grids)
     ret_column_defs = []
     
+    # Check Annualization
+    is_port_annualized = dw.is_annualized(data['inception_date'], data.get('effective_as_of'))
+
     # Check Sort Target
     is_ret_target = "return" in chat_target or (not chat_target and not "p/l" in chat_target)
     
     for col in cols:
         header_text = col
         if col == "1D": header_text = label_1d
-            
+        
+        # Dynamic SI Annualization Label
+        if col == "SI" and is_port_annualized:
+            header_text = "SI (Ann.)"
+
         col_def = {
             "field": col, 
             "headerName": header_text, 

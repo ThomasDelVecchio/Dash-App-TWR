@@ -101,6 +101,9 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
                             
             df = df[df["ticker"].isin(valid_tickers)]
     
+    # Calculate global annualization status
+    is_port_annualized = dw.is_annualized(data["inception_date"], data.get("effective_as_of"))
+
     # Prepare column definitions for AG Grid
     return_cols = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "SI"]
     column_defs = []
@@ -110,7 +113,10 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
         if col == "1D":
             header_name = label_1d
         elif col in return_cols:
-            header_name = col
+            if col == "SI" and is_port_annualized:
+                header_name = "SI (Ann.)"
+            else:
+                header_name = col
         else:
             header_name = col.replace('_', ' ').replace('-', ' ').title()
         

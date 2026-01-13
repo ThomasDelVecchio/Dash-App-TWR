@@ -616,6 +616,10 @@ def get_snapshot_metrics(data):
         position_count = len(pos_df)
     else:
         position_count = 0
+        
+    # Check if SI is annualized using same logic as engine
+    # (Engine uses calculated inception_date and effective_as_of)
+    si_is_ann = is_annualized(data["inception_date"], data.get("effective_as_of"))
     
     return {
         "current_mv": current_mv,
@@ -626,7 +630,8 @@ def get_snapshot_metrics(data):
         "sharpe": eff["sharpe"],
         "sortino": eff["sortino"],
         "max_dd": max_dd,
-        "position_count": position_count
+        "position_count": position_count,
+        "is_annualized": si_is_ann
     }
 
 def get_horizon_analysis(data):
@@ -672,14 +677,22 @@ def get_horizon_analysis(data):
              mv_as_of = float(pv.iloc[-1]) if not pv.empty else 0.0
 
     for h in horizons:
-        # Use dynamic label for 1D, otherwise standard
-        display_h = label_1d if h == "1D" else h
-
-        ret = snap_map.get(h, np.nan)
-        
         # Calculate PL components locally to expose meta data
         # Logic matches calculate_horizon_pl in portfolio_engine.py
         start = get_portfolio_horizon_start(pv, inception_date, h)
+
+        # Check annualization for label
+        is_ann_h = False
+        if start is not None:
+             is_ann_h = is_annualized(start, as_of)
+
+        # Use dynamic label for 1D, otherwise standard
+        display_h = label_1d if h == "1D" else h
+        
+        if is_ann_h:
+             display_h += " (Ann.)"
+
+        ret = snap_map.get(h, np.nan)
         
         pl_val = np.nan
         mv_start = 0.0
@@ -802,11 +815,16 @@ def get_horizon_analysis(data):
         
     si_ret = twr_si_ann if pd.notna(twr_si_ann) else twr_si
     
+    # Check if SI is annualized
+    si_label = "Since Inception"
+    if is_annualized(si_start, as_of):
+        si_label += " (Ann.)"
+    
     # SI Risk Metrics
     eff_si = calculate_efficiency_metrics(twr_curve_full)
     
     rows.append({
-        "Horizon": "Since Inception",
+        "Horizon": si_label,
         "Return": si_ret,
         "P/L": pl_si,
         "Sharpe": eff_si["sharpe"],
