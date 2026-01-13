@@ -1755,7 +1755,7 @@ def get_weekly_attribution_breakdown(data, date_str):
     return df.sort_values("Contribution (%)", ascending=False)
 
 
-def get_smart_attribution_chart(data, theme="light"):
+def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="light"):
     """
     Generates Daily or Monthly Delta PV Attribution chart based on portfolio history.
     """
@@ -1781,8 +1781,25 @@ def get_smart_attribution_chart(data, theme="light"):
     pv_shifted = pv_daily.shift(1).fillna(0)
     mkt = (pv_daily - pv_shifted) - ext
     
+    # 3. Filter by Date Range (if provided)
+    if start_date:
+        start_ts = pd.Timestamp(start_date)
+        # Ensure we don't look before data starts
+        if start_ts < pv_daily.index.min():
+            start_ts = pv_daily.index.min()
+        mkt = mkt[mkt.index >= start_ts]
+        ext = ext[ext.index >= start_ts]
+        
+    if end_date:
+        end_ts = pd.Timestamp(end_date)
+        mkt = mkt[mkt.index <= end_ts]
+        ext = ext[ext.index <= end_ts]
+    
+    if mkt.empty:
+        return go.Figure()
+
     # Decide on aggregation
-    history_days = (pv_daily.index.max() - pv_daily.index.min()).days
+    history_days = (mkt.index.max() - mkt.index.min()).days
     
     if history_days > 90:
         # Long history: Monthly

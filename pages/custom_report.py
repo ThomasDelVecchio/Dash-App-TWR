@@ -1136,12 +1136,10 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
 
         # 13. Attribution Analysis
         elif section_key == "attribution":
-            attr_fig = dw.get_smart_attribution_chart(data, theme)
+            # Pass user-selected dates to ensure proper data aggregation (Daily vs Weekly vs Monthly)
+            attr_fig = dw.get_smart_attribution_chart(data, start_date, end_date, theme)
             if print_preview:
                 attr_fig = apply_print_theme(attr_fig)
-            
-            if start_date:
-                attr_fig.update_xaxes(range=[start_date, end_date])
 
             attr_fig.update_layout(height=600, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
                 
