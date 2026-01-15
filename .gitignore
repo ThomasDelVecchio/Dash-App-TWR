@@ -7,6 +7,11 @@ __pycache__/
 
 # --- SECRETS ---
 .env
+token.json
+etrade_token.json
+etrade_sync_status.json
+client_secret.json
+credentials.json
 
 # --- DATA FILES ---
 *.csv

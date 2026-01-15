@@ -29,6 +29,27 @@ if not FMP_API_KEY:
     FMP_API_KEY = "demo"
 
 # ============================================================
+# E*TRADE API CONFIGURATION
+# ============================================================
+# Add these to your .env file:
+#   ETRADE_CONSUMER_KEY=your_oauth_consumer_key
+#   ETRADE_CONSUMER_SECRET=your_consumer_secret
+#   ETRADE_ACCOUNT_ID=your_account_id_key (optional, auto-detected if omitted)
+#   ETRADE_SANDBOX=false (set to true for testing)
+
+ETRADE_CONSUMER_KEY = os.environ.get("ETRADE_CONSUMER_KEY")
+ETRADE_CONSUMER_SECRET = os.environ.get("ETRADE_CONSUMER_SECRET")
+ETRADE_ACCOUNT_ID = os.environ.get("ETRADE_ACCOUNT_ID")  # Optional
+ETRADE_SANDBOX = os.environ.get("ETRADE_SANDBOX", "false").lower() == "true"
+
+# Enable/disable automatic E*TRADE sync on dashboard startup
+ETRADE_AUTO_SYNC = os.environ.get("ETRADE_AUTO_SYNC", "true").lower() == "true"
+
+def is_etrade_configured() -> bool:
+    """Check if E*TRADE credentials are properly configured."""
+    return bool(ETRADE_CONSUMER_KEY and ETRADE_CONSUMER_SECRET)
+
+# ============================================================
 # FMP PRICE DATA CONFIGURATION (Hybrid Mode)
 # ============================================================
 # FMP Starter Plan provides 5 years of historical data.

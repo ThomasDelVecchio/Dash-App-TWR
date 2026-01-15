@@ -250,7 +250,17 @@ def _stitch_price_dataframes(fmp_df: pd.DataFrame, yf_df: pd.DataFrame, ticker: 
 # Load holdings (your schema)
 # ------------------------------------------------------------
 
+HOLDINGS_EXTERNAL_FILE = "holdings_external.csv"
+
 def load_holdings(path: str = HOLDINGS_FILE) -> pd.DataFrame:
+    """
+    Load holdings from primary file and merge external holdings if present.
+    
+    External holdings (holdings_external.csv) contain positions not tracked
+    by the primary broker API (e.g., stock plans, other brokers). This merge
+    ensures GIPS-compliant reconciliation with the full transaction history
+    in cashflows.csv.
+    """
     df = pd.read_csv(path)
     df.columns = [c.lower() for c in df.columns]
 
@@ -265,6 +275,33 @@ def load_holdings(path: str = HOLDINGS_FILE) -> pd.DataFrame:
         df["asset_class"] = "Unknown"
     if "target_pct" not in df.columns:
         df["target_pct"] = np.nan
+
+    # ============================================================
+    # MERGE EXTERNAL HOLDINGS (Fallback if not merged during sync)
+    # ============================================================
+    # This ensures the app works correctly even if E*TRADE sync
+    # hasn't run or failed. External holdings are merged if they
+    # don't already exist in the primary holdings file.
+    
+    if os.path.exists(HOLDINGS_EXTERNAL_FILE):
+        ext_df = pd.read_csv(HOLDINGS_EXTERNAL_FILE)
+        ext_df.columns = [c.lower() for c in ext_df.columns]
+        
+        if "ticker" in ext_df.columns and "shares" in ext_df.columns:
+            ext_df["ticker"] = ext_df["ticker"].astype(str).str.upper()
+            ext_df["shares"] = ext_df["shares"].astype(float)
+            
+            if "asset_class" not in ext_df.columns:
+                ext_df["asset_class"] = "Unknown"
+            if "target_pct" not in ext_df.columns:
+                ext_df["target_pct"] = np.nan
+            
+            # Only add external positions not already in primary holdings
+            existing_tickers = set(df["ticker"].unique())
+            ext_new = ext_df[~ext_df["ticker"].isin(existing_tickers)]
+            
+            if not ext_new.empty:
+                df = pd.concat([df, ext_new], ignore_index=True)
 
     return df
 

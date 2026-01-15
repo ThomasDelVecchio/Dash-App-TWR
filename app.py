@@ -8,7 +8,7 @@ import pandas as pd
 import dash_wrappers as dw
 
 # Import Config
-from config import NAV_MODULES
+from config import NAV_MODULES, is_etrade_configured, ETRADE_AUTO_SYNC
 
 # Import Components
 from components import chatbot
@@ -16,6 +16,52 @@ from components.audit_modal import get_audit_modal_content
 
 # Import Pages
 from pages import overview, performance, allocations, attribution, flows, holdings, risk, settings, trade_lab, help_index, taxes, rebalancing, custom_report
+
+# ============================================================
+# E*TRADE SYNC ON STARTUP
+# ============================================================
+_ETRADE_SYNC_STATUS = None
+
+def _run_etrade_sync():
+    """Run E*TRADE sync if configured. Returns status dict or None."""
+    global _ETRADE_SYNC_STATUS
+    
+    if not is_etrade_configured():
+        print("⚠️ E*TRADE not configured. Skipping sync.")
+        return None
+        
+    if not ETRADE_AUTO_SYNC:
+        print("ℹ️ E*TRADE auto-sync disabled via ETRADE_AUTO_SYNC=false")
+        return None
+    
+    try:
+        from etrade_sync import sync_all, get_sync_status
+        
+        print("🔄 Starting E*TRADE sync...")
+        result = sync_all()
+        
+        # Check status field (not "success" boolean)
+        status = result.get("status", "error")
+        
+        if status == "success":
+            tx_count = result.get("transactions_added", 0)
+            holdings_updated = result.get("holdings_updated", False)
+            print(f"✅ E*TRADE sync complete: {tx_count} new transactions, holdings {'updated' if holdings_updated else 'unchanged'}")
+        elif status == "partial":
+            print(f"⚠️ E*TRADE sync partial: {result.get('message', 'Some issues')}")
+        else:
+            print(f"❌ E*TRADE sync error: {result.get('message', 'Unknown error')}")
+            
+        _ETRADE_SYNC_STATUS = get_sync_status()
+        return _ETRADE_SYNC_STATUS
+        
+    except Exception as e:
+        print(f"❌ E*TRADE sync failed: {e}")
+        _ETRADE_SYNC_STATUS = {"success": False, "error": str(e)}
+        return _ETRADE_SYNC_STATUS
+
+# Run E*TRADE sync BEFORE loading data cache
+_run_etrade_sync()
 
 # Initialize App
 app = dash.Dash(
@@ -37,10 +83,76 @@ except Exception as e:
     print(f"Initial data load failed: {e}")
 
 # Sidebar Component
+def _get_sync_status_badge():
+    """Generate sync status badge for sidebar."""
+    global _ETRADE_SYNC_STATUS
+    
+    if not is_etrade_configured():
+        return html.Div(
+            [
+                html.I(className="bi bi-cloud-slash me-2"),
+                html.Span("E*TRADE not configured", style={"fontSize": "0.8rem"})
+            ],
+            className="text-muted mb-2",
+            style={"fontSize": "0.75rem"}
+        )
+    
+    if _ETRADE_SYNC_STATUS is None:
+        return html.Div()
+    
+    # Check status field (not "success" boolean)
+    status = _ETRADE_SYNC_STATUS.get("status", "error")
+    
+    if status == "success":
+        last_sync = _ETRADE_SYNC_STATUS.get("last_sync", "Unknown")
+        tx_count = _ETRADE_SYNC_STATUS.get("transactions_added", 0)
+        
+        # Format the time nicely
+        try:
+            sync_dt = datetime.fromisoformat(last_sync)
+            time_str = sync_dt.strftime("%I:%M %p")
+        except:
+            time_str = "Recently"
+        
+        return html.Div(
+            [
+                html.Div(
+                    [
+                        html.I(className="bi bi-cloud-check me-2 text-success"),
+                        html.Span(f"Synced at {time_str}", style={"fontSize": "0.8rem"})
+                    ]
+                ),
+                html.Div(
+                    f"+{tx_count} new trades" if tx_count > 0 else "No new trades",
+                    className="text-muted",
+                    style={"fontSize": "0.7rem", "marginLeft": "1.25rem"}
+                )
+            ],
+            className="mb-2"
+        )
+    else:
+        error = _ETRADE_SYNC_STATUS.get("message", "Sync failed")
+        return html.Div(
+            [
+                html.I(className="bi bi-exclamation-triangle me-2 text-warning"),
+                html.Span("Sync issue", style={"fontSize": "0.8rem"}),
+                html.Div(
+                    error[:30] + "..." if len(error) > 30 else error,
+                    className="text-muted",
+                    style={"fontSize": "0.65rem", "marginLeft": "1.25rem"}
+                )
+            ],
+            className="mb-2"
+        )
+
 sidebar = html.Div(
     [
         html.H3("DELVEX", className="display-6"),
         html.P("Portfolio Analytics", className="lead"),
+        
+        # E*TRADE Sync Status Badge
+        _get_sync_status_badge(),
+        
         html.Hr(),
         
         dbc.Nav(

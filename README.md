@@ -5,6 +5,7 @@ This is a comprehensive portfolio analytics dashboard built with Plotly Dash. It
 ## Features
 
 *   **Interactive Dashboard:** A multi-page web application for exploring your portfolio data.
+*   **E\*TRADE Integration:** Automatic sync of transactions and holdings from your E\*TRADE brokerage account via OAuth 1.0a API.
 *   **Performance Analysis:** Track your portfolio's performance with metrics like Time-Weighted Return (TWR) and Modified Dietz (GIPS-compliant).
 *   **Risk Intelligence:** Analyze risk with volatility scatters, correlation heatmaps, and Monte Carlo simulations (historical bootstrapping).
 *   **Attribution Analysis:** Understand the sources of your portfolio's returns with Brinson-Fachler and Frongello linking models.
@@ -47,6 +48,52 @@ RISK_FREE_RATE = 0.04
 ```
 
 *Note: The application prioritizes `.env` values if they exist.*
+
+### E\*TRADE Integration (Optional)
+
+You can automatically sync your transactions and holdings directly from your E\*TRADE brokerage account. This eliminates manual CSV maintenance and ensures your portfolio data is always up-to-date.
+
+**Prerequisites:**
+1.  **Create an E\*TRADE Developer Account:** Visit the [E\*TRADE Developer Portal](https://developer.etrade.com/).
+2.  **Register an Application:** Create a new app and note your **Consumer Key** and **Consumer Secret**.
+3.  **Enable Production Access:** Request production API access (sandbox is for testing only).
+
+**Configuration:**
+Add your E\*TRADE credentials to the `.env` file:
+```ini
+ETRADE_CONSUMER_KEY=your_consumer_key_here
+ETRADE_CONSUMER_SECRET=your_consumer_secret_here
+ETRADE_ACCOUNT_ID=your_account_number
+ETRADE_SANDBOX=false
+ETRADE_AUTO_SYNC=true
+```
+
+**First-Time Authentication:**
+Run the authentication script to authorize the application:
+```bash
+python etrade_auth.py
+```
+This will open your browser to E\*TRADE's login page. After authorization, a verification code is displayed. Enter this code in the terminal to complete setup. Tokens are cached in `etrade_token.json` and automatically renewed.
+
+**Automatic Sync:**
+When `ETRADE_AUTO_SYNC=true`, the app automatically syncs on startup:
+- New transactions are appended to `cashflows.csv`
+- Holdings are updated in `sample holdings.csv`
+- Sync status is displayed in the sidebar
+
+**External Holdings (Stock Plans, Other Brokers):**
+For positions not accessible via the E\*TRADE API (e.g., employee stock plans), create a `holdings_external.csv` file:
+```csv
+ticker,shares,asset_class,target_pct
+VTI, 5, Large Cap, 50
+```
+These positions are automatically merged during sync.
+
+**Security Notes:**
+- Consumer key/secret are stored only in `.env` (never committed to git)
+- OAuth tokens expire at midnight ET and are auto-renewed
+- All API calls use verified HTTPS connections
+
 ### Loading Your Own Data
 
 The app comes pre-loaded with sample files in the `sample_data/` folder: **`sample holdings.csv`** and **`cashflows.csv`**. *IMPORTANT* Move them into the root folder with all other py files before running 
@@ -83,6 +130,30 @@ By default, files are uploaded to a specific folder defined in `dash_wrappers.py
 1.  Open `dash_wrappers.py`.
 2.  Find the variable `PARENT_FOLDER_ID`.
 3.  Replace the value with the ID of your desired Google Drive folder (found in the folder's URL).
+
+### Price Data Sources
+
+The application supports a **hybrid price data system** that can combine multiple data sources:
+
+| Mode | Configuration | Description |
+|------|---------------|-------------|
+| **yfinance-only** (Default) | `FMP_PRICE_ENABLED=false` | Free 10-year history from Yahoo Finance. Suitable for personal use. |
+| **Hybrid FMP+yfinance** | `FMP_PRICE_ENABLED=true` | FMP for recent 5 years + yfinance for extended history. More reliable recent data. |
+
+**To enable Hybrid Mode:**
+```ini
+# In .env file
+FMP_API_KEY=your_fmp_api_key
+FMP_PRICE_ENABLED=true
+FMP_PRICE_LOOKBACK_YEARS=5
+```
+
+**Benefits of Hybrid Mode:**
+- More reliable recent price data (fewer gaps, better corporate action handling)
+- Automatic fallback to yfinance if FMP fails for a ticker
+- UI badge on Overview/Performance pages shows which source was used
+
+For comprehensive documentation, see `Validation/FMP_USAGE_GUIDE.md`.
 
 
 ## Usage
@@ -151,8 +222,8 @@ The following Python libraries are required to run the application:
 *   dash-ag-grid
 *   pandas
 *   numpy
-*   yfinance
-*   requests
+*   yfinance (for price data - default mode)
+*   requests (for FMP API - optional hybrid mode)
 *   plotly
 *   python-dotenv
 *   python-docx
@@ -161,4 +232,4 @@ The following Python libraries are required to run the application:
 ## ⚠️ Disclaimer & Data Usage
 **This software is for educational and research purposes only.**
 * **Not Financial Advice:** The author assumes no responsibility for any financial losses incurred from using this tool.
-* **Data Usage:** The default `yfinance` connector is for personal, non-commercial use. If you use this software for business (e.g., client reporting), you must use a commercial data provider like FMP.
+* **Data Usage:** The default `yfinance` connector is for personal, non-commercial use. For business use (e.g., client reporting), enable **Hybrid Mode** with a commercial FMP API key (`FMP_PRICE_ENABLED=true`).
