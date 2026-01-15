@@ -6,6 +6,7 @@ import dash_wrappers as dw
 from report_formatting import fmt_pct_clean, fmt_dollar_clean
 import pandas as pd
 from components.ai_brief import generate_ai_summary
+from components.data_source_badge import create_price_source_badge
 
 def create_kpi_card(title, value, subtext=None, is_positive=None):
     """
@@ -70,6 +71,9 @@ def create_kpi_card(title, value, subtext=None, is_positive=None):
 layout = html.Div([
     # Data Status Note
     html.Div(id='data-status-container', style={'position': 'fixed', 'top': '15px', 'right': '20px', 'zIndex': 2000, 'maxWidth': '90vw'}),
+    
+    # Price Source Badge (Fixed position below data status)
+    html.Div(id='price-source-badge-container', style={'position': 'fixed', 'top': '60px', 'right': '20px', 'zIndex': 1999}),
 
     # Morning Brief AI Card (NEW)
     dbc.Row([
@@ -163,6 +167,7 @@ def update_ai_brief(signal):
 # Main Dashboard Callback
 @callback(
     [Output('data-status-container', 'children'),
+     Output('price-source-badge-container', 'children'),
      Output('kpi-val-card', 'children'),
      Output('kpi-twr-card', 'children'),
      Output('kpi-pl-card', 'children'),
@@ -181,7 +186,11 @@ def update_ai_brief(signal):
 def update_overview(signal, chat_cmd, _filters):
     data = dw.get_data()
     if not data:
-        return None, "...", "...", "...", "...", {}, "Loading...", "Loading...", "Loading...", "Loading...", "N/A", "N/A"
+        return None, None, "...", "...", "...", "...", {}, "Loading...", "Loading...", "Loading...", "Loading...", "N/A", "N/A"
+    
+    # Price Source Badge
+    price_source_meta = dw.get_price_source_summary(data)
+    price_badge = create_price_source_badge(price_source_meta, "overview-price-badge") if price_source_meta else None
     
     # Data Status Note
     status_note = None
@@ -383,4 +392,4 @@ def update_overview(signal, chat_cmd, _filters):
     sharpe_val = f"{metrics['sharpe']:.2f}" if isinstance(metrics['sharpe'], (int, float)) else "N/A"
     sortino_val = f"{metrics['sortino']:.2f}" if isinstance(metrics['sortino'], (int, float)) else "N/A"
     
-    return status_note, val_card, twr_card, pl_card, mtd_card, fig, snap_table, high_table, risk_table, flows_table, sharpe_val, sortino_val
+    return status_note, price_badge, val_card, twr_card, pl_card, mtd_card, fig, snap_table, high_table, risk_table, flows_table, sharpe_val, sortino_val

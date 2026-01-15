@@ -156,6 +156,28 @@ SCRIPTS = [
             "Verify 366 Days -> Annualized (Leap Year Edge Case).",
             "Verify 3 Years -> Annualized correctly."
         ]
+    },
+    {
+        "file": "audit_14_tax_rebalancing.py",
+        "name": "Tax Lot & Rebalancing Engine",
+        "objective": "Verify tax lot identification strategies (FIFO/LIFO/HIFO) and rebalancing recommendations.",
+        "methodology": [
+            "Test FIFO lot selection (First-In First-Out).",
+            "Test LIFO lot selection (Last-In First-Out).",
+            "Test HIFO lot selection (Highest-In First-Out).",
+            "Verify realized P/L calculations match expected values."
+        ]
+    },
+    {
+        "file": "audit_15_price_stitching.py",
+        "name": "Price Stitching Integrity",
+        "objective": "Validate hybrid FMP/yfinance stitching logic and continuity of price history.",
+        "methodology": [
+            "Verify stitched series has no overlapping duplicates.",
+            "Confirm FMP segment takes precedence on overlap dates.",
+            "Ensure combined series is continuous and sorted.",
+            "Check expected coverage across FMP and yfinance ranges."
+        ]
     }
 ]
 

@@ -5,9 +5,13 @@ import dash_ag_grid as dag
 import dash_wrappers as dw
 from report_formatting import fmt_pct_clean, fmt_dollar_clean
 from config import RISK_FREE_RATE
+from components.data_source_badge import create_price_source_badge
 import pandas as pd
 
 layout = html.Div([
+    
+    # Price Source Badge (Fixed position)
+    html.Div(id='perf-price-source-badge-container', style={'position': 'fixed', 'top': '15px', 'right': '20px', 'zIndex': 1999}),
 
     dbc.Row([
         dbc.Col(dbc.Card([
@@ -95,6 +99,19 @@ layout = html.Div([
         ]), width=12, className="mb-4"),
     ]),
 ])
+
+# Price Source Badge Callback
+@callback(
+    Output('perf-price-source-badge-container', 'children'),
+    [Input('data-signal', 'data')]
+)
+def update_perf_price_badge(signal):
+    data = dw.get_data()
+    if not data:
+        return None
+    
+    price_source_meta = dw.get_price_source_summary(data)
+    return create_price_source_badge(price_source_meta, "perf-price-badge") if price_source_meta else None
 
 @callback(
     [Output('cum-ret-chart', 'figure'),

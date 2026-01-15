@@ -5,7 +5,7 @@ import yfinance as yf
 import requests
 import json
 import os
-from config import FMP_API_KEY
+from config import FMP_API_KEY, FMP_PRICE_ENABLED, FMP_PRICE_LOOKBACK_YEARS
 
 # ============================================================
 # CONFIG
@@ -160,6 +160,93 @@ def get_equity_sector(ticker: str) -> str:
         return "Other"
 
 # ------------------------------------------------------------
+# FMP Price History Helpers (Hybrid Mode)
+# ------------------------------------------------------------
+
+def fetch_fmp_price_history_single(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """
+    Fetch daily price history for a single ticker from FMP API.
+    
+    Args:
+        ticker: Stock ticker symbol
+        start_date: Start date in YYYY-MM-DD format
+        end_date: End date in YYYY-MM-DD format
+    
+    Returns:
+        DataFrame with DatetimeIndex and 'Close' column, or empty DataFrame on failure
+    """
+    if not FMP_API_KEY or FMP_API_KEY == "demo":
+        return pd.DataFrame()
+    
+    try:
+        url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?from={start_date}&to={end_date}&apikey={FMP_API_KEY}"
+        resp = requests.get(url, timeout=15)
+        
+        if resp.status_code != 200:
+            print(f"[FMP] HTTP {resp.status_code} for {ticker}")
+            return pd.DataFrame()
+        
+        data = resp.json()
+        
+        # FMP returns: {"symbol": "SPY", "historical": [{"date": "2025-01-14", "close": 123.45, ...}, ...]}
+        historical = data.get("historical", [])
+        if not historical:
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(historical)
+        df["date"] = pd.to_datetime(df["date"])
+        df = df.set_index("date").sort_index()
+        
+        # Rename 'close' to 'Close' for consistency, keep 'adjClose' for adj close mode
+        if "close" in df.columns:
+            df = df.rename(columns={"close": "Close", "adjClose": "Adj Close"})
+        
+        return df[["Close", "Adj Close"]] if "Adj Close" in df.columns else df[["Close"]]
+        
+    except Exception as e:
+        print(f"[FMP] Error fetching {ticker}: {e}")
+        return pd.DataFrame()
+
+
+def _stitch_price_dataframes(fmp_df: pd.DataFrame, yf_df: pd.DataFrame, ticker: str) -> pd.DataFrame:
+    """
+    Stitch FMP (recent) and yfinance (historical) price data for a single ticker.
+    
+    FMP data takes priority for overlapping dates (more reliable for recent data).
+    
+    Args:
+        fmp_df: DataFrame from FMP (recent years)
+        yf_df: DataFrame from yfinance (full history)
+        ticker: Ticker symbol for column naming
+    
+    Returns:
+        Combined DataFrame with continuous price history
+    """
+    # Handle edge cases
+    if fmp_df.empty and yf_df.empty:
+        return pd.DataFrame()
+    if fmp_df.empty:
+        return yf_df
+    if yf_df.empty:
+        return fmp_df
+    
+    # Find the boundary date (earliest FMP date)
+    fmp_start = fmp_df.index.min()
+    
+    # Take yfinance data BEFORE FMP starts (exclusive to avoid overlap issues)
+    yf_historical = yf_df[yf_df.index < fmp_start]
+    
+    # Concatenate: yfinance historical + FMP recent
+    combined = pd.concat([yf_historical, fmp_df])
+    combined = combined.sort_index()
+    
+    # Remove any duplicate indices (prefer later entry = FMP)
+    combined = combined[~combined.index.duplicated(keep='last')]
+    
+    return combined
+
+
+# ------------------------------------------------------------
 # Load holdings (your schema)
 # ------------------------------------------------------------
 
@@ -310,6 +397,20 @@ def load_dividends(path: str = CASHFLOWS_FILE) -> pd.DataFrame:
 # ------------------------------------------------------------
 
 def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj_close: bool = False) -> pd.DataFrame:
+    """
+    Fetch price history using hybrid FMP/yfinance mode or yfinance-only.
+    
+    HYBRID MODE (FMP_PRICE_ENABLED=True):
+        - FMP: Last FMP_PRICE_LOOKBACK_YEARS years (default 5)
+        - yfinance: Years 5-10 (older historical data)
+        - Stitched together for complete 10-year history
+    
+    YFINANCE-ONLY MODE (FMP_PRICE_ENABLED=False):
+        - yfinance: Full 10-year history (free, unlimited)
+    
+    This function is the SINGLE SOURCE OF TRUTH for all price data in the app.
+    All pages, simulators, and analytics use this centralized function.
+    """
     global _REPORTED_MISSING
 
     # Normalize tickers to a hashable, order-independent cache key
@@ -320,7 +421,9 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
         raw_set.add("SPY")
         
     unique_tickers = sorted(list(raw_set))
-    key = (tuple(unique_tickers), int(years_back), use_adj_close)
+    
+    # Include FMP flag in cache key to ensure correct invalidation when toggling modes
+    key = (tuple(unique_tickers), int(years_back), use_adj_close, FMP_PRICE_ENABLED)
 
     if key in _PRICE_CACHE:
         # Return a copy so callers can't mutate the cached DataFrame in-place
@@ -333,91 +436,229 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
             print(f"DEBUG: data_loader returning CACHED prices with {len(errors)} errors.")
         return res
 
-    start_date = (datetime.today() - timedelta(days=365 * years_back)).strftime("%Y-%m-%d")
-
-    # Retry logic to handle occasional network/data gaps
-    raw = pd.DataFrame()
-    for attempt in range(3):
-        try:
-            raw = yf.download(
-                unique_tickers,
-                start=start_date,
-                progress=False,
-                auto_adjust=False,
-                group_by="column",
-            )
-            if not raw.empty:
-                break
-        except Exception:
-            pass
+    # Calculate date boundaries
+    today = datetime.today()
+    full_start_date = (today - timedelta(days=365 * years_back)).strftime("%Y-%m-%d")
+    # FIX: Explicitly set end date to TOMORROW to ensure today's data is included
+    # yfinance end date is exclusive, so we add 1 day to capture today
+    end_date = (today + timedelta(days=1)).strftime("%Y-%m-%d")
+    end_date_display = today.strftime("%Y-%m-%d")
+    
+    # ================================================================
+    # HYBRID MODE: FMP for recent years + yfinance for older history
+    # ================================================================
+    if FMP_PRICE_ENABLED and FMP_API_KEY and FMP_API_KEY != "demo":
+        print(f"[PRICE] Hybrid mode: FMP ({FMP_PRICE_LOOKBACK_YEARS}yr) + yfinance ({years_back - FMP_PRICE_LOOKBACK_YEARS}yr)")
         
-    if raw.empty:
-        # This raises error if ALL failed. 
-        # If partial failed, we continue and check active_holdings logic below.
-        raise RuntimeError("yfinance returned no data after 3 attempts. Check tickers or network.")
-
-    # FIX 1: Strip timezones immediately (Yahoo sends UTC, your CSVs are naive)
-    if isinstance(raw.index, pd.DatetimeIndex) and raw.index.tz is not None:
-        raw.index = raw.index.tz_localize(None)
-
-    # Handle both MultiIndex and flat columns cases
-    if isinstance(raw.columns, pd.MultiIndex):
-        level0 = raw.columns.get_level_values(0)
-
-        if use_adj_close:
-            # Prioritize Adj Close
-            if "Adj Close" in level0:
-                prices = raw.xs("Adj Close", axis=1, level=0)
-            elif "Close" in level0:
-                # Fallback
-                prices = raw.xs("Close", axis=1, level=0)
+        # FMP covers last N years
+        fmp_start = (today - timedelta(days=365 * FMP_PRICE_LOOKBACK_YEARS)).strftime("%Y-%m-%d")
+        
+        # yfinance covers the older portion (full history, we'll filter later)
+        yf_start = full_start_date
+        
+        all_prices = {}
+        fmp_success = 0
+        fmp_fallback = 0
+        
+        # Track which tickers came from which source for metadata
+        fmp_ticker_list = []
+        yf_ticker_list = []
+        
+        for ticker in unique_tickers:
+            # 1. Fetch FMP (recent years)
+            fmp_df = fetch_fmp_price_history_single(ticker, fmp_start, end_date_display)
+            
+            # 2. Fetch yfinance (full history as fallback/older data)
+            try:
+                yf_raw = yf.download(
+                    ticker,
+                    start=yf_start,
+                    end=end_date,
+                    progress=False,
+                    auto_adjust=False
+                )
+                
+                if not yf_raw.empty:
+                    # Strip timezone if present
+                    if isinstance(yf_raw.index, pd.DatetimeIndex) and yf_raw.index.tz is not None:
+                        yf_raw.index = yf_raw.index.tz_localize(None)
+                    
+                    # Handle MultiIndex columns (yfinance returns ('Close', 'TICKER') for single ticker)
+                    if isinstance(yf_raw.columns, pd.MultiIndex):
+                        # Flatten to just the price field names
+                        yf_raw.columns = yf_raw.columns.get_level_values(0)
+                    
+                    # Select price column
+                    col_name = "Adj Close" if use_adj_close else "Close"
+                    if col_name in yf_raw.columns:
+                        yf_series = yf_raw[col_name]
+                        yf_df = pd.DataFrame({"Close": yf_series})
+                    elif "Close" in yf_raw.columns:
+                        yf_series = yf_raw["Close"]
+                        yf_df = pd.DataFrame({"Close": yf_series})
+                    else:
+                        yf_df = pd.DataFrame()
+                else:
+                    yf_df = pd.DataFrame()
+            except Exception as e:
+                print(f"[YF] Error fetching {ticker}: {e}")
+                yf_df = pd.DataFrame()
+            
+            # 3. Stitch together
+            if not fmp_df.empty:
+                # Select correct price column from FMP
+                fmp_col = "Adj Close" if use_adj_close and "Adj Close" in fmp_df.columns else "Close"
+                if fmp_col in fmp_df.columns:
+                    fmp_prices = fmp_df[[fmp_col]].rename(columns={fmp_col: "Close"})
+                else:
+                    fmp_prices = pd.DataFrame()
+                
+                combined = _stitch_price_dataframes(fmp_prices, yf_df, ticker)
+                fmp_success += 1
+                fmp_ticker_list.append(ticker)
             else:
-                first_field = level0[0]
-                prices = raw.xs(first_field, axis=1, level=0)
+                # FMP failed, use yfinance only for this ticker
+                combined = yf_df
+                if not yf_df.empty:
+                    fmp_fallback += 1
+                    yf_ticker_list.append(ticker)
+            
+            if not combined.empty:
+                all_prices[ticker] = combined["Close"]
+        
+        print(f"[PRICE] FMP success: {fmp_success}/{len(unique_tickers)}, yfinance fallback: {fmp_fallback}")
+        
+        # Combine all tickers into single DataFrame
+        if all_prices:
+            prices = pd.DataFrame(all_prices)
         else:
-            # Prioritize Close (Standard)
-            if "Close" in level0:
-                prices = raw.xs("Close", axis=1, level=0)
-            elif "Adj Close" in level0:
-                prices = raw.xs("Adj Close", axis=1, level=0)
-            else:
-                first_field = level0[0]
-                prices = raw.xs(first_field, axis=1, level=0)
+            raise RuntimeError("Hybrid fetch returned no data. Check API keys and network.")
+        
+        # Store source metadata for UI display
+        prices.attrs['source'] = 'hybrid'
+        prices.attrs['fmp_tickers'] = fmp_success
+        prices.attrs['yf_fallback'] = fmp_fallback
+        
+        # Store detailed source_metadata dictionary for badge display
+        prices.attrs['source_metadata'] = {
+            "FMP": fmp_ticker_list,
+            "yfinance": yf_ticker_list,
+            "mixed": [],  # Hybrid mode: tickers are either FMP or YF, not mixed
+            "fmp_range": (pd.Timestamp(fmp_start), pd.Timestamp(end_date_display)),
+            "yf_range": (pd.Timestamp(full_start_date), pd.Timestamp(fmp_start)),
+        }
+    
+    # ================================================================
+    # YFINANCE-ONLY MODE: Full history from yfinance
+    # ================================================================
     else:
-        cols = list(raw.columns)
-        if use_adj_close:
-            # Prioritize Adj Close
-            if "Adj Close" in cols:
-                prices = raw["Adj Close"]
-            elif "Close" in cols:
-                prices = raw["Close"]
-            else:
-                prices = raw
+        if not FMP_PRICE_ENABLED:
+            print(f"[PRICE] yfinance-only mode ({years_back}yr history)")
         else:
-            # Prioritize Close (Standard)
-            if "Close" in cols:
-                prices = raw["Close"]
-            elif "Adj Close" in cols:
-                prices = raw["Adj Close"]
+            print(f"[PRICE] yfinance-only mode (FMP API key missing or demo)")
+        
+        start_date = full_start_date
+
+        # Retry logic to handle occasional network/data gaps
+        raw = pd.DataFrame()
+        for attempt in range(3):
+            try:
+                raw = yf.download(
+                    unique_tickers,
+                    start=start_date,
+                    end=end_date,
+                    progress=False,
+                    auto_adjust=False,
+                    group_by="column",
+                )
+                if not raw.empty:
+                    break
+            except Exception:
+                pass
+        
+        if raw.empty:
+            # This raises error if ALL failed. 
+            # If partial failed, we continue and check active_holdings logic below.
+            raise RuntimeError("yfinance returned no data after 3 attempts. Check tickers or network.")
+
+        # FIX 1: Strip timezones immediately (Yahoo sends UTC, your CSVs are naive)
+        if isinstance(raw.index, pd.DatetimeIndex) and raw.index.tz is not None:
+            raw.index = raw.index.tz_localize(None)
+
+        # Handle both MultiIndex and flat columns cases
+        if isinstance(raw.columns, pd.MultiIndex):
+            level0 = raw.columns.get_level_values(0)
+
+            if use_adj_close:
+                # Prioritize Adj Close
+                if "Adj Close" in level0:
+                    prices = raw.xs("Adj Close", axis=1, level=0)
+                elif "Close" in level0:
+                    # Fallback
+                    prices = raw.xs("Close", axis=1, level=0)
+                else:
+                    first_field = level0[0]
+                    prices = raw.xs(first_field, axis=1, level=0)
             else:
-                prices = raw
+                # Prioritize Close (Standard)
+                if "Close" in level0:
+                    prices = raw.xs("Close", axis=1, level=0)
+                elif "Adj Close" in level0:
+                    prices = raw.xs("Adj Close", axis=1, level=0)
+                else:
+                    first_field = level0[0]
+                    prices = raw.xs(first_field, axis=1, level=0)
+        else:
+            cols = list(raw.columns)
+            if use_adj_close:
+                # Prioritize Adj Close
+                if "Adj Close" in cols:
+                    prices = raw["Adj Close"]
+                elif "Close" in cols:
+                    prices = raw["Close"]
+                else:
+                    prices = raw
+            else:
+                # Prioritize Close (Standard)
+                if "Close" in cols:
+                    prices = raw["Close"]
+                elif "Adj Close" in cols:
+                    prices = raw["Adj Close"]
+                else:
+                    prices = raw
 
-    if isinstance(prices, pd.Series):
-        prices = prices.to_frame()
+        if isinstance(prices, pd.Series):
+            prices = prices.to_frame()
 
-    # FIX 2: If we have a single ticker, force the column name to be the ticker.
-    # Otherwise yfinance leaves it as "Adj Close" and your engine can't find the price.
-    if len(unique_tickers) == 1:
-        prices.columns = [unique_tickers[0]]
-    else:
-        # Normalize column names to uppercase tickers
-        prices.columns = [str(c).upper() for c in prices.columns]
+        # FIX 2: If we have a single ticker, force the column name to be the ticker.
+        # Otherwise yfinance leaves it as "Adj Close" and your engine can't find the price.
+        if len(unique_tickers) == 1:
+            prices.columns = [unique_tickers[0]]
+        else:
+            # Normalize column names to uppercase tickers
+            prices.columns = [str(c).upper() for c in prices.columns]
+        
+        # Store source metadata for UI display
+        prices.attrs['source'] = 'yfinance'
+        
+        # Store detailed source_metadata dictionary for badge display
+        prices.attrs['source_metadata'] = {
+            "FMP": [],
+            "yfinance": list(prices.columns),
+            "mixed": [],
+            "fmp_range": (None, None),
+            "yf_range": (pd.Timestamp(start_date), prices.index.max() if not prices.empty else None),
+        }
 
+    # ================================================================
+    # COMMON POST-PROCESSING (Both Modes)
+    # ================================================================
+    
     # Ensure datetime index
     if not isinstance(prices.index, pd.DatetimeIndex):
         prices.index = pd.to_datetime(prices.index)
-        if prices.index.tz is not None:
-             prices.index = prices.index.tz_localize(None)
+    if prices.index.tz is not None:
+        prices.index = prices.index.tz_localize(None)
 
     prices = prices.sort_index()
 

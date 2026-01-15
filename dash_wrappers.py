@@ -3793,6 +3793,37 @@ def get_data_source_summary(data):
         "has_errors": False # Explicitly silenced
     }
 
+
+def get_price_source_summary(data):
+    """
+    Returns the price source metadata for UI display.
+    
+    This summarizes whether prices came from FMP, yfinance, or a mix of both.
+    Used by the price source badge component.
+    """
+    if not data:
+        return None
+    
+    prices = data.get("prices", pd.DataFrame())
+    
+    if prices.empty or not hasattr(prices, 'attrs'):
+        return None
+    
+    source_metadata = prices.attrs.get('source_metadata', {})
+    
+    if not source_metadata:
+        # Default to yfinance-only if no metadata present
+        return {
+            "FMP": [],
+            "yfinance": list(prices.columns),
+            "mixed": [],
+            "fmp_range": (None, None),
+            "yf_range": (prices.index.min(), prices.index.max()) if not prices.empty else (None, None),
+        }
+    
+    return source_metadata
+
+
 # ============================================================
 # TAX AUTHORITY VISUALS
 # ============================================================

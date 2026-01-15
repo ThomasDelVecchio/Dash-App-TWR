@@ -1,4 +1,5 @@
 import os
+import importlib
 
 from dotenv import load_dotenv  # <--- NEW: Import the library
 
@@ -15,15 +16,26 @@ FMP_API_KEY = os.environ.get("FMP_API_KEY")
 # 3. If missing, try Google Colab Secrets (Keeps it working for iPad)
 if not FMP_API_KEY:
     try:
-        from google.colab import userdata
-        FMP_API_KEY = userdata.get('FMP_API_KEY')
-    except ImportError:
+        colab = importlib.import_module("google.colab")
+        userdata = getattr(colab, "userdata", None)
+        if userdata is not None:
+            FMP_API_KEY = userdata.get("FMP_API_KEY")
+    except Exception:
         pass
 
 # 4. Safety Check
 if not FMP_API_KEY:
     print("⚠️ WARNING: FMP_API_KEY not found. Using 'demo' mode.")
     FMP_API_KEY = "demo"
+
+# ============================================================
+# FMP PRICE DATA CONFIGURATION (Hybrid Mode)
+# ============================================================
+# FMP Starter Plan provides 5 years of historical data.
+# Set FMP_PRICE_ENABLED=True to use FMP for last 5 years + yfinance for older data.
+# Set FMP_PRICE_ENABLED=False to use yfinance only (free, unlimited history).
+FMP_PRICE_ENABLED = False
+FMP_PRICE_LOOKBACK_YEARS = 5  # FMP covers last 5 years (Starter plan limit)
 
 TARGET_PORTFOLIO_VALUE = 50000.0
 

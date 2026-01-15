@@ -66,3 +66,90 @@ def create_data_source_badge(source_summary):
             className="source-tooltip"
         )
     ], style={"display": "inline-block", "marginLeft": "10px"})
+
+
+def create_price_source_badge(price_source_metadata, badge_id="price-source-badge"):
+    """
+    Creates a badge indicating the price data source status.
+    
+    price_source_metadata: dict from prices.attrs['source_metadata']:
+        {
+            'FMP': [list of tickers],
+            'yfinance': [list of tickers],
+            'mixed': [list of tickers with data from both],
+            'fmp_range': (start, end) or (None, None),
+            'yf_range': (start, end) or (None, None),
+            'stitch_date': pd.Timestamp
+        }
+    """
+    if not price_source_metadata:
+        return html.Div()
+    
+    fmp_tickers = price_source_metadata.get("FMP", [])
+    yf_tickers = price_source_metadata.get("yfinance", [])
+    mixed_tickers = price_source_metadata.get("mixed", [])
+    fmp_range = price_source_metadata.get("fmp_range", (None, None))
+    yf_range = price_source_metadata.get("yf_range", (None, None))
+    
+    total_fmp = len(fmp_tickers) + len(mixed_tickers)
+    total_yf = len(yf_tickers) + len(mixed_tickers)
+    
+    # Determine badge status
+    if total_fmp > 0 and total_yf == 0:
+        label = "FMP Only"
+        color = "success"
+        header = "All price data from Financial Modeling Prep (FMP)."
+    elif total_fmp > 0 and total_yf > 0:
+        label = "Hybrid"
+        color = "info"
+        header = "Price data from FMP (recent) + Yahoo Finance (older)."
+    elif total_yf > 0:
+        label = "Yahoo Finance"
+        color = "warning"
+        header = "Price data from Yahoo Finance only. FMP unavailable or disabled."
+    else:
+        label = "No Data"
+        color = "danger"
+        header = "No price data available."
+    
+    # Build tooltip content
+    summary_lines = []
+    
+    if total_fmp > 0:
+        fmp_start, fmp_end = fmp_range
+        if fmp_start and fmp_end:
+            summary_lines.append(f"• FMP: {total_fmp} tickers ({fmp_start.strftime('%Y-%m-%d')} to {fmp_end.strftime('%Y-%m-%d')})")
+        else:
+            summary_lines.append(f"• FMP: {total_fmp} tickers")
+    
+    if total_yf > 0:
+        yf_start, yf_end = yf_range
+        if yf_start and yf_end:
+            summary_lines.append(f"• yfinance: {total_yf} tickers ({yf_start.strftime('%Y-%m-%d')} to {yf_end.strftime('%Y-%m-%d')})")
+        else:
+            summary_lines.append(f"• yfinance: {total_yf} tickers")
+    
+    if mixed_tickers:
+        summary_lines.append(f"• Stitched: {len(mixed_tickers)} tickers (FMP+YF)")
+    
+    tooltip_content = html.Div([
+        html.P(header, className="mb-2 fw-bold"),
+        html.Div([html.P(line, className="mb-0 small") for line in summary_lines]),
+    ], style={"textAlign": "left", "padding": "5px"})
+    
+    badge = dbc.Badge(
+        [html.I(className="bi bi-database me-1"), label],
+        color=color,
+        pill=True,
+        id=badge_id,
+        style={"cursor": "pointer", "fontSize": "0.75rem"}
+    )
+    
+    return html.Div([
+        badge,
+        dbc.Tooltip(
+            tooltip_content,
+            target=badge_id,
+            placement="bottom"
+        )
+    ], style={"display": "inline-block", "marginLeft": "8px"})
