@@ -3,6 +3,7 @@ from dash import dcc, html, Input, Output, State, callback_context, ALL
 import dash_bootstrap_components as dbc
 from datetime import datetime
 import pandas as pd
+import os
 
 # Import wrappers
 import dash_wrappers as dw
@@ -23,7 +24,7 @@ from pages import overview, performance, allocations, attribution, flows, holdin
 _ETRADE_SYNC_STATUS = None
 
 def _run_etrade_sync():
-    """Run E*TRADE sync if configured. Returns status dict or None."""
+    """Run E*TRADE sync if configured. Updates global status and returns it."""
     global _ETRADE_SYNC_STATUS
     
     if not is_etrade_configured():
@@ -35,7 +36,7 @@ def _run_etrade_sync():
         return None
     
     try:
-        from etrade_sync import sync_all, get_sync_status
+        from etrade_sync import sync_all
         
         print("🔄 Starting E*TRADE sync...")
         result = sync_all()
@@ -51,8 +52,9 @@ def _run_etrade_sync():
             print(f"⚠️ E*TRADE sync partial: {result.get('message', 'Some issues')}")
         else:
             print(f"❌ E*TRADE sync error: {result.get('message', 'Unknown error')}")
-            
-        _ETRADE_SYNC_STATUS = get_sync_status()
+        
+        # Use sync result directly (not stale file data)
+        _ETRADE_SYNC_STATUS = result
         return _ETRADE_SYNC_STATUS
         
     except Exception as e:
@@ -62,7 +64,13 @@ def _run_etrade_sync():
         return _ETRADE_SYNC_STATUS
 
 # Run E*TRADE sync BEFORE loading data cache
-_run_etrade_sync()
+# Only run on the main process (not Flask reloader) to prevent double-sync
+if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+    _run_etrade_sync()
+else:
+    # Reloader process: Load existing sync status from file
+    from etrade_sync import get_sync_status
+    _ETRADE_SYNC_STATUS = get_sync_status()
 
 # Initialize App
 app = dash.Dash(
@@ -151,8 +159,8 @@ sidebar = html.Div(
         html.H3("DELVEX", className="display-6"),
         html.P("Portfolio Analytics", className="lead"),
         
-        # E*TRADE Sync Status Badge
-        _get_sync_status_badge(),
+        # E*TRADE Sync Status Badge (dynamically updated via callback)
+        html.Div(id="etrade-sync-badge"),
         
         html.Hr(),
         
@@ -240,6 +248,9 @@ content = html.Div(id="page-content", className="content")
 app.layout = html.Div(
     [
         dcc.Location(id="url"),
+        
+        # Interval for E*TRADE sync status polling (every 60 seconds)
+        dcc.Interval(id="sync-status-interval", interval=60*1000, n_intervals=0),
         
         # Stores for Global State
         dcc.Store(id="data-signal", data=datetime.now().isoformat()),
@@ -497,7 +508,17 @@ def toggle_sidebar(n, sidebar_class, content_class):
             return sidebar_class + " hidden", content_class + " expanded"
     return sidebar_class, content_class
 
-# 5. Chatbot Callbacks
+# 5. E*TRADE Sync Badge Callback (Dynamic Update)
+@app.callback(
+    Output("etrade-sync-badge", "children"),
+    [Input("sync-status-interval", "n_intervals"),
+     Input("data-signal", "data")]  # Also update on data refresh
+)
+def update_sync_badge(n_intervals, data_signal):
+    """Dynamically update the E*TRADE sync status badge."""
+    return _get_sync_status_badge()
+
+# 6. Chatbot Callbacks
 chatbot.register_callbacks(app)
 
 # 6. Global Audit Callback
