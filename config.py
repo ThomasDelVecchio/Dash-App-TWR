@@ -65,7 +65,7 @@ ETRADE_HEADLESS = (
 ETRADE_SKIP_TRANSACTIONS = os.environ.get("ETRADE_SKIP_TRANSACTIONS", "false").lower() == "true"
 
 # Sync timeout in seconds (how long to wait before giving up)
-ETRADE_SYNC_TIMEOUT = int(os.environ.get("ETRADE_SYNC_TIMEOUT", "15"))
+ETRADE_SYNC_TIMEOUT = int(os.environ.get("ETRADE_SYNC_TIMEOUT", "45"))  # Increased from 15s for slow E*TRADE responses
 
 def is_etrade_configured() -> bool:
     """Check if E*TRADE credentials are properly configured."""

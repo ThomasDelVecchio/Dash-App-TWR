@@ -22,8 +22,46 @@ import json
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
+import time
+import functools
 
 import re
+
+# ============================================================
+# API RESILIENCE CONFIGURATION
+# ============================================================
+USER_AGENT = "DELVEX-Portfolio-Analytics/1.0"
+MAX_RETRIES = 3
+RETRY_BACKOFF_BASE = 2  # seconds
+
+def retry_on_server_error(max_retries=MAX_RETRIES, backoff_base=RETRY_BACKOFF_BASE):
+    """
+    Decorator to retry API calls on 5xx errors with exponential backoff.
+    E*TRADE occasionally returns 500 errors that resolve on retry.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except RuntimeError as e:
+                    error_msg = str(e)
+                    # Only retry on server errors (5xx)
+                    if "500" in error_msg or "502" in error_msg or "503" in error_msg or "504" in error_msg:
+                        wait_time = backoff_base ** attempt
+                        print(f"   ⚠️  E*TRADE server error (attempt {attempt + 1}/{max_retries}). Retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                        last_exception = e
+                    else:
+                        raise  # Non-5xx errors should not be retried
+            # All retries exhausted
+            print(f"   ❌ E*TRADE server error persisted after {max_retries} attempts.")
+            print(f"   This is an E*TRADE-side issue. Try again later or check E*TRADE status.")
+            raise last_exception
+        return wrapper
+    return decorator
 
 from etrade_auth import get_etrade_session, get_etrade_session_safe, get_base_url
 from config import ETRADE_ACCOUNT_ID, ETRADE_HEADLESS, ETRADE_SKIP_TRANSACTIONS, ETRADE_SYNC_TIMEOUT
@@ -37,13 +75,34 @@ def _strip_html(text: str) -> str:
     clean = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
     clean = re.sub(r'<script[^>]*>.*?</script>', '', clean, flags=re.DOTALL | re.IGNORECASE)
     # Remove HTML tags
-    clean = re.sub(r'<[^>]+>', '', clean)
+    clean = re.sub(r'<[^>]+>', ' ', clean)  # Replace with space to avoid word-mashing
     # Collapse whitespace
     clean = re.sub(r'\s+', ' ', clean).strip()
     # Truncate if too long
-    if len(clean) > 200:
-        clean = clean[:200] + "..."
+    if len(clean) > 150:
+        clean = clean[:150] + "..."
     return clean
+
+
+def _format_api_error(status_code: int, raw_text: str) -> str:
+    """Format API error into a clean, actionable message."""
+    if status_code >= 500:
+        return (
+            f"E*TRADE server error (HTTP {status_code}). "
+            "This is an E*TRADE-side issue, not your code. Try again in a few minutes."
+        )
+    elif status_code == 401:
+        return "Authentication failed. Token may be expired - run `python etrade_auth.py` to re-authenticate."
+    elif status_code == 403:
+        return "Access denied. Check your E*TRADE API permissions or re-authenticate."
+    elif status_code == 404:
+        return "Resource not found. Check your account ID configuration."
+    elif status_code == 429:
+        return "Rate limited by E*TRADE. Wait a few minutes before trying again."
+    else:
+        # For other errors, include stripped text for context
+        stripped = _strip_html(raw_text)
+        return f"HTTP {status_code}: {stripped}"
 
 
 # ============================================================
@@ -151,14 +210,15 @@ def get_account_id_key(session) -> Tuple[str, str]:
     base_url = get_base_url()
     
     # Always fetch account list to get proper accountIdKey
+    headers = {"Accept": "application/json", "User-Agent": USER_AGENT}
     response = session.get(
         f"{base_url}/v1/accounts/list",
-        headers={"Accept": "application/json"},
+        headers=headers,
         timeout=(10, 30)  # 10s connect, 30s read
     )
     
     if response.status_code != 200:
-        raise RuntimeError(f"Failed to fetch accounts: {response.status_code} - {_strip_html(response.text)}")
+        raise RuntimeError(_format_api_error(response.status_code, response.text))
     
     data = response.json()
     
@@ -230,15 +290,16 @@ def fetch_etrade_transactions(session, account_id: str, start_date: datetime = N
     }
     
     # Request JSON explicitly (E*TRADE defaults to XML sometimes)
-    # Use configurable timeout (default 15s) to prevent hanging on slow/broken API
-    response = session.get(url, params=params, headers={"Accept": "application/json"}, timeout=(10, ETRADE_SYNC_TIMEOUT))
+    # Use configurable timeout (default 45s) to prevent hanging on slow/broken API
+    headers = {"Accept": "application/json", "User-Agent": USER_AGENT}
+    response = session.get(url, params=params, headers=headers, timeout=(10, ETRADE_SYNC_TIMEOUT))
     
     if response.status_code == 204:
         # No content - no transactions in range
         return []
     
     if response.status_code != 200:
-        raise RuntimeError(f"Failed to fetch transactions: {response.status_code} - {_strip_html(response.text)}")
+        raise RuntimeError(_format_api_error(response.status_code, response.text))
     
     data = response.json()
     
@@ -381,6 +442,7 @@ def deduplicate_transactions(existing_df: pd.DataFrame, new_df: pd.DataFrame) ->
     return result
 
 
+@retry_on_server_error()
 def sync_transactions() -> Tuple[int, str]:
     """
     Sync transactions from E*TRADE to cashflows.csv.
@@ -487,13 +549,14 @@ def fetch_etrade_holdings(session, account_id: str) -> List[Dict]:
     url = f"{base_url}/v1/accounts/{account_id}/portfolio"
     
     # Request JSON explicitly (E*TRADE defaults to XML sometimes)
-    response = session.get(url, headers={"Accept": "application/json"}, timeout=(10, 30))  # 10s connect, 30s read
+    headers = {"Accept": "application/json", "User-Agent": USER_AGENT}
+    response = session.get(url, headers=headers, timeout=(10, 30))  # 10s connect, 30s read
     
     if response.status_code == 204:
         return []  # Empty portfolio
     
     if response.status_code != 200:
-        raise RuntimeError(f"Failed to fetch portfolio: {response.status_code} - {_strip_html(response.text)}")
+        raise RuntimeError(_format_api_error(response.status_code, response.text))
     
     data = response.json()
     
@@ -539,6 +602,7 @@ def transform_etrade_position(pos: Dict) -> Optional[Dict]:
         return None
 
 
+@retry_on_server_error()
 def sync_holdings() -> Tuple[bool, str]:
     """
     Sync holdings from E*TRADE to sample holdings.csv.

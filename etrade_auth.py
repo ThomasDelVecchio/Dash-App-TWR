@@ -127,8 +127,14 @@ def validate_token_with_api(oauth_token, oauth_token_secret):
         elif response.status_code in (401, 403):
             print(f"⚠️  E*TRADE token invalid (HTTP {response.status_code}). Will re-authenticate.")
             return False
+        elif response.status_code >= 500:
+            # Server-side error - E*TRADE is having issues, not our fault
+            print(f"⚠️  E*TRADE API returned {response.status_code} (SERVER ERROR).")
+            print(f"   This is an E*TRADE-side issue, not a problem with your credentials.")
+            print(f"   Try again in a few minutes. If persistent, check E*TRADE status page.")
+            return True  # Token likely valid, E*TRADE just having issues
         else:
-            # Other errors (network, server issues) - assume token is OK
+            # Other client errors - assume token is OK for now
             print(f"⚠️  E*TRADE API returned {response.status_code}, assuming token valid.")
             return True
             
@@ -239,7 +245,7 @@ def renew_access_token(oauth_token, oauth_token_secret):
     )
     
     try:
-        response = oauth.get(RENEW_TOKEN_URL)
+        response = oauth.get(RENEW_TOKEN_URL, timeout=(10, 30))
         if response.status_code == 200:
             print("🔄 E*TRADE token renewed successfully")
             # Update timestamp in cache

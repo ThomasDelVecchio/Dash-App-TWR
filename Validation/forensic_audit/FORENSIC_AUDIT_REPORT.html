@@ -112,7 +112,7 @@
                 <div style="opacity: 0.8;">Executive Integrity Dashboard</div>
             </div>
             <div class="meta">
-                <div>Date: 2026-01-16 11:47:38</div>
+                <div>Date: 2026-01-16 15:02:30</div>
                 <div>Version: 3.0 (Modular Opus Suite)</div>
             </div>
         </header>
@@ -168,7 +168,7 @@ Checking External Cashflows...
 [PASS] Cashflows loaded: 1 entries.
 
 Checking Transactions...
-[PASS] Transactions loaded: 39 trades.
+[PASS] Transactions loaded: 40 trades.
 
 Checking Dividends...
 [PASS] Dividends loaded: 10 entries.
@@ -286,12 +286,12 @@ Loading live data via Analytics Engine...
 [PRICE] yfinance-only mode (10yr history)
 [PRICE] yfinance-only mode (10yr history)
 Data loaded.
-[PASS] [1W] Match! Port: 398.73 | Sum: 402.04 | Gap: -3.31
-[PASS] [1M] Match! Port: 1,810.29 | Sum: 1,813.53 | Gap: -3.24
-[PASS] [MTD] Match! Port: 1,267.08 | Sum: 1,270.39 | Gap: -3.31
-[PASS] [YTD] Match! Port: 1,267.08 | Sum: 1,270.39 | Gap: -3.31
+[PASS] [1W] Match! Port: 370.63 | Sum: 373.45 | Gap: -2.82
+[PASS] [1M] Match! Port: 1,782.19 | Sum: 1,784.94 | Gap: -2.75
+[PASS] [MTD] Match! Port: 1,238.98 | Sum: 1,241.80 | Gap: -2.82
+[PASS] [YTD] Match! Port: 1,238.98 | Sum: 1,241.80 | Gap: -2.82
 [1Y] Insufficient data for Portfolio P/L.
-[PASS] [SI] Match! Port: 2,463.27 | Sum: 2,466.43 | Gap: -3.16
+[PASS] [SI] Match! Port: 2,435.16 | Sum: 2,437.84 | Gap: -2.67
 
 --- Dividend Integrity Check ---
 Checking Dividend: CASH on 2025-11-28 for $0.08
@@ -322,8 +322,8 @@ Checking Correlation Matrix...
 [PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1179
 Checking Active Metrics (Beta/TE)...
 [PRICE] yfinance-only mode (10yr history)
-[PASS] Beta vs SPY calculated: 0.6015
-[PASS] Tracking Error calculated: 5.9455%
+[PASS] Beta vs SPY calculated: 0.6012
+[PASS] Tracking Error calculated: 5.9460%
 Checking Drawdown Logic...
 [PASS] Max Drawdown (-2.83%) matches Minimum of Series
 [PASS] Drawdown Series is always <= 0.0
@@ -347,15 +347,15 @@ Loading live data...
 [PRICE] yfinance-only mode (10yr history)
 [PRICE] yfinance-only mode (10yr history)
 Checking Snapshot vs Chart...
-[PASS] Cumulative SI TWR (0.0523) matches Chart Final Value (0.0523)
+[PASS] Cumulative SI TWR (0.0517) matches Chart Final Value (0.0517)
 Checking Snapshot vs Horizon Table...
-[PASS] Snapshot SI P/L (2,466.98) matches Horizon Table (2,466.98)
+[PASS] Snapshot SI P/L (2,438.45) matches Horizon Table (2,438.45)
 Checking Growth Table vs P/L...
-[PASS] Growth Table Total (2,466.68) matches SI P/L (2,466.98)
+[PASS] Growth Table Total (2,437.82) matches SI P/L (2,438.45)
 Checking Attribution vs SI TWR...
-[PASS] Attribution Sum (5.23%) matches SI TWR (5.23%)
+[PASS] Attribution Sum (5.17%) matches SI TWR (5.17%)
 Checking Risk Chart vs Horizon Table...
-Risk Chart US Large Cap Return: 22.82%
+Risk Chart US Large Cap Return: 22.70%
 [PASS] Risk Data exists.
 
 [SUCCESS] audit_05_consistency_matrix.py passed.
@@ -455,7 +455,7 @@ Loading Live Data...
 [PRICE] yfinance-only mode (10yr history)
 
 Scanning Last 30 Days (2025-12-17 to 2026-01-16)...
-[PASS] Last 30 Days: Match! Slice=0.042222 vs Rigorous=0.042222
+[PASS] Last 30 Days: Match! Slice=0.041663 vs Rigorous=0.041663
 
 Scanning Middle 20 Days (2025-12-10 to 2025-12-30)...
 [PASS] Middle 20 Days: Match! Slice=0.011341 vs Rigorous=0.011341
@@ -617,7 +617,6 @@ PORTFOLIO ENGINE: 366 Days
   2025-11-13: TEST
   2025-11-14: TEST
   2025-11-17: TEST
-  2026-01-16: TEST
 DEBUG: data_loader returning 1 errors attached to prices.
 [PASS] FIFO Strategy correctly identified Low Cost lot (Gain $500.00).
 DEBUG: data_loader returning CACHED prices with 1 errors.
@@ -820,7 +819,7 @@ Current Configuration:
 [PASS]: Both price sets available
         Close: 252 rows, Adj: 252 rows
 [PASS]: Close and Adj Close have data
-        Close: $693.28, Adj: $693.28, Diff: 0.00%
+        Close: $692.68, Adj: $692.68, Diff: 0.00%
 [PASS]: Difference is reasonable (<5%)
         Historical divergence: Close $591.64, Adj $584.77, Diff: 1.16%
 

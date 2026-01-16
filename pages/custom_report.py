@@ -68,7 +68,7 @@ DEFAULT_ORDER = [opt["value"] for opt in REPORT_SECTIONS_OPTIONS]
 # ============================================================
 # HORIZON FILTERING HELPER
 # ============================================================
-def get_valid_horizons_for_period(start_date, end_date, full_horizons=None):
+def get_valid_horizons_for_period(start_date, end_date, full_horizons=None, selected_period=None):
     """
     Determines which horizon columns should be displayed based on the reporting period.
     
@@ -76,11 +76,14 @@ def get_valid_horizons_for_period(start_date, end_date, full_horizons=None):
     - Calculates duration in days from start_date to end_date
     - Only includes horizons where the period_days >= threshold
     - SI (Since Inception) is ALWAYS included regardless of period
+    - The selected_period horizon is ALWAYS included (user explicitly requested it)
     
     Args:
         start_date: Period start date (pd.Timestamp or datetime)
         end_date: Period end date (pd.Timestamp or datetime)
         full_horizons: List of all possible horizons (default uses standard set)
+        selected_period: The user's selected reporting period (e.g., "YTD", "3M", "1M")
+                        This horizon will always be included regardless of thresholds.
     
     Returns:
         List of valid horizon strings to display
@@ -107,10 +110,23 @@ def get_valid_horizons_for_period(start_date, end_date, full_horizons=None):
         "1Y": 350,
     }
     
+    # Map selected_period to horizon code (handle dropdown values like "12M" -> "1Y")
+    period_to_horizon = {
+        "SI": "SI",
+        "YTD": "YTD",
+        "12M": "1Y",
+        "3M": "3M",
+        "1M": "1M",
+    }
+    forced_horizon = period_to_horizon.get(selected_period) if selected_period else None
+    
     valid = []
     for h in full_horizons:
         if h == "SI":
             # SI always included
+            valid.append(h)
+        elif forced_horizon and h == forced_horizon:
+            # User's selected period horizon is always included
             valid.append(h)
         elif h in thresholds:
             if period_days >= thresholds[h]:
@@ -782,7 +798,7 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
                     horizon_df = horizon_df.drop(columns=[col])
             
             # Filter rows based on valid horizons for the reporting period
-            valid_horizons = get_valid_horizons_for_period(start_date, end_date)
+            valid_horizons = get_valid_horizons_for_period(start_date, end_date, selected_period=period)
             # Match horizon labels (handle "Since Inception" -> "SI", "(Ann.)" suffix)
             def matches_valid_horizon(h_label):
                 if h_label is None:
@@ -1213,7 +1229,7 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             visibility_text = "Tables display ALL positions (active and exited) with valid history in the period." if include_exited else "Tables display currently active positions only."
 
             # Filter horizons based on reporting period duration
-            horizons = get_valid_horizons_for_period(start_date, end_date)
+            horizons = get_valid_horizons_for_period(start_date, end_date, selected_period=period)
             
             rows = []
             # Sort classes
@@ -1303,7 +1319,7 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
                  pl_vis_text = html.P("Includes realized P/L from closed positions.", className="text-muted small mt-2 fst-italic")
             
             # Filter horizons based on reporting period duration
-            horizons = get_valid_horizons_for_period(start_date, end_date)
+            horizons = get_valid_horizons_for_period(start_date, end_date, selected_period=period)
             
             # Pre-fetch ticker P/L for all horizons
             ticker_pl_cache = {}
