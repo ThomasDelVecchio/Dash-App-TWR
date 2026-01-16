@@ -329,8 +329,27 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
     add_header(doc, report_title, level=1)
     if subtitle:
         add_paragraph_centered(doc, subtitle)
-    add_paragraph_centered(doc, f"Period: {period_label}", bold=True)
-    add_paragraph_centered(doc, f"Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}")
+    
+    # Period selection label (e.g., "Year-to-Date", "Last 30 Days")
+    # Combined with explicit date range for clarity
+    if start_date is not None and end_date is not None:
+        try:
+            start_fmt = pd.Timestamp(start_date).strftime('%b %d, %Y')
+            end_fmt = pd.Timestamp(end_date).strftime('%b %d, %Y')
+            add_paragraph_centered(doc, f"Period: {period_label}  |  {start_fmt} – {end_fmt}", bold=True)
+        except:
+            add_paragraph_centered(doc, f"Period: {period_label}", bold=True)
+    elif end_date is not None:
+        try:
+            end_fmt = pd.Timestamp(end_date).strftime('%b %d, %Y')
+            add_paragraph_centered(doc, f"Period: {period_label}  |  Through {end_fmt}", bold=True)
+        except:
+            add_paragraph_centered(doc, f"Period: {period_label}", bold=True)
+    else:
+        add_paragraph_centered(doc, f"Period: {period_label}", bold=True)
+    
+    # Report generation timestamp
+    add_paragraph_centered(doc, f"Generated: {pd.Timestamp.now().strftime('%b %d, %Y at %I:%M %p')}")
     
     # Controlled spacer after title block
     spacer = doc.add_paragraph()

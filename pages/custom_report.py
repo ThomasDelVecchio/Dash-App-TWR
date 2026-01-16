@@ -1393,9 +1393,10 @@ def _clip_data(data, start_date=None, end_date=None):
     State("report-title-input", "value"),
     State("report-period-select", "value"),
     State("report-mobile-mode", "value"),
+    State("date-range-store", "data"),  # Sidebar Analysis End Date
     prevent_initial_call=True
 )
-def download_word_report(n_clicks, order_list, selected_list, title, period, mobile_mode):
+def download_word_report(n_clicks, order_list, selected_list, title, period, mobile_mode, date_range_store):
     if not n_clicks:
         return dash.no_update, dash.no_update, dash.no_update, False
         
@@ -1430,8 +1431,14 @@ def download_word_report(n_clicks, order_list, selected_list, title, period, mob
         if not data:
             return dash.no_update, "No data available. Please load the portfolio first.", "warning", True
         
-        # Determine Report Horizon
-        end_date = datetime.now() # Default effective date
+        # Determine Report Horizon - Use sidebar Analysis End Date
+        end_date = datetime.now()  # Default fallback
+        if date_range_store and date_range_store.get("end"):
+            try:
+                end_date = datetime.strptime(date_range_store["end"], "%Y-%m-%d")
+            except (ValueError, TypeError):
+                pass  # Keep default if parsing fails
+        
         start_date = None
 
         # CLIP DATA FOR CHARTS BUT PRESERVE UNCLIPPED FOR P/L CALCULATIONS
@@ -1480,9 +1487,10 @@ def download_word_report(n_clicks, order_list, selected_list, title, period, mob
     State("report-title-input", "value"),
     State("report-period-select", "value"),
     State("report-mobile-mode", "value"),
+    State("date-range-store", "data"),  # Sidebar Analysis End Date
     prevent_initial_call=True
 )
-def export_word_to_drive(n_clicks, order_list, selected_list, title, period, mobile_mode):
+def export_word_to_drive(n_clicks, order_list, selected_list, title, period, mobile_mode, date_range_store):
     """
     Exports the Word Report (.docx) to Google Drive.
     """
@@ -1517,8 +1525,14 @@ def export_word_to_drive(n_clicks, order_list, selected_list, title, period, mob
         }
         subtitle = f"{period_labels.get(period, 'Since Inception')} Analysis"
 
-        # 2. Determine Report Horizon & Clip Data
-        end_date = datetime.now() # Default effective date
+        # 2. Determine Report Horizon & Clip Data - Use sidebar Analysis End Date
+        end_date = datetime.now()  # Default fallback
+        if date_range_store and date_range_store.get("end"):
+            try:
+                end_date = datetime.strptime(date_range_store["end"], "%Y-%m-%d")
+            except (ValueError, TypeError):
+                pass  # Keep default if parsing fails
+        
         start_date = None
 
         # CLIP DATA FOR CHARTS BUT PRESERVE UNCLIPPED FOR P/L CALCULATIONS
