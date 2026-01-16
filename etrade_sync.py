@@ -23,8 +23,28 @@ import pandas as pd
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
 
+import re
+
 from etrade_auth import get_etrade_session, get_etrade_session_safe, get_base_url
 from config import ETRADE_ACCOUNT_ID, ETRADE_HEADLESS, ETRADE_SKIP_TRANSACTIONS, ETRADE_SYNC_TIMEOUT
+
+
+def _strip_html(text: str) -> str:
+    """Strip HTML tags from error response text for cleaner console output."""
+    if not text:
+        return text
+    # Remove style/script blocks entirely (including content)
+    clean = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    clean = re.sub(r'<script[^>]*>.*?</script>', '', clean, flags=re.DOTALL | re.IGNORECASE)
+    # Remove HTML tags
+    clean = re.sub(r'<[^>]+>', '', clean)
+    # Collapse whitespace
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    # Truncate if too long
+    if len(clean) > 200:
+        clean = clean[:200] + "..."
+    return clean
+
 
 # ============================================================
 # CONFIGURATION
@@ -138,7 +158,7 @@ def get_account_id_key(session) -> Tuple[str, str]:
     )
     
     if response.status_code != 200:
-        raise RuntimeError(f"Failed to fetch accounts: {response.status_code} - {response.text}")
+        raise RuntimeError(f"Failed to fetch accounts: {response.status_code} - {_strip_html(response.text)}")
     
     data = response.json()
     
@@ -218,7 +238,7 @@ def fetch_etrade_transactions(session, account_id: str, start_date: datetime = N
         return []
     
     if response.status_code != 200:
-        raise RuntimeError(f"Failed to fetch transactions: {response.status_code} - {response.text}")
+        raise RuntimeError(f"Failed to fetch transactions: {response.status_code} - {_strip_html(response.text)}")
     
     data = response.json()
     
@@ -473,7 +493,7 @@ def fetch_etrade_holdings(session, account_id: str) -> List[Dict]:
         return []  # Empty portfolio
     
     if response.status_code != 200:
-        raise RuntimeError(f"Failed to fetch portfolio: {response.status_code} - {response.text}")
+        raise RuntimeError(f"Failed to fetch portfolio: {response.status_code} - {_strip_html(response.text)}")
     
     data = response.json()
     

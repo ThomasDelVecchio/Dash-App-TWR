@@ -10,6 +10,64 @@ import dash_wrappers as dw
 from tax_engine import build_tax_lots
 
 # =====================================================================
+# Horizon Filtering Helper
+# =====================================================================
+
+def get_valid_horizons_for_period(start_date, end_date, full_horizons=None):
+    """
+    Determines which horizon columns should be displayed based on the reporting period.
+    
+    Args:
+        start_date: Period start date (pd.Timestamp or str)
+        end_date: Period end date (pd.Timestamp or str)
+        full_horizons: Full list of horizons to filter (defaults to standard list)
+        
+    Returns:
+        List of valid horizon labels for the given period length.
+        
+    Rules:
+        - SI (Since Inception) is ALWAYS included regardless of period length
+        - Other horizons are included only if period_days >= threshold
+        - Thresholds: 1D=1, 1W=7, MTD=1, 1M=28, 3M=84, 6M=168, YTD=180, 1Y=350
+    """
+    if full_horizons is None:
+        full_horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
+    
+    # If dates not provided, return all horizons (no filtering)
+    if start_date is None or end_date is None:
+        return full_horizons
+    
+    # Calculate period length in days
+    period_days = (pd.Timestamp(end_date) - pd.Timestamp(start_date)).days
+    
+    # Threshold mapping: minimum days required for each horizon
+    thresholds = {
+        "1D": 1,
+        "1W": 7,
+        "MTD": 1,    # MTD is valid if we have at least 1 day of data
+        "1M": 28,
+        "3M": 84,    # ~3 months
+        "6M": 168,   # ~6 months
+        "YTD": 180,  # Approximate half-year for meaningful YTD
+        "1Y": 350,   # ~1 year (with some tolerance)
+    }
+    
+    valid = []
+    for h in full_horizons:
+        if h == "SI":
+            # SI is ALWAYS included
+            valid.append(h)
+        elif h in thresholds:
+            if period_days >= thresholds[h]:
+                valid.append(h)
+        else:
+            # Unknown horizon - include by default
+            valid.append(h)
+    
+    return valid
+
+
+# =====================================================================
 # Formatting Helpers
 # =====================================================================
 
@@ -439,15 +497,33 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
             
             horizon_df = dw.get_horizon_analysis(data)
             if not horizon_df.empty:
+                # Get valid horizons for the reporting period
+                valid_horizons = get_valid_horizons_for_period(start_date, end_date)
+                
+                # Helper to check if a horizon row should be included
+                def matches_valid_horizon(horizon_label):
+                    """Check if horizon label matches any valid horizon."""
+                    if horizon_label is None:
+                        return False
+                    label_str = str(horizon_label)
+                    # Always include Since Inception rows
+                    if "Since Inception" in label_str:
+                        return True
+                    # Strip (Ann.) suffix and check against valid horizons
+                    clean_label = label_str.replace(" (Ann.)", "").strip()
+                    return clean_label in valid_horizons
+                
                 headers = ["Horizon", "Return", "P/L ($)"]
-                # Convert DF to list of lists including index
+                # Convert DF to list of lists including index, filtering by valid horizons
                 rows = []
                 for idx, row in horizon_df.iterrows():
-                    rows.append([
-                        row.get('Horizon', str(idx)),
-                        fmt_pct_clean(row.get('Return', 0)),
-                        fmt_dollar_clean(row.get('P/L', 0))
-                    ])
+                    horizon_label = row.get('Horizon', str(idx))
+                    if matches_valid_horizon(horizon_label):
+                        rows.append([
+                            horizon_label,
+                            fmt_pct_clean(row.get('Return', 0)),
+                            fmt_dollar_clean(row.get('P/L', 0))
+                        ])
                 add_table(doc, headers, rows, right_align=[1, 2])
 
         # -----------------------------------------------------------------
@@ -742,8 +818,8 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
             # USE UNCLIPPED DATA for accurate return calculations
             class_df = data_unclipped.get('class_df', pd.DataFrame())
             sec_table = data_unclipped.get('sec_table_current', pd.DataFrame())
-            # Full list of horizons to match App
-            horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
+            # Filter horizons based on reporting period
+            horizons = get_valid_horizons_for_period(start_date, end_date)
             
             headers = ["Asset"] + horizons
             rows = []
@@ -788,7 +864,8 @@ def generate_word_report(data, sections, report_title, subtitle, period_label, m
             # USE UNCLIPPED DATA for accurate P/L calculations
             class_df = data_unclipped.get('class_df', pd.DataFrame())
             sec_table = data_unclipped.get('sec_table_current', pd.DataFrame())
-            horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
+            # Filter horizons based on reporting period
+            horizons = get_valid_horizons_for_period(start_date, end_date)
             
             # Pre-fetch ticker P/L for all horizons using UNCLIPPED data
             ticker_pl_cache = {}

@@ -204,34 +204,80 @@ def generate_ai_summary_period(data, start_date=None, end_date=None):
         period_ret = annualize_return(period_ret_cum, eff_start, eff_end)
         
     # --- 2. PERIOD P/L (DOLLAR) ---
+    # Use exact same logic as portfolio_engine.py pl_since_inception
+    # P/L = MV_end - MV_start - Net_External_Flows
+    from financial_math import get_effective_anchor_date
+    
     pv = data.get("pv")
     cf_ext = data.get("cf_ext")
+    inception_date = data.get("inception_date")
     period_pl = 0.0
     
     if pv is not None and not pv.empty:
-        # End MV
-        end_locs_pv = pv.index[pv.index <= eff_end]
-        if not end_locs_pv.empty:
-            idx_end_pv = end_locs_pv[-1]
-            end_mv = pv.loc[idx_end_pv]
+        # Use effective anchor for GIPS-compliant snapping (avoids weekend drag)
+        calc_end = get_effective_anchor_date(eff_end)
+        pv_idx = pv.index.sort_values()
+        
+        # Determine if this is SI (Since Inception) scenario
+        # SI = start date is at or before inception date
+        is_si = (inception_date is not None and eff_start <= inception_date)
+        
+        if is_si:
+            # ========================================
+            # SI LOGIC (matches portfolio_engine.py exactly)
+            # ========================================
+            calc_start = inception_date
+            
+            # Map inception_date onto the first PV date on/after it
+            if calc_start not in pv.index:
+                pos = pv_idx.searchsorted(calc_start)
+                if pos < len(pv_idx):
+                    calc_start = pv_idx[pos]
+            
+            # SI: mv_start = 0.0 (we started with nothing)
+            mv_start = 0.0
+            
+            # SI: Include flows ON the start date (Funding Day) using >=
+            net_flows = 0.0
+            if cf_ext is not None and not cf_ext.empty:
+                mask = (cf_ext["date"] >= calc_start) & (cf_ext["date"] <= calc_end)
+                net_flows = float(cf_ext.loc[mask, "amount"].sum())
         else:
-            end_mv = 0.0
+            # ========================================
+            # STANDARD HORIZON LOGIC
+            # ========================================
+            # Snap start date backward to nearest trading day
+            prev_dates = pv_idx[pv_idx <= eff_start]
             
-        # Start MV
-        start_locs_pv = pv.index[pv.index < eff_start]
-        if not start_locs_pv.empty:
-            idx_start_pv = start_locs_pv[-1]
-            start_mv = pv.loc[idx_start_pv]
+            if len(prev_dates) > 0:
+                calc_start = prev_dates.max()
+            else:
+                calc_start = pv_idx.min()
+            
+            # Get MV at start
+            mv_start = float(pv.loc[calc_start]) if calc_start in pv.index else 0.0
+            
+            # Get external flows in (start, end] (exclude start date flows)
+            net_flows = 0.0
+            if cf_ext is not None and not cf_ext.empty:
+                mask = (cf_ext["date"] > calc_start) & (cf_ext["date"] <= calc_end)
+                net_flows = float(cf_ext.loc[mask, "amount"].sum())
+        
+        # Get MV at end (same logic for both cases)
+        if calc_end in pv.index:
+            mv_end = float(pv.loc[calc_end])
         else:
-            start_mv = 0.0
-            
-        # Net Flows in Window [start, end]
-        flows_sum = 0.0
-        if cf_ext is not None and not cf_ext.empty:
-            mask = (cf_ext["date"] >= eff_start) & (cf_ext["date"] <= eff_end)
-            flows_sum = cf_ext.loc[mask, "amount"].sum()
-            
-        period_pl = end_mv - start_mv - flows_sum
+            # Fallback/Snap backward
+            pos = pv_idx.searchsorted(calc_end)
+            if pos < len(pv_idx) and pv_idx[pos] == calc_end:
+                mv_end = float(pv.iloc[pos])
+            elif pos > 0:
+                mv_end = float(pv.iloc[pos-1])
+            else:
+                mv_end = mv_start
+        
+        # P/L = Ending Value - Starting Value - Net External Flows
+        period_pl = mv_end - mv_start - net_flows
 
     pl_str = fmt_dollar_clean(period_pl)
     if period_pl > 0: pl_str = "+" + pl_str

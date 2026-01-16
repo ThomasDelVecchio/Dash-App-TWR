@@ -23,7 +23,8 @@ from datetime import datetime
 import pandas as pd
 from tax_engine import build_tax_lots, normalize_ticker
 from data_loader import load_transactions_raw, fetch_price_history
-from financial_math import get_portfolio_horizon_start, modified_dietz_for_ticker_window, annualize_return
+from financial_math import get_portfolio_horizon_start, modified_dietz_for_ticker_window, annualize_return, compute_horizon_twr
+from portfolio_engine import calculate_horizon_pl
 from config import TAX_RATE_ST, TAX_RATE_LT, GLOBAL_PALETTE
 import numpy as np
 from io import BytesIO
@@ -63,6 +64,62 @@ DEFAULT_SELECTION = [
 
 DEFAULT_ORDER = [opt["value"] for opt in REPORT_SECTIONS_OPTIONS]
 
+
+# ============================================================
+# HORIZON FILTERING HELPER
+# ============================================================
+def get_valid_horizons_for_period(start_date, end_date, full_horizons=None):
+    """
+    Determines which horizon columns should be displayed based on the reporting period.
+    
+    Logic:
+    - Calculates duration in days from start_date to end_date
+    - Only includes horizons where the period_days >= threshold
+    - SI (Since Inception) is ALWAYS included regardless of period
+    
+    Args:
+        start_date: Period start date (pd.Timestamp or datetime)
+        end_date: Period end date (pd.Timestamp or datetime)
+        full_horizons: List of all possible horizons (default uses standard set)
+    
+    Returns:
+        List of valid horizon strings to display
+    """
+    if full_horizons is None:
+        full_horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
+    
+    # SI always displays
+    if start_date is None or end_date is None:
+        return full_horizons
+    
+    # Calculate period duration
+    period_days = (pd.Timestamp(end_date) - pd.Timestamp(start_date)).days
+    
+    # Threshold mapping: minimum days needed for each horizon to be meaningful
+    thresholds = {
+        "1D": 1,
+        "1W": 7,
+        "MTD": 1,    # MTD can show for any period (resets monthly)
+        "1M": 28,
+        "3M": 84,
+        "6M": 168,
+        "YTD": 180,  # Roughly 6 months into the year
+        "1Y": 350,
+    }
+    
+    valid = []
+    for h in full_horizons:
+        if h == "SI":
+            # SI always included
+            valid.append(h)
+        elif h in thresholds:
+            if period_days >= thresholds[h]:
+                valid.append(h)
+        else:
+            # Unknown horizon - include by default
+            valid.append(h)
+    
+    return valid
 
 
 # ============================================================
@@ -578,38 +635,31 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             # Override if specific period selected and not SI
             if period != "SI" and start_date:
                 try:
-                    # 1. Calculate Period Return (TWR)
-                    twr_curve = dw._get_daily_twr_curve(data)
+                    # Get centralized parameters
+                    pv = data.get("pv", pd.Series())
+                    cf = data.get("cf_ext", pd.DataFrame())
+                    inception_date = data.get("inception_date")
+                    effective_as_of = data.get("effective_as_of")
                     
-                    # Align with Overview/Math logic: Anchor to Start Date Close
-                    # (Exclude Start Date's return from the calculation)
-                    if start_date in twr_curve.index:
-                        base_val = twr_curve.loc[start_date]
-                    elif not twr_curve.empty:
-                        # Fallback for robustness
-                        mask = twr_curve.index <= start_date
-                        if mask.any():
-                            base_val = twr_curve[mask].iloc[-1]
-                        else:
-                            base_val = twr_curve.iloc[0]
-                    else:
-                        base_val = 1.0
-                        
-                    current_val = twr_curve.iloc[-1] if not twr_curve.empty else 1.0
-                    period_return = (current_val / base_val) - 1
+                    # 1. Calculate Period Return (TWR) using CENTRALIZED function
+                    # Uses compute_horizon_twr which applies proper snap-back logic
+                    period_return = compute_horizon_twr(
+                        pv, cf, inception_date, target_h, effective_as_of=effective_as_of
+                    )
                     
-                    metrics['twr_si'] = period_return
-                    twr_label = f"Period Return ({period})"
+                    if not pd.isna(period_return):
+                        metrics['twr_si'] = period_return
+                        twr_label = f"Period Return ({period})"
                     
                     # 2. Calculate Stats (Sharpe, Sortino, Max DD) on sliced curve
-                    # Standard behavior: Start slice at start_date. 
-                    # pct_change() in efficiency metrics will drop the first point, 
-                    # correctly starting metrics from start_date+1
-                    sub_curve = twr_curve[(twr_curve.index >= start_date) & (twr_curve.index <= end_date)]
+                    # Use effective_as_of for consistent end date
+                    twr_curve = dw._get_daily_twr_curve(data)
+                    calc_end = effective_as_of if effective_as_of else (pv.index.max() if not pv.empty else end_date)
+                    sub_curve = twr_curve[(twr_curve.index >= start_date) & (twr_curve.index <= calc_end)]
 
                     if not sub_curve.empty:
                         # Efficiency (GIPS-compliant: pass dates for duration-aware annualization)
-                        eff = dw.calculate_efficiency_metrics(sub_curve, start_date=start_date, end_date=end_date)
+                        eff = dw.calculate_efficiency_metrics(sub_curve, start_date=start_date, end_date=calc_end)
                         metrics['sharpe'] = eff['sharpe']
                         metrics['sortino'] = eff['sortino']
                         
@@ -617,37 +667,14 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
                         _, dd_val, _ = dw.compute_drawdown_series(sub_curve)
                         metrics['max_dd'] = dd_val / 100.0
                         
-                    # 3. Calculate Period P/L (Aligned with PortfolioEngine)
-                    # P/L = End_MV - Start_MV - Net_Flows(Start to End)
-                    pv = data.get("pv", pd.Series())
-                    cf = data.get("cf_ext", pd.DataFrame())
+                    # 3. Calculate Period P/L using CENTRALIZED function
+                    # Uses calculate_horizon_pl which applies proper snap-back logic
+                    period_pl = calculate_horizon_pl(
+                        pv, inception_date, cf, target_h, effective_as_of=effective_as_of
+                    )
                     
-                    if not pv.empty:
-                        # End Value
-                        end_mv = pv.iloc[-1]
-                        
-                        # Start Value
-                        # Align: Start from Close of start_date
-                        if start_date in pv.index:
-                            start_mv = pv.loc[start_date]
-                        elif not pv.empty:
-                            mask = pv.index <= start_date
-                            if mask.any():
-                                start_mv = pv[mask].iloc[-1]
-                            else:
-                                start_mv = 0.0 
-                        else:
-                            start_mv = 0.0
-                        
-                        # Flows
-                        # Align: Flows strictly > start_date (exclude start date flows as they are in start_mv)
-                        if not cf.empty:
-                            mask_flows = (cf["date"] > start_date) & (cf["date"] <= end_date)
-                            period_flows = cf.loc[mask_flows, "amount"].sum()
-                        else:
-                            period_flows = 0.0
-                            
-                        metrics['pl_si'] = end_mv - start_mv - period_flows
+                    if period_pl is not None:
+                        metrics['pl_si'] = period_pl
                         pl_label = f"Period P/L ({period})"
                 
                 except Exception as e:
@@ -753,6 +780,24 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             for col in ['Sharpe', 'Sortino', 'Max DD']:
                 if col in horizon_df.columns:
                     horizon_df = horizon_df.drop(columns=[col])
+            
+            # Filter rows based on valid horizons for the reporting period
+            valid_horizons = get_valid_horizons_for_period(start_date, end_date)
+            # Match horizon labels (handle "Since Inception" -> "SI", "(Ann.)" suffix)
+            def matches_valid_horizon(h_label):
+                if h_label is None:
+                    return False
+                h_str = str(h_label)
+                # Check for "Since Inception" variants
+                if "Since Inception" in h_str:
+                    return "SI" in valid_horizons
+                # Check for standard horizons (strip "(Ann.)" suffix if present)
+                for vh in valid_horizons:
+                    if h_str.startswith(vh):
+                        return True
+                return False
+            
+            horizon_df = horizon_df[horizon_df['Horizon'].apply(matches_valid_horizon)]
             
             # Format
             if 'Return' in horizon_df.columns:
@@ -1167,7 +1212,8 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             
             visibility_text = "Tables display ALL positions (active and exited) with valid history in the period." if include_exited else "Tables display currently active positions only."
 
-            horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
+            # Filter horizons based on reporting period duration
+            horizons = get_valid_horizons_for_period(start_date, end_date)
             
             rows = []
             # Sort classes
@@ -1256,7 +1302,8 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             if include_exited:
                  pl_vis_text = html.P("Includes realized P/L from closed positions.", className="text-muted small mt-2 fst-italic")
             
-            horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
+            # Filter horizons based on reporting period duration
+            horizons = get_valid_horizons_for_period(start_date, end_date)
             
             # Pre-fetch ticker P/L for all horizons
             ticker_pl_cache = {}
