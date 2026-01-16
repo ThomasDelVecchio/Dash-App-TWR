@@ -23,8 +23,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
 
-from etrade_auth import get_etrade_session, get_base_url
-from config import ETRADE_ACCOUNT_ID
+from etrade_auth import get_etrade_session, get_etrade_session_safe, get_base_url
+from config import ETRADE_ACCOUNT_ID, ETRADE_HEADLESS
 
 # ============================================================
 # CONFIGURATION
@@ -42,16 +42,27 @@ INCREMENTAL_SYNC_LOOKBACK_DAYS = 90
 
 # Transaction type mapping from E*TRADE to our schema
 TRANSACTION_TYPE_MAP = {
+    # Trades
     "Bought": "TRADE",
     "Sold": "TRADE",
     "Buy": "TRADE",
     "Sell": "TRADE",
+    # Dividends (E*TRADE uses various names)
     "Dividend": "DIVIDEND",
+    "Qualified Dividend": "DIVIDEND",
+    "Non-Qualified Div": "DIVIDEND",
+    "Reinvested Dividend": "DIVIDEND",
+    # Interest
     "Interest": "INTEREST",
+    "Interest Income": "INTEREST",
+    # Cash Flows (Deposits/Withdrawals/Transfers)
     "Deposit": "FLOW",
     "Withdrawal": "FLOW",
     "Transfer": "FLOW",
-    # Add more mappings as needed
+    "Online Transfer": "FLOW",
+    "Funds Received": "FLOW",
+    "ACH Deposit": "FLOW",
+    "Wire Transfer": "FLOW",
 }
 
 
@@ -122,7 +133,8 @@ def get_account_id_key(session) -> Tuple[str, str]:
     # Always fetch account list to get proper accountIdKey
     response = session.get(
         f"{base_url}/v1/accounts/list",
-        headers={"Accept": "application/json"}
+        headers={"Accept": "application/json"},
+        timeout=(10, 30)  # 10s connect, 30s read
     )
     
     if response.status_code != 200:
@@ -198,7 +210,7 @@ def fetch_etrade_transactions(session, account_id: str, start_date: datetime = N
     }
     
     # Request JSON explicitly (E*TRADE defaults to XML sometimes)
-    response = session.get(url, params=params, headers={"Accept": "application/json"})
+    response = session.get(url, params=params, headers={"Accept": "application/json"}, timeout=(10, 60))  # 10s connect, 60s read (large history)
     
     if response.status_code == 204:
         # No content - no transactions in range
@@ -262,8 +274,9 @@ def transform_etrade_transaction(tx: Dict) -> Optional[Dict]:
         ticker = product.get("symbol", "CASH")
         
         # Get quantity and amount
+        # NOTE: E*TRADE returns 'amount' at TOP LEVEL of transaction, NOT inside brokerage object
         quantity = float(brokerage.get("quantity", 0) or 0)
-        amount = float(brokerage.get("amount", 0) or 0)
+        amount = float(tx.get("amount", 0) or 0)
         
         # Apply sign conventions for our schema:
         # - Shares: positive for buy, negative for sell
@@ -357,7 +370,14 @@ def sync_transactions() -> Tuple[int, str]:
     print("\n📊 Syncing E*TRADE transactions...")
     
     try:
-        session = get_etrade_session()
+        # Use safe session in headless mode (Colab) to avoid browser prompts
+        if ETRADE_HEADLESS:
+            session = get_etrade_session_safe()
+            if session is None:
+                return -1, "Token expired. Run etrade_auth.py to re-authenticate."
+        else:
+            session = get_etrade_session()
+        
         account_id_key, account_num = get_account_id_key(session)
         
         print(f"   Account ID: {account_num}")
@@ -441,7 +461,7 @@ def fetch_etrade_holdings(session, account_id: str) -> List[Dict]:
     url = f"{base_url}/v1/accounts/{account_id}/portfolio"
     
     # Request JSON explicitly (E*TRADE defaults to XML sometimes)
-    response = session.get(url, headers={"Accept": "application/json"})
+    response = session.get(url, headers={"Accept": "application/json"}, timeout=(10, 30))  # 10s connect, 30s read
     
     if response.status_code == 204:
         return []  # Empty portfolio
@@ -505,7 +525,14 @@ def sync_holdings() -> Tuple[bool, str]:
     print("\n📈 Syncing E*TRADE holdings...")
     
     try:
-        session = get_etrade_session()
+        # Use safe session in headless mode (Colab) to avoid browser prompts
+        if ETRADE_HEADLESS:
+            session = get_etrade_session_safe()
+            if session is None:
+                return False, "Token expired. Run etrade_auth.py to re-authenticate."
+        else:
+            session = get_etrade_session()
+        
         account_id_key, account_num = get_account_id_key(session)
         
         # Fetch positions (use accountIdKey, not account number)
@@ -661,7 +688,7 @@ def fetch_cash_balance(session, account_id_key: str) -> float:
     params = {"instType": "BROKERAGE", "realTimeNAV": "true"}
     headers = {"Accept": "application/json"}
     
-    response = session.get(url, params=params, headers=headers)
+    response = session.get(url, params=params, headers=headers, timeout=(10, 30))  # 10s connect, 30s read
     
     if response.status_code != 200:
         print(f"   ⚠️  Could not fetch cash balance: {response.status_code}")

@@ -112,7 +112,7 @@
                 <div style="opacity: 0.8;">Executive Integrity Dashboard</div>
             </div>
             <div class="meta">
-                <div>Date: 2026-01-15 15:29:40</div>
+                <div>Date: 2026-01-15 20:35:38</div>
                 <div>Version: 3.0 (Modular Opus Suite)</div>
             </div>
         </header>
@@ -285,13 +285,17 @@ Reconciling Shares (Holdings vs Transactions)...
 Loading live data via Analytics Engine...
 [PRICE] yfinance-only mode (10yr history)
 [PRICE] yfinance-only mode (10yr history)
+[WARNING] Missing Price Data:
+  2026-01-15: BTC-USD
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-15: BTC-USD']
 Data loaded.
-[PASS] [1W] Match! Port: 343.90 | Sum: 343.94 | Gap: -0.04
-[PASS] [1M] Match! Port: 1,619.09 | Sum: 1,619.06 | Gap: 0.03
-[PASS] [MTD] Match! Port: 1,133.99 | Sum: 1,134.03 | Gap: -0.04
-[PASS] [YTD] Match! Port: 1,133.99 | Sum: 1,134.03 | Gap: -0.04
+[PASS] [1W] Match! Port: 367.67 | Sum: 367.67 | Gap: -0.00
+[PASS] [1M] Match! Port: 1,642.86 | Sum: 1,642.79 | Gap: 0.07
+[PASS] [MTD] Match! Port: 1,157.77 | Sum: 1,157.77 | Gap: -0.00
+[PASS] [YTD] Match! Port: 1,157.77 | Sum: 1,157.77 | Gap: -0.00
 [1Y] Insufficient data for Portfolio P/L.
-[PASS] [SI] Match! Port: 2,330.18 | Sum: 2,330.07 | Gap: 0.11
+[PASS] [SI] Match! Port: 2,353.95 | Sum: 2,353.80 | Gap: 0.15
 
 --- Dividend Integrity Check ---
 Checking Dividend: CASH on 2025-11-28 for $0.08
@@ -315,6 +319,10 @@ Checking Dividend: CASH on 2025-11-28 for $0.08
 Loading live data...
 [PRICE] yfinance-only mode (10yr history)
 [PRICE] yfinance-only mode (10yr history)
+[WARNING] Missing Price Data:
+  2026-01-15: BTC-USD
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-15: BTC-USD']
 Checking Correlation Matrix...
 [PASS] Correlation Matrix Diagonal is all 1.0
 [PASS] Correlation Matrix is Symmetric
@@ -322,8 +330,8 @@ Checking Correlation Matrix...
 [PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1180
 Checking Active Metrics (Beta/TE)...
 [PRICE] yfinance-only mode (10yr history)
-[PASS] Beta vs SPY calculated: 0.6017
-[PASS] Tracking Error calculated: 6.0021%
+[PASS] Beta vs SPY calculated: 0.6014
+[PASS] Tracking Error calculated: 6.0058%
 Checking Drawdown Logic...
 [PASS] Max Drawdown (-2.83%) matches Minimum of Series
 [PASS] Drawdown Series is always <= 0.0
@@ -346,16 +354,20 @@ Checking Drawdown Logic...
 Loading live data...
 [PRICE] yfinance-only mode (10yr history)
 [PRICE] yfinance-only mode (10yr history)
+[WARNING] Missing Price Data:
+  2026-01-15: BTC-USD
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-15: BTC-USD']
 Checking Snapshot vs Chart...
-[PASS] Cumulative SI TWR (0.0494) matches Chart Final Value (0.0494)
+[PASS] Cumulative SI TWR (0.0499) matches Chart Final Value (0.0499)
 Checking Snapshot vs Horizon Table...
-[PASS] Snapshot SI P/L (2,331.42) matches Horizon Table (2,331.42)
+[PASS] Snapshot SI P/L (2,353.95) matches Horizon Table (2,353.95)
 Checking Growth Table vs P/L...
-[PASS] Growth Table Total (2,331.57) matches SI P/L (2,331.42)
+[PASS] Growth Table Total (2,353.95) matches SI P/L (2,353.95)
 Checking Attribution vs SI TWR...
-[PASS] Attribution Sum (4.94%) matches SI TWR (4.94%)
+[PASS] Attribution Sum (4.99%) matches SI TWR (4.99%)
 Checking Risk Chart vs Horizon Table...
-Risk Chart US Large Cap Return: 22.33%
+Risk Chart US Large Cap Return: 22.41%
 [PASS] Risk Data exists.
 
 [SUCCESS] audit_05_consistency_matrix.py passed.
@@ -453,9 +465,13 @@ Checking Future Leakage (Transactions)...
 Loading Live Data...
 [PRICE] yfinance-only mode (10yr history)
 [PRICE] yfinance-only mode (10yr history)
+[WARNING] Missing Price Data:
+  2026-01-15: BTC-USD
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-15: BTC-USD']
 
 Scanning Last 30 Days (2025-12-16 to 2026-01-15)...
-[PASS] Last 30 Days: Match! Slice=0.035053 vs Rigorous=0.035053
+[PASS] Last 30 Days: Match! Slice=0.035546 vs Rigorous=0.035546
 
 Scanning Middle 20 Days (2025-12-09 to 2025-12-29)...
 [PASS] Middle 20 Days: Match! Slice=0.019371 vs Rigorous=0.019371
@@ -502,6 +518,10 @@ Objective: Ensure Asset Class returns match Ticker returns exactly when 1:1.
 Loading engine data...
 [PRICE] yfinance-only mode (10yr history)
 [PRICE] yfinance-only mode (10yr history)
+[WARNING] Missing Price Data:
+  2026-01-15: BTC-USD
+DEBUG: data_loader returning 1 errors attached to prices.
+DEBUG: dash_wrappers found errors: ['Missing Price Data:\n  2026-01-15: BTC-USD']
 Found 3 single-ticker asset classes: {'International Equity': 'VXUS', 'Gold / Precious Metals': 'GLD', 'Digital Assets': 'FBTC'}
 
 Checking International Equity vs VXUS...
@@ -818,7 +838,7 @@ Current Configuration:
 [PASS]: Both price sets available
         Close: 252 rows, Adj: 252 rows
 [PASS]: Close and Adj Close have data
-        Close: $691.78, Adj: $691.78, Diff: 0.00%
+        Close: $692.24, Adj: $692.24, Diff: 0.00%
 [PASS]: Difference is reasonable (<5%)
         Historical divergence: Close $592.78, Adj $585.90, Diff: 1.16%
 

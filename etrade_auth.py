@@ -98,6 +98,46 @@ def delete_cached_token():
         print("🗑️  E*TRADE token cache cleared")
 
 
+def validate_token_with_api(oauth_token, oauth_token_secret):
+    """
+    Validate token by making a lightweight API call.
+    
+    This catches tokens that are locally cached but server-side revoked
+    (e.g., user logged out via E*TRADE website, token expired mid-day).
+    
+    Returns:
+        bool: True if token is valid, False otherwise
+    """
+    try:
+        session = OAuth1Session(
+            ETRADE_CONSUMER_KEY,
+            client_secret=ETRADE_CONSUMER_SECRET,
+            resource_owner_key=oauth_token,
+            resource_owner_secret=oauth_token_secret
+        )
+        
+        # Use accounts/list as a lightweight validation endpoint
+        response = session.get(
+            f"{BASE_URL}/v1/accounts/list",
+            headers={"Accept": "application/json"}
+        )
+        
+        if response.status_code == 200:
+            return True
+        elif response.status_code in (401, 403):
+            print(f"⚠️  E*TRADE token invalid (HTTP {response.status_code}). Will re-authenticate.")
+            return False
+        else:
+            # Other errors (network, server issues) - assume token is OK
+            print(f"⚠️  E*TRADE API returned {response.status_code}, assuming token valid.")
+            return True
+            
+    except Exception as e:
+        print(f"⚠️  Token validation error: {e}")
+        # Network errors - assume token is OK, let sync handle errors
+        return True
+
+
 # ============================================================
 # OAUTH 1.0a FLOW
 # ============================================================
@@ -217,14 +257,19 @@ def renew_access_token(oauth_token, oauth_token_secret):
 # SESSION FACTORY
 # ============================================================
 
-def get_etrade_session():
+def get_etrade_session(skip_validation=False):
     """
     Get an authenticated OAuth1Session for E*TRADE API calls.
     
     Automatically handles:
     - Loading cached tokens
-    - Re-authenticating if expired
-    - Creating properly configured session
+    - Validating tokens via API call (catches server-side revocation)
+    - Renewing valid tokens to extend session
+    - Re-authenticating if expired or invalid
+    
+    Args:
+        skip_validation: If True, skips the API validation call (use when
+                        you know you'll immediately make an API call anyway)
     
     Returns:
         OAuth1Session: Ready-to-use session for API calls
@@ -240,6 +285,20 @@ def get_etrade_session():
     if cached:
         oauth_token = cached["oauth_token"]
         oauth_token_secret = cached["oauth_token_secret"]
+        
+        # Validate token is actually working (catches server-side revocation)
+        if not skip_validation:
+            if validate_token_with_api(oauth_token, oauth_token_secret):
+                # Token valid - renew to extend session lifetime
+                renewed_token, renewed_secret = renew_access_token(oauth_token, oauth_token_secret)
+                if renewed_token:
+                    oauth_token = renewed_token
+                    oauth_token_secret = renewed_secret
+                # If renewal fails, continue with original token (still valid)
+            else:
+                # Token invalid - clear cache and re-authenticate
+                delete_cached_token()
+                oauth_token, oauth_token_secret = authenticate_etrade()
     else:
         # Need fresh authentication
         oauth_token, oauth_token_secret = authenticate_etrade()
@@ -258,6 +317,50 @@ def get_etrade_session():
 def get_base_url():
     """Return the appropriate base URL (sandbox or production)."""
     return BASE_URL
+
+
+def get_etrade_session_safe():
+    """
+    Get an authenticated session WITHOUT blocking for user input.
+    
+    Use this in non-interactive contexts (e.g., web app startup) where
+    you can't prompt the user for a verification code.
+    
+    Returns:
+        OAuth1Session if valid cached token exists, None otherwise.
+        When None is returned, the caller should notify the user to
+        run `python etrade_auth.py` to authenticate.
+    """
+    cached = load_cached_token()
+    
+    if not cached:
+        print("⚠️  No cached E*TRADE token. Run `python etrade_auth.py` to authenticate.")
+        return None
+    
+    oauth_token = cached["oauth_token"]
+    oauth_token_secret = cached["oauth_token_secret"]
+    
+    # Validate token is actually working
+    if not validate_token_with_api(oauth_token, oauth_token_secret):
+        print("⚠️  E*TRADE token is invalid. Run `python etrade_auth.py` to re-authenticate.")
+        delete_cached_token()
+        return None
+    
+    # Token valid - renew to extend session
+    renewed_token, renewed_secret = renew_access_token(oauth_token, oauth_token_secret)
+    if renewed_token:
+        oauth_token = renewed_token
+        oauth_token_secret = renewed_secret
+    
+    # Create session
+    session = OAuth1Session(
+        ETRADE_CONSUMER_KEY,
+        client_secret=ETRADE_CONSUMER_SECRET,
+        resource_owner_key=oauth_token,
+        resource_owner_secret=oauth_token_secret
+    )
+    
+    return session
 
 
 # ============================================================

@@ -45,6 +45,21 @@ ETRADE_SANDBOX = os.environ.get("ETRADE_SANDBOX", "false").lower() == "true"
 # Enable/disable automatic E*TRADE sync on dashboard startup
 ETRADE_AUTO_SYNC = os.environ.get("ETRADE_AUTO_SYNC", "true").lower() == "true"
 
+# Headless mode (for Colab/iPad) - prevents browser OAuth prompts
+# Auto-detects Colab environment, or can be manually set via env var
+def _detect_colab():
+    """Detect if running in Google Colab."""
+    try:
+        import google.colab
+        return True
+    except ImportError:
+        return False
+
+ETRADE_HEADLESS = (
+    os.environ.get("ETRADE_HEADLESS", "").lower() == "true" or 
+    _detect_colab()
+)
+
 def is_etrade_configured() -> bool:
     """Check if E*TRADE credentials are properly configured."""
     return bool(ETRADE_CONSUMER_KEY and ETRADE_CONSUMER_SECRET)
