@@ -477,10 +477,22 @@ def sync_transactions() -> Tuple[int, str]:
         
         # Determine start date based on whether this is first sync or incremental
         last_date = get_last_transaction_date()
+        today = datetime.now().date()
+        
         if last_date:
             # Incremental sync: start from last known transaction
             start_date = last_date + timedelta(days=1)
-            print(f"   Fetching transactions since: {start_date.date()}")
+            
+            # CRITICAL FIX: Guard against future dates
+            # If last transaction is today (or somehow in the future), start_date
+            # would be tomorrow+, which E*TRADE rejects with HTTP 500.
+            # Solution: Re-fetch from today to catch any new same-day transactions.
+            # Deduplication will filter out already-synced ones.
+            if start_date.date() > today:
+                start_date = datetime.combine(today, datetime.min.time())
+                print(f"   Re-syncing today ({today}) to catch new transactions...")
+            else:
+                print(f"   Fetching transactions since: {start_date.date()}")
         else:
             # First sync: fetch maximum available history to capture older positions
             # This prevents reconciliation errors for users with positions > 90 days old
