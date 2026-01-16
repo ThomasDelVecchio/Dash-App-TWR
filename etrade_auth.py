@@ -14,6 +14,7 @@ import os
 import json
 import webbrowser
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from requests_oauthlib import OAuth1Session
 from config import (
     ETRADE_CONSUMER_KEY,
@@ -54,7 +55,17 @@ def load_cached_token():
         
         # Check if token was created today (E*TRADE tokens expire at midnight ET)
         created = datetime.fromisoformat(data.get("created", "2000-01-01"))
-        now = datetime.now()
+        
+        # CRITICAL: Compare dates in Eastern Time since tokens expire at midnight ET
+        eastern = ZoneInfo("America/New_York")
+        now_et = datetime.now(eastern)
+        
+        # Make created timezone-aware if it isn't already
+        if created.tzinfo is None:
+            # Assume the stored timestamp was in Eastern Time
+            created_et = created.replace(tzinfo=eastern)
+        else:
+            created_et = created.astimezone(eastern)
         
         # Check if token matches current environment (sandbox vs production)
         # Prevents using sandbox token for production or vice versa
@@ -63,11 +74,11 @@ def load_cached_token():
             print(f"🔄 E*TRADE token environment mismatch (cached={'sandbox' if cached_sandbox else 'production'}, current={'sandbox' if ETRADE_SANDBOX else 'production'}). Re-authenticating...")
             return None
         
-        # Tokens expire at midnight ET, so check if same calendar day
-        if created.date() == now.date():
+        # Tokens expire at midnight ET, so check if same calendar day in Eastern Time
+        if created_et.date() == now_et.date():
             return data
         else:
-            print("🔄 E*TRADE token expired (new day). Re-authenticating...")
+            print("🔄 E*TRADE token expired (new day in ET). Re-authenticating...")
             return None
             
     except Exception as e:
@@ -119,7 +130,8 @@ def validate_token_with_api(oauth_token, oauth_token_secret):
         # Use accounts/list as a lightweight validation endpoint
         response = session.get(
             f"{BASE_URL}/v1/accounts/list",
-            headers={"Accept": "application/json"}
+            headers={"Accept": "application/json"},
+            timeout=(10, 30)  # 10s connect, 30s read
         )
         
         if response.status_code == 200:

@@ -335,8 +335,11 @@ def transform_etrade_transaction(tx: Dict) -> Optional[Dict]:
         tx_type = tx.get("transactionType", "")
         
         # Parse date (E*TRADE uses epoch milliseconds or string)
+        # CRITICAL: Epoch timestamps are in UTC; convert to local for display
         if isinstance(tx_date, (int, float)):
-            date_obj = datetime.fromtimestamp(tx_date / 1000)
+            # E*TRADE returns epoch milliseconds in UTC
+            from datetime import timezone
+            date_obj = datetime.fromtimestamp(tx_date / 1000, tz=timezone.utc).replace(tzinfo=None)
         else:
             date_obj = datetime.strptime(str(tx_date), "%Y-%m-%d")
         
@@ -430,8 +433,10 @@ def deduplicate_transactions(existing_df: pd.DataFrame, new_df: pd.DataFrame) ->
     new_df["_date_norm"] = pd.to_datetime(new_df["date"]).dt.date
     
     # Create composite keys
+    # Include 'type' to distinguish dividends, trades, etc. on same ticker/date
     def make_key(row):
-        return f"{row['_date_norm']}_{row['ticker']}_{round(row['amount'], 2)}"
+        tx_type = row.get('type', 'UNKNOWN')
+        return f"{row['_date_norm']}_{row['ticker']}_{round(row['amount'], 2)}_{tx_type}"
     
     existing_keys = set(existing_df.apply(make_key, axis=1))
     
