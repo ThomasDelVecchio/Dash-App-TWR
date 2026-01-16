@@ -60,6 +60,13 @@ ETRADE_HEADLESS = (
     _detect_colab()
 )
 
+# Skip transaction sync entirely (use when E*TRADE transactions API is down/hanging)
+# Set to True to only sync holdings (which works) and use existing cashflows.csv
+ETRADE_SKIP_TRANSACTIONS = os.environ.get("ETRADE_SKIP_TRANSACTIONS", "false").lower() == "true"
+
+# Sync timeout in seconds (how long to wait before giving up)
+ETRADE_SYNC_TIMEOUT = int(os.environ.get("ETRADE_SYNC_TIMEOUT", "15"))
+
 def is_etrade_configured() -> bool:
     """Check if E*TRADE credentials are properly configured."""
     return bool(ETRADE_CONSUMER_KEY and ETRADE_CONSUMER_SECRET)

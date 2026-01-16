@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
 
 from etrade_auth import get_etrade_session, get_etrade_session_safe, get_base_url
-from config import ETRADE_ACCOUNT_ID, ETRADE_HEADLESS
+from config import ETRADE_ACCOUNT_ID, ETRADE_HEADLESS, ETRADE_SKIP_TRANSACTIONS, ETRADE_SYNC_TIMEOUT
 
 # ============================================================
 # CONFIGURATION
@@ -210,7 +210,8 @@ def fetch_etrade_transactions(session, account_id: str, start_date: datetime = N
     }
     
     # Request JSON explicitly (E*TRADE defaults to XML sometimes)
-    response = session.get(url, params=params, headers={"Accept": "application/json"}, timeout=(10, 60))  # 10s connect, 60s read (large history)
+    # Use configurable timeout (default 15s) to prevent hanging on slow/broken API
+    response = session.get(url, params=params, headers={"Accept": "application/json"}, timeout=(10, ETRADE_SYNC_TIMEOUT))
     
     if response.status_code == 204:
         # No content - no transactions in range
@@ -367,6 +368,11 @@ def sync_transactions() -> Tuple[int, str]:
     Returns:
         Tuple of (count of new transactions, status message)
     """
+    # Check if transaction sync is disabled (E*TRADE API may be slow/broken)
+    if ETRADE_SKIP_TRANSACTIONS:
+        print("\n📊 Skipping E*TRADE transactions sync (ETRADE_SKIP_TRANSACTIONS=true)")
+        return 0, "Transaction sync skipped (using existing cashflows.csv)"
+    
     print("\n📊 Syncing E*TRADE transactions...")
     
     try:

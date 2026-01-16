@@ -57,7 +57,8 @@ def _run_etrade_sync():
         
     except Exception as e:
         print(f"❌ E*TRADE sync failed: {e}")
-        _ETRADE_SYNC_STATUS = {"success": False, "error": str(e)}
+        print("ℹ️  Continuing with existing local data files (cashflows.csv, sample holdings.csv)")
+        _ETRADE_SYNC_STATUS = {"status": "error", "message": str(e)}
         return _ETRADE_SYNC_STATUS
 
 # Run E*TRADE sync BEFORE loading data cache
