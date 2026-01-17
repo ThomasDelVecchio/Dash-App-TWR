@@ -3602,7 +3602,18 @@ def fetch_audit_details(request_data):
 def _calculate_residual_return(data, df_explained, start_date=None, end_date=None):
     """
     Helper to calculate the 'residual' return (Cash/Recon).
-    Ensures P/L Source of Truth is clipped to exactly the same date range as the Attribution.
+    
+    GIPS COMPLIANCE:
+    - For SI (start_date is None): Uses data["pl_si"] from portfolio_engine.py as the
+      authoritative Source of Truth. This ensures the Attribution sum + Residual
+      reconciles EXACTLY to the P/L displayed on the Overview page.
+    - For non-SI periods (daily/weekly/monthly): Calculates P/L independently
+      since the engine doesn't precompute P/L for arbitrary date ranges.
+    
+    The Residual captures:
+    - Timing differences between Frongello daily effects and GIPS P/L formula
+    - Rounding/floating-point precision
+    - Any flows or income not attributed to specific asset classes
     """
     # 1. TWR Residual (Must be CUMULATIVE to match Frongello Sum)
     pv = data["pv"]
@@ -3636,50 +3647,71 @@ def _calculate_residual_return(data, df_explained, start_date=None, end_date=Non
     residual_pct = (twr_cum * 100.0) - explained_twr_pct
     
     # 2. P/L Residual
-    if not pv.empty:
-        # Determine explicit MV Start/End for P/L
-        
-        # A. Start Value
-        mv_start = 0.0
-        if calc_start in pv.index:
-            mv_start = float(pv.loc[calc_start])
-        elif calc_start < pv.index.min():
-            # Before inception -> 0 Value
-            mv_start = 0.0
-        else:
-            # Snap backward to nearest valid trading day (Anchor)
-            loc = pv.index.searchsorted(calc_start)
-            if loc > 0:
-                mv_start = float(pv.iloc[loc-1])
-            else: 
-                mv_start = 0.0
-
-        # B. End Value
-        if calc_end in pv.index:
-            mv_end = float(pv.loc[calc_end])
-        else:
-            # Snap backward (GIPS standard for reporting end date)
-            loc = pv.index.searchsorted(calc_end)
-            if loc < len(pv.index) and pv.index[loc] == calc_end:
-                 mv_end = float(pv.iloc[loc])
-            elif loc > 0:
-                 mv_end = float(pv.iloc[loc-1])
-            else:
-                 mv_end = float(pv.iloc[-1])
-
-        # C. Flows (strictly > calc_start, <= calc_end)
-        if cf_ext is not None and not cf_ext.empty:
-            relevant_flows = cf_ext[(cf_ext["date"] > calc_start) & (cf_ext["date"] <= calc_end)]
-            total_invested = relevant_flows["amount"].sum()
-        else:
-            total_invested = 0.0
-            
-        pl_si_robust = mv_end - mv_start - total_invested
+    # ================================================================
+    # GIPS COMPLIANCE FIX:
+    # For SI mode (start_date is None), use the authoritative pl_si
+    # from portfolio_engine.py. This value is calculated with proper
+    # inception handling:
+    #   - MV_start = 0 (nothing existed before inception)
+    #   - Flows >= inception date are captured (Day 1 funding)
+    #   - MV_end uses effective_as_of anchor
+    #
+    # This guarantees: Sum(Asset Class Effects) + Residual = Overview SI P/L
+    # ================================================================
+    
+    is_si_mode = (start_date is None)
+    
+    if is_si_mode:
+        # Use the engine's authoritative SI P/L (Source of Truth)
+        pl_target = data.get("pl_si", 0.0)
+        if pd.isna(pl_target):
+            pl_target = 0.0
     else:
-        pl_si_robust = 0.0
+        # Non-SI periods: Calculate P/L independently for the specific window
+        if not pv.empty:
+            # Determine explicit MV Start/End for P/L
+            
+            # A. Start Value
+            mv_start = 0.0
+            if calc_start in pv.index:
+                mv_start = float(pv.loc[calc_start])
+            elif calc_start < pv.index.min():
+                # Before inception -> 0 Value
+                mv_start = 0.0
+            else:
+                # Snap backward to nearest valid trading day (Anchor)
+                loc = pv.index.searchsorted(calc_start)
+                if loc > 0:
+                    mv_start = float(pv.iloc[loc-1])
+                else: 
+                    mv_start = 0.0
+
+            # B. End Value
+            if calc_end in pv.index:
+                mv_end = float(pv.loc[calc_end])
+            else:
+                # Snap backward (GIPS standard for reporting end date)
+                loc = pv.index.searchsorted(calc_end)
+                if loc < len(pv.index) and pv.index[loc] == calc_end:
+                     mv_end = float(pv.iloc[loc])
+                elif loc > 0:
+                     mv_end = float(pv.iloc[loc-1])
+                else:
+                     mv_end = float(pv.iloc[-1])
+
+            # C. Flows (strictly > calc_start, <= calc_end)
+            if cf_ext is not None and not cf_ext.empty:
+                relevant_flows = cf_ext[(cf_ext["date"] > calc_start) & (cf_ext["date"] <= calc_end)]
+                total_invested = relevant_flows["amount"].sum()
+            else:
+                total_invested = 0.0
+                
+            pl_target = mv_end - mv_start - total_invested
+        else:
+            pl_target = 0.0
         
     explained_pl = df_explained["Effect"].sum()
-    residual_pl = pl_si_robust - explained_pl
+    residual_pl = pl_target - explained_pl
     
     return residual_pct, residual_pl
 
