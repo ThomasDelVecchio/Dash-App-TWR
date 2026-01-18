@@ -86,13 +86,13 @@ SCRIPTS = [
     {
         "file": "audit_07_stress_test.py",
         "name": "System Stress Tests",
-        "objective": "Verify system stability under extreme conditions.",
+        "objective": "Verify UI and engine stability under extreme data conditions and edge cases.",
         "methodology": [
-            "Test Gapped Data (Missing Prices).",
-            "Test Negative Equity (Short/Leverage) handling.",
-            "Test Trillion Dollar Scale.",
-            "Test Day 1 Inception (Deposit+Buy).",
-            "Test Weekend Flow Snapping."
+            "Test all Dash wrapper functions with empty/null/NaN/Inf data.",
+            "Test financial math edge cases (leap day, year-end, zero denominators).",
+            "Test portfolio engine edge cases (shorts, unicode, same-day trades).",
+            "Test report formatting functions with extreme values.",
+            "Verify attack vector resilience (missing columns, scale breakers)."
         ]
     },
     {
@@ -411,6 +411,7 @@ def run_audits():
                 [sys.executable, script_path],
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
                 check=False 
             )
             

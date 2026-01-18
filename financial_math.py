@@ -358,10 +358,14 @@ def compute_period_twr(
         return np.nan
 
     # 2) Restrict flows: strictly AFTER start_date, up to and including end_date
-    cf_window = cf[
-        (cf["date"] > start_date)
-        & (cf["date"] <= end_date)
-    ].copy()
+    # GIPS FIX: Guard against empty DataFrame to prevent numpy array comparison error
+    if cf.empty:
+        cf_window = cf.copy()
+    else:
+        cf_window = cf[
+            (cf["date"] > start_date)
+            & (cf["date"] <= end_date)
+        ].copy()
 
 
 
@@ -799,25 +803,8 @@ def modified_dietz_for_asset_class_window(
     # Delayed Entry Logic (GIPS compliance) for Asset Class
     # If the asset class has 0 value at start, but receives inflows later,
     # shift start to the first inflow date to avoid denominator dilution.
-    if V0 < 1e-6:
-        # Check for any flows in this asset class >= start
-        first_tx_in_window = tx_all[
-            (tx_all["ticker"].isin(tickers)) &
-            (tx_all["date"] >= start) &
-            (tx_all["date"] <= end)
-        ]
-        if not first_tx_in_window.empty:
-            first_date = first_tx_in_window["date"].min()
-            
-            if first_date > start:
-                start = first_date
-                total_days = (end - start).days + 1
-                # V0 remains 0.0
-
-    # Delayed Entry Logic (GIPS compliance) for Asset Class
-    # If the asset class has 0 value at start, but receives inflows later,
-    # shift start to the first inflow date to avoid denominator dilution.
-    if V0 < 1e-6:
+    # GIPS FIX: Guard against empty DataFrame to prevent numpy array comparison error
+    if V0 < 1e-6 and not tx_all.empty:
         # Check for any flows in this asset class >= start
         first_tx_in_window = tx_all[
             (tx_all["ticker"].isin(tickers)) &
@@ -835,7 +822,8 @@ def modified_dietz_for_asset_class_window(
     # Early Exit Logic (GIPS compliance) for Asset Class
     # If the asset class is fully liquidated (V1=0) before the end date,
     # clamp the end date to the last transaction to avoid denominator dilution.
-    if abs(V1) < 1e-6:
+    # GIPS FIX: Guard against empty DataFrame to prevent numpy array comparison error
+    if abs(V1) < 1e-6 and not tx_all.empty:
         # Find the last transaction in this window for these tickers
         tx_in_window = tx_all[
             (tx_all["ticker"].isin(tickers)) &
@@ -855,7 +843,10 @@ def modified_dietz_for_asset_class_window(
     # Aggregate cashflows for the asset class
     # CRITICAL FIX: For SI calculations where V0=0, include flows ON the start date
     # This ensures initial purchases are properly counted in the denominator
-    if is_si or V0 < 1e-6:
+    # GIPS FIX: Guard against empty DataFrame to prevent numpy array comparison error
+    if tx_all.empty:
+        tx_window = tx_all.copy()
+    elif is_si or V0 < 1e-6:
         # Include flows >= start (inception day flows counted)
         tx_window = tx_all[
             (tx_all["ticker"].isin(tickers)) &
