@@ -14,6 +14,14 @@ MODULE_OPTIONS = [
 ]
 
 layout = html.Div([
+    # --- HEADER ---
+    dbc.Row([
+        dbc.Col([
+            html.H2("Settings", className="fw-bold text-body"),
+            html.P("Data management, module configuration, and export options", className="text-muted small")
+        ], width=12)
+    ], className="mb-4"),
+    
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5("Data Management", className="card-title p-2"),

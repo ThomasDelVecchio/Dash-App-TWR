@@ -16,7 +16,7 @@ from components import chatbot
 from components.audit_modal import get_audit_modal_content
 
 # Import Pages
-from pages import overview, performance, allocations, attribution, flows, holdings, risk, settings, trade_lab, help_index, taxes, rebalancing, custom_report
+from pages import overview, performance, allocations, attribution, flows, holdings, risk, settings, trade_lab, help_index, taxes, rebalancing, custom_report, trade_execution
 
 # ============================================================
 # E*TRADE SYNC ON STARTUP
@@ -270,6 +270,9 @@ app.layout = html.Div(
         dcc.Store(id="asset-allocation-state", storage_type="session"),
         dcc.Store(id="projections-state", storage_type="local"),
         
+        # Staged Order Store (for Rebalancing -> Trade flow)
+        dcc.Store(id="staged-order-store", storage_type="session"),
+        
         # Force Global MathJax Load
         dcc.Markdown(id="mathjax-preload", mathjax=True, style={"display": "none"}),
         
@@ -323,6 +326,7 @@ app.validation_layout = html.Div([
     flows.layout,
     holdings.layout,
     rebalancing.layout,
+    trade_execution.layout,
     risk.layout,
     settings.layout,
     trade_lab.layout,
@@ -352,6 +356,8 @@ def render_page_content(pathname):
         return holdings.layout
     elif pathname == "/rebalancing":
         return rebalancing.layout
+    elif pathname == "/trade":
+        return trade_execution.layout
     elif pathname == "/risk":
         return risk.layout
     elif pathname == "/trade-lab":

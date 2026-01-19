@@ -7,6 +7,14 @@ from report_formatting import fmt_dollar_clean
 import pandas as pd
 
 layout = html.Div([
+    # --- HEADER ---
+    dbc.Row([
+        dbc.Col([
+            html.H2("Cash Flows", className="fw-bold text-body"),
+            html.P("External deposits, withdrawals, and internal trading activity", className="text-muted small")
+        ], width=12)
+    ], className="mb-4"),
+    
     # External Flows Table
     dbc.Row([
         dbc.Col(dbc.Card([

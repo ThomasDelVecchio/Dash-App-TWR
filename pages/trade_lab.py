@@ -10,10 +10,11 @@ import pandas as pd
 import numpy as np
 
 layout = html.Div([
+    # --- HEADER ---
     dbc.Row([
         dbc.Col([
-            html.H3("What-If Trade Lab", className="text-light mb-2"),
-            html.P("Simulate the impact of hypothetical trades on your long-term success probability.", className="text-muted"),
+            html.H2("What-If Trade Lab", className="fw-bold text-body"),
+            html.P("Simulate the impact of hypothetical trades on your long-term success probability", className="text-muted small")
         ], width=12)
     ], className="mb-4"),
     

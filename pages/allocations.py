@@ -6,6 +6,14 @@ import dash_wrappers as dw
 from components.data_source_badge import create_data_source_badge
 
 layout = html.Div([
+    # --- HEADER ---
+    dbc.Row([
+        dbc.Col([
+            html.H2("Allocations", className="fw-bold text-body"),
+            html.P("Asset class & sector breakdown with target comparison", className="text-muted small")
+        ], width=12)
+    ], className="mb-4"),
+    
     # Top Row: Asset Class Pie & Bar
     dbc.Row([
         dbc.Col(dbc.Card([

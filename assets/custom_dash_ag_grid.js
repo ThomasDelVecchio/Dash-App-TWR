@@ -84,6 +84,67 @@ dagfuncs.MoneyComparator = function (valueA, valueB, nodeA, nodeB, isDescending)
 };
 
 // ============================================================
+// StageOrderButton - Stages order to dcc.Store and navigates to Trade page
+// ============================================================
+dagfuncs.StageOrderButton = function (props) {
+    // Show button for all actions - disabled for Hold, enabled for Buy/Sell
+    var action = props.data.Action;
+    
+    // For Hold or missing actions, show a disabled button
+    if (!action || action === "Hold" || action === "") {
+        var holdBtn = document.createElement('button');
+        holdBtn.className = 'btn btn-sm btn-outline-secondary';
+        holdBtn.innerText = 'Hold';
+        holdBtn.disabled = true;
+        holdBtn.style.opacity = '0.5';
+        holdBtn.style.cursor = 'not-allowed';
+        return holdBtn;
+    }
+    
+    // Extract data from row
+    var ticker = props.data.Ticker || "";
+    var sharesStr = props.data.Shares || "0";
+    
+    // Parse shares (remove formatting like commas)
+    var shares = parseFloat(sharesStr.toString().replace(/[^0-9.-]/g, "")) || 0;
+    
+    // Get price from hidden meta column (meta_price)
+    var price = props.data.meta_price || 0;
+    
+    // Build payload for staged-order-store
+    var payload = {
+        ticker: ticker,
+        quantity: Math.round(shares),
+        action: action,  // "Buy" or "Sell"
+        price: price,
+        timestamp: Date.now()
+    };
+    
+    // Create button element
+    var btn = document.createElement("button");
+    btn.className = "btn btn-sm btn-outline-primary";
+    btn.style.padding = "2px 8px";
+    btn.style.fontSize = "0.75rem";
+    btn.innerText = "Stage";
+    
+    btn.onclick = function(e) {
+        e.stopPropagation();
+        
+        // Update the staged-order-store using Dash clientside API
+        if (window.dash_clientside && window.dash_clientside.set_props) {
+            window.dash_clientside.set_props("staged-order-store", {data: payload});
+        }
+        
+        // Navigate to Trade Execution page
+        setTimeout(function() {
+            window.location.href = "/trade";
+        }, 50);
+    };
+    
+    return btn;
+};
+
+// ============================================================
 // AUDIT TRAIL EVENT LISTENERS
 // ============================================================
 

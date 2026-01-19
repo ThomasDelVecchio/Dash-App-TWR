@@ -1,5 +1,6 @@
 import dash
 from dash import dcc, html, callback, Input, Output, State, no_update
+from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import plotly.graph_objects as go
@@ -373,6 +374,7 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
         "ProForma_Pct": target_df["proforma_weight_pct"].apply(lambda x: f"{x:.2f}%"),
         
         # Meta Columns for Audit
+        "meta_price": target_df["latest_price"],  # Raw price for StageOrderButton
         "meta_amount": target_df["recommend_amount"],
         "meta_tax": target_df["est_tax"],
         "meta_realized_pl": target_df["realized_pl"],
@@ -388,7 +390,7 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
     })
     
     column_defs = [
-        {"field": "Ticker", "headerName": "Ticker", "pinned": "left", "width": 110, "suppressSizeToFit": True, "lockPinned": True, "cellClass": "lock-pinned"},
+        {"field": "Ticker", "headerName": "Ticker", "pinned": "left", "width": 140, "suppressSizeToFit": True, "lockPinned": True, "cellClass": "lock-pinned", "checkboxSelection": True, "headerCheckboxSelection": True},
         {"field": "Asset_Class", "headerName": "Asset Class", "minWidth": 185},
         {"field": "Current_Pct", "headerName": "Current %", "minWidth": 120},
         {"field": "Target_Pct", "headerName": "Target %", "minWidth": 120},
@@ -412,6 +414,7 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
         {"field": "ProForma_Pct", "headerName": "Pro-Forma %", "minWidth": 140},
         
         # Hidden Meta Columns
+        {"field": "meta_price", "hide": True},
         {"field": "meta_amount", "hide": True},
         {"field": "meta_tax", "hide": True},
         {"field": "meta_realized_pl", "hide": True},
@@ -426,15 +429,43 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
         {"field": "meta_allow_sales", "hide": True}
     ]
     
-    deployment_table = dag.AgGrid(
-        id="deployment-grid",
-        rowData=display_df.to_dict("records"),
-        columnDefs=column_defs,
-        defaultColDef={"sortable": True, "filter": True, "resizable": True, "flex": 1, "minWidth": 110},
-        className="ag-theme-alpine-dark audit-target",
-        dashGridOptions={"domLayout": "autoHeight"},
-        style={"width": "100%"}
-    )
+    deployment_table = html.Div([
+        dag.AgGrid(
+            id="deployment-grid",
+            rowData=display_df.to_dict("records"),
+            columnDefs=column_defs,
+            defaultColDef={"sortable": True, "filter": True, "resizable": True, "flex": 1, "minWidth": 110},
+            className="ag-theme-alpine-dark audit-target",
+            dashGridOptions={"domLayout": "autoHeight", "rowSelection": "multiple", "suppressRowClickSelection": True},
+            style={"width": "100%"}
+        ),
+        html.Div([
+            dbc.Button(
+                [html.I(className="bi bi-cart-plus me-2"), "Stage Selected for Trade"],
+                id="stage-selected-btn",
+                color="success",
+                className="mt-3",
+                disabled=True
+            ),
+            html.Span(id="stage-selected-count", className="ms-3 text-muted small")
+        ], className="d-flex align-items-center")
+    ])
+    
+    # Check if all actions are Hold (diagnostic message)
+    all_hold = (target_df["action"] == "Hold").all()
+    if all_hold and len(target_df) > 0:
+        hold_alert = dbc.Alert(
+            [
+                html.I(className="bi bi-info-circle me-2"),
+                "All positions are at target weights. No rebalancing actions needed.",
+                html.Br(),
+                html.Small("Tip: Add cash to deploy or enable 'Allow Sales' to generate recommendations.", className="text-muted")
+            ],
+            color="info",
+            className="mt-3"
+        )
+    else:
+        hold_alert = None
     
     # ============================================================
     # STEP 4: Build Drift Chart
@@ -454,10 +485,16 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
     
     cliff_watch_content = build_cliff_watch(target_df, "dark")
     
+    # Wrap deployment table with optional hold alert
+    if hold_alert:
+        deployment_output = html.Div([hold_alert, deployment_table])
+    else:
+        deployment_output = deployment_table
+    
     return (
         fmt_dollar_clean(current_total),
         fmt_dollar_clean(proforma_total),
-        deployment_table,
+        deployment_output,
         drift_fig,
         tax_impact_content,
         cliff_watch_content,
@@ -660,3 +697,73 @@ def build_cliff_watch(target_df, theme):
     ])
     
     return summary_text
+
+
+# ============================================================
+# STAGE SELECTED ROWS CALLBACKS
+# ============================================================
+
+@callback(
+    [Output("stage-selected-btn", "disabled"),
+     Output("stage-selected-count", "children")],
+    Input("deployment-grid", "selectedRows")
+)
+def update_stage_button_state(selected_rows):
+    """Enable/disable the Stage Selected button based on row selection."""
+    if not selected_rows:
+        return True, ""
+    
+    # Filter out Hold actions - only actionable items can be staged
+    actionable = [r for r in selected_rows if r.get("Action") in ["Buy", "Sell"]]
+    count = len(actionable)
+    
+    if count == 0:
+        return True, "No actionable items selected (Hold actions cannot be staged)"
+    
+    if count == 1:
+        return False, f"1 order ready to stage"
+    else:
+        # Multiple selected - note only first will be staged
+        return False, f"{count} selected (first will be staged)"
+
+
+@callback(
+    [Output("staged-order-store", "data", allow_duplicate=True),
+     Output("stage-selected-btn", "children")],
+    Input("stage-selected-btn", "n_clicks"),
+    State("deployment-grid", "selectedRows"),
+    prevent_initial_call=True
+)
+def stage_selected_orders(n_clicks, selected_rows):
+    """Stage the selected rows for trade execution."""
+    if not n_clicks or not selected_rows:
+        raise PreventUpdate
+    
+    # Filter only actionable rows
+    actionable = [r for r in selected_rows if r.get("Action") in ["Buy", "Sell"]]
+    
+    if not actionable:
+        raise PreventUpdate
+    
+    # For now, stage only the FIRST selected actionable order
+    # (trade_execution.py expects a single order object, not a list)
+    # Future: Could loop through and execute multiple orders
+    row = actionable[0]
+    
+    # Map action to uppercase (trade_execution expects "BUY"/"SELL")
+    action_map = {"Buy": "BUY", "Sell": "SELL"}
+    
+    staged_order = {
+        "ticker": row.get("Ticker"),
+        "action": action_map.get(row.get("Action"), "BUY"),
+        "quantity": row.get("meta_shares", 0),  # trade_execution expects 'quantity'
+        "amount": row.get("meta_amount", 0),
+        "price": row.get("meta_price", 0),
+        "source": "Rebalancing",  # trade_execution expects 'source'
+        "staged_at": datetime.now().isoformat()
+    }
+    
+    # Return updated store and button text feedback
+    btn_content = [html.I(className="bi bi-check-circle me-2"), f"Staged 1 Order!"]
+    
+    return staged_order, btn_content

@@ -378,3 +378,66 @@ mjx-container > svg {
     background-color: #333 !important; /* Matches AG Grid Header in dark mode */
 }
 
+
+/* ============================================================
+   DROPDOWN DARK MODE STYLING (dcc.Dropdown / react-select)
+   ============================================================ */
+
+/* Main dropdown container */
+[data-theme="dark"] .Select-control,
+[data-theme="dark"] .Select--single > .Select-control {
+    background-color: #333 !important;
+    border-color: #555 !important;
+}
+
+/* Selected value text */
+[data-theme="dark"] .Select-value-label,
+[data-theme="dark"] .Select-placeholder,
+[data-theme="dark"] .Select-input input {
+    color: #fff !important;
+}
+
+/* Dropdown menu (the floating options list) */
+[data-theme="dark"] .Select-menu-outer {
+    background-color: #333 !important;
+    border-color: #555 !important;
+    z-index: 9999 !important;
+}
+
+/* Individual option items */
+[data-theme="dark"] .VirtualizedSelectOption,
+[data-theme="dark"] .Select-option {
+    background-color: #333 !important;
+    color: #fff !important;
+}
+
+/* Option hover state */
+[data-theme="dark"] .VirtualizedSelectOption:hover,
+[data-theme="dark"] .Select-option:hover,
+[data-theme="dark"] .VirtualizedSelectFocusedOption,
+[data-theme="dark"] .Select-option.is-focused {
+    background-color: #4a4a4a !important;
+    color: #fff !important;
+}
+
+/* Option selected state */
+[data-theme="dark"] .VirtualizedSelectSelectedOption,
+[data-theme="dark"] .Select-option.is-selected {
+    background-color: #0d6efd !important;
+    color: #fff !important;
+}
+
+/* Dropdown arrow/indicator */
+[data-theme="dark"] .Select-arrow {
+    border-color: #aaa transparent transparent !important;
+}
+
+/* Clear indicator (X button) */
+[data-theme="dark"] .Select-clear-zone {
+    color: #aaa !important;
+}
+
+/* No options message */
+[data-theme="dark"] .Select-noresults {
+    color: #888 !important;
+}

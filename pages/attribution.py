@@ -8,6 +8,14 @@ from report_formatting import fmt_dollar_clean
 from config import GLOBAL_PALETTE
 
 layout = html.Div([
+    # --- HEADER ---
+    dbc.Row([
+        dbc.Col([
+            html.H2("Attribution", className="fw-bold text-body"),
+            html.P("Performance attribution by asset class and time period", className="text-muted small")
+        ], width=12)
+    ], className="mb-4"),
+    
     # Active Strategy Section
     dbc.Row([
         dbc.Col(dbc.Card([

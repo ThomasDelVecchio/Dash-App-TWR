@@ -124,6 +124,7 @@ NAV_MODULES = [
     {"label": "Flows", "href": "/flows", "id": "flows", "can_toggle": True},
     {"label": "Holdings", "href": "/holdings", "id": "holdings", "can_toggle": True},
     {"label": "Rebalancing", "href": "/rebalancing", "id": "rebalancing", "can_toggle": True},
+    {"label": "Trade", "href": "/trade", "id": "trade", "can_toggle": True},
     {"label": "Risk & Proj", "href": "/risk", "id": "risk", "can_toggle": True},
     {"label": "Trade Lab", "href": "/trade-lab", "id": "trade_lab", "can_toggle": True},
     {"label": "Tax Authority", "href": "/taxes", "id": "taxes", "can_toggle": True},

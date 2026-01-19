@@ -10,6 +10,14 @@ import pandas as pd
 
 layout = html.Div([
     
+    # --- HEADER ---
+    dbc.Row([
+        dbc.Col([
+            html.H2("Performance", className="fw-bold text-body"),
+            html.P("Cumulative returns, horizon analysis, and benchmark comparison", className="text-muted small")
+        ], width=12)
+    ], className="mb-4"),
+    
     # Price Source Badge (Fixed position)
     html.Div(id='perf-price-source-badge-container', style={'position': 'fixed', 'top': '15px', 'right': '20px', 'zIndex': 1999}),
 

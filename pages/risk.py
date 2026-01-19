@@ -9,6 +9,14 @@ from components.monte_carlo import calculate_portfolio_sigma
 import pandas as pd
 
 layout = html.Div([
+    # --- HEADER ---
+    dbc.Row([
+        dbc.Col([
+            html.H2("Risk Intelligence", className="fw-bold text-body"),
+            html.P("Volatility, correlation, drawdown analysis, and projections", className="text-muted small")
+        ], width=12)
+    ], className="mb-4"),
+    
     # 1. RISK & CORRELATION ROW
     dbc.Row([
         dbc.Col(dbc.Card([
