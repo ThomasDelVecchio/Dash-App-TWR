@@ -6,6 +6,7 @@ This is a comprehensive portfolio analytics dashboard built with Plotly Dash. It
 
 *   **Interactive Dashboard:** A multi-page web application for exploring your portfolio data.
 *   **E\*TRADE Integration:** Automatic sync of transactions and holdings from your E\*TRADE brokerage account via OAuth 1.0a API.
+*   **Trade Execution (E\*TRADE):** Preview and place equity orders from the Trade page, with sandbox/live environment safeguards.
 *   **Performance Analysis:** Track your portfolio's performance with metrics like Time-Weighted Return (TWR) and Modified Dietz (GIPS-compliant).
 *   **Risk Intelligence:** Analyze risk with volatility scatters, correlation heatmaps, and Monte Carlo simulations (historical bootstrapping).
 *   **Attribution Analysis:** Understand the sources of your portfolio's returns with Brinson-Fachler and Frongello linking models.
@@ -80,6 +81,17 @@ When `ETRADE_AUTO_SYNC=true`, the app automatically syncs on startup:
 - New transactions are appended to `cashflows.csv`
 - Holdings are updated in `sample holdings.csv`
 - Sync status is displayed in the sidebar
+
+**Trade Execution (Optional):**
+The Trade page supports order preview and placement via the E\*TRADE API. It uses the same OAuth credentials and respects your environment:
+- `ETRADE_SANDBOX=true` to test orders in sandbox
+- `ETRADE_SANDBOX=false` for live trading (real money)
+
+Recommended flow:
+1. Preview an order to validate costs and warnings
+2. Confirm and place the order from the Trade page
+
+Order confirmations are stored locally in `order_history.json`.
 
 **External Holdings (Stock Plans, Other Brokers):**
 For positions not accessible via the E\*TRADE API (e.g., employee stock plans), create a `holdings_external.csv` file:
@@ -179,6 +191,7 @@ The dashboard consists of the following pages:
 *   **/flows:** A summary of your portfolio's cash flows.
 *   **/holdings:** A detailed view of your current holdings.
 *   **/rebalancing:** Interactive rebalancing tool with tax-aware trade generation and drift analysis.
+*   **/trade:** E\*TRADE order preview and execution hub with sandbox/live badges and confirmation flow.
 *   **/risk:** Risk analysis, including volatility, drawdowns, and correlation matrices.
 *   **/trade-lab:** A laboratory for simulating trades and analyzing their potential impact via Monte Carlo simulations.
 *   **/taxes:** Tax analysis, including tax-lot accounting, cliffs, and simulated tax-loss harvesting.

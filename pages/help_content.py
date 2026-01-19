@@ -27,6 +27,30 @@ The `config.py` file controls global settings and targets for the application.
         """
     },
 
+    "etrade_trade_execution": {
+        "title": "E*TRADE Trade Execution",
+        "content": r"""
+The Trade page allows you to **preview and place equity orders** through the E*TRADE API.
+
+#### **Workflow (Recommended)**
+1. **Preview** the order to validate parameters and review estimated costs.
+2. **Confirm** the preview details.
+3. **Place** the order only after confirmation.
+
+#### **Environment Safety**
+* **Sandbox Mode**: Set `ETRADE_SANDBOX=true` in `.env` to test without real money.
+* **Live Trading**: Set `ETRADE_SANDBOX=false` to execute real orders.
+
+#### **Requirements**
+* E*TRADE OAuth credentials must be configured in `.env`.
+* Run `python etrade_auth.py` at least once to generate a valid token.
+
+#### **Notes**
+* Order confirmations are stored in `order_history.json` for audit and review.
+* The UI displays a badge indicating **Sandbox** or **Live** mode.
+        """
+    },
+
     "twr": {
         "title": "Time-Weighted Return (TWR)",
         "content": r"""
