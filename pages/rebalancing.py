@@ -375,6 +375,7 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
         
         # Meta Columns for Audit
         "meta_price": target_df["latest_price"],  # Raw price for StageOrderButton
+        "meta_shares": target_df["est_shares"],
         "meta_amount": target_df["recommend_amount"],
         "meta_tax": target_df["est_tax"],
         "meta_realized_pl": target_df["realized_pl"],
@@ -392,9 +393,9 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
     column_defs = [
         {"field": "Ticker", "headerName": "Ticker", "pinned": "left", "width": 140, "suppressSizeToFit": True, "lockPinned": True, "cellClass": "lock-pinned", "checkboxSelection": True, "headerCheckboxSelection": True},
         {"field": "Asset_Class", "headerName": "Asset Class", "minWidth": 185},
-        {"field": "Current_Pct", "headerName": "Current %", "minWidth": 120},
-        {"field": "Target_Pct", "headerName": "Target %", "minWidth": 120},
-        {"field": "Drift", "headerName": "Drift", "minWidth": 120, 
+        {"field": "Current_Pct", "headerName": "Current %", "minWidth": 120, "comparator": {"function": "MoneyComparator"}},
+        {"field": "Target_Pct", "headerName": "Target %", "minWidth": 120, "comparator": {"function": "MoneyComparator"}},
+        {"field": "Drift", "headerName": "Drift", "minWidth": 120, "comparator": {"function": "MoneyComparator"},
          "cellStyle": {"styleConditions": [
              {"condition": "params.value.includes('-')", "style": {"color": "#dc3545"}}, # Negative drift
              {"condition": "!params.value.includes('-')", "style": {"color": "#ffc107"}}
@@ -404,17 +405,18 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
              {"condition": "params.value == 'Buy'", "style": {"color": "#28a745", "fontWeight": "bold"}},
              {"condition": "params.value == 'Sell'", "style": {"color": "#dc3545", "fontWeight": "bold"}}
          ]}},
-        {"field": "Amount", "headerName": "Amount", "minWidth": 150,
+        {"field": "Amount", "headerName": "Amount", "minWidth": 150, "comparator": {"function": "MoneyComparator"},
          "cellStyle": {"styleConditions": [
              {"condition": "params.data.meta_amount > 0", "style": {"color": "#28a745"}},
              {"condition": "params.data.meta_amount < 0", "style": {"color": "#dc3545"}}
          ]}},
-        {"field": "Shares", "headerName": "Shares", "minWidth": 120},
-        {"field": "Tax_Impact", "headerName": "Est. Tax", "minWidth": 140},
-        {"field": "ProForma_Pct", "headerName": "Pro-Forma %", "minWidth": 140},
+        {"field": "Shares", "headerName": "Shares", "minWidth": 120, "comparator": {"function": "MoneyComparator"}},
+        {"field": "Tax_Impact", "headerName": "Est. Tax", "minWidth": 140, "comparator": {"function": "MoneyComparator"}},
+        {"field": "ProForma_Pct", "headerName": "Pro-Forma %", "minWidth": 140, "comparator": {"function": "MoneyComparator"}},
         
         # Hidden Meta Columns
         {"field": "meta_price", "hide": True},
+        {"field": "meta_shares", "hide": True},
         {"field": "meta_amount", "hide": True},
         {"field": "meta_tax", "hide": True},
         {"field": "meta_realized_pl", "hide": True},
@@ -658,19 +660,23 @@ def build_cliff_watch(target_df, theme):
             "Shares": f"{row['est_shares']:.2f}",
             "Purchase_Date": today.strftime("%Y-%m-%d"),
             "LT_Cliff_Date": cliff_date_str,
-            "Days_to_LT": 366
+            "Days_to_LT": 366,
+            "LT_Cliff_Date_Sort": cliff_date.strftime("%Y-%m-%d")
         })
     
     cliff_df = pd.DataFrame(cliff_data)
     
     column_defs = [
         {"field": "Ticker", "headerName": "Ticker", "width": 110, "suppressSizeToFit": True},
-        {"field": "Buy_Amount", "headerName": "Investment", "minWidth": 120},
-        {"field": "Shares", "headerName": "Shares", "minWidth": 110},
+        {"field": "Buy_Amount", "headerName": "Investment", "minWidth": 120, "comparator": {"function": "MoneyComparator"}},
+        {"field": "Shares", "headerName": "Shares", "minWidth": 110, "comparator": {"function": "MoneyComparator"}},
         {"field": "Purchase_Date", "headerName": "Buy Date", "minWidth": 120},
         {"field": "LT_Cliff_Date", "headerName": "Long-Term Date", "minWidth": 150,
+         "valueGetter": {"function": "params.data.LT_Cliff_Date_Sort"},
+         "valueFormatter": {"function": "params.data.LT_Cliff_Date"},
          "cellStyle": {"color": "#FFD700", "fontWeight": "bold"}},
-        {"field": "Days_to_LT", "headerName": "Days to LT", "minWidth": 110},
+        {"field": "Days_to_LT", "headerName": "Days to LT", "minWidth": 110, "comparator": {"function": "MoneyComparator"}},
+        {"field": "LT_Cliff_Date_Sort", "hide": True}
     ]
     
     cliff_table = dag.AgGrid(
@@ -723,8 +729,7 @@ def update_stage_button_state(selected_rows):
     if count == 1:
         return False, f"1 order ready to stage"
     else:
-        # Multiple selected - note only first will be staged
-        return False, f"{count} selected (first will be staged)"
+        return False, f"{count} orders ready to stage"
 
 
 @callback(
@@ -745,25 +750,34 @@ def stage_selected_orders(n_clicks, selected_rows):
     if not actionable:
         raise PreventUpdate
     
-    # For now, stage only the FIRST selected actionable order
-    # (trade_execution.py expects a single order object, not a list)
-    # Future: Could loop through and execute multiple orders
-    row = actionable[0]
-    
-    # Map action to uppercase (trade_execution expects "BUY"/"SELL")
+    # Stage ALL selected actionable orders as a list
     action_map = {"Buy": "BUY", "Sell": "SELL"}
     
-    staged_order = {
-        "ticker": row.get("Ticker"),
-        "action": action_map.get(row.get("Action"), "BUY"),
-        "quantity": row.get("meta_shares", 0),  # trade_execution expects 'quantity'
-        "amount": row.get("meta_amount", 0),
-        "price": row.get("meta_price", 0),
-        "source": "Rebalancing",  # trade_execution expects 'source'
-        "staged_at": datetime.now().isoformat()
-    }
+    staged_orders = []
+    for row in actionable:
+        raw_qty = row.get("meta_shares")
+        quantity = float(raw_qty) if raw_qty not in (None, "") else 0.0
+        if quantity <= 0:
+            try:
+                amount = float(row.get("meta_amount", 0) or 0)
+                price = float(row.get("meta_price", 0) or 0)
+                if price > 0:
+                    quantity = abs(amount) / price
+            except (TypeError, ValueError):
+                quantity = 0.0
+
+        staged_orders.append({
+            "ticker": row.get("Ticker"),
+            "action": action_map.get(row.get("Action"), "BUY"),
+            "quantity": quantity,
+            "amount": row.get("meta_amount", 0),
+            "price": row.get("meta_price", 0),
+            "source": "Rebalancing",
+            "staged_at": datetime.now().isoformat()
+        })
     
     # Return updated store and button text feedback
-    btn_content = [html.I(className="bi bi-check-circle me-2"), f"Staged 1 Order!"]
+    count = len(staged_orders)
+    btn_content = [html.I(className="bi bi-check-circle me-2"), f"Staged {count} Order{'s' if count > 1 else ''}!"]
     
-    return staged_order, btn_content
+    return staged_orders, btn_content

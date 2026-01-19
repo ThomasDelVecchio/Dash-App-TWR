@@ -64,11 +64,11 @@ def build_environment_badge():
         )
 
 # ============================================================
-# HELPER: Build Ticker Dropdown Options
+# HELPER: Build Ticker Suggestions (Owned Holdings)
 # ============================================================
 
-def get_ticker_options():
-    """Get list of tickers from current holdings for dropdown."""
+def get_owned_tickers():
+    """Get list of tickers from current holdings for autocomplete suggestions."""
     try:
         data = dw.get_data()
         if not data:
@@ -79,9 +79,58 @@ def get_ticker_options():
             return []
         
         tickers = sec_table[sec_table["ticker"] != "CASH"]["ticker"].unique().tolist()
-        return [{"label": t, "value": t} for t in sorted(tickers)]
+        return sorted(tickers)
     except:
         return []
+
+
+def validate_ticker(symbol: str) -> dict:
+    """
+    Validate a ticker symbol using yfinance.
+    
+    Returns:
+        dict with keys:
+            - valid: bool
+            - message: str (error message if invalid)
+            - price: float (current price if valid)
+            - name: str (company name if valid)
+    """
+    if not symbol or not symbol.strip():
+        return {"valid": False, "message": "Please enter a ticker symbol", "price": None, "name": None}
+    
+    symbol = symbol.strip().upper()
+    
+    # Quick format check
+    if not symbol.isalnum() or len(symbol) > 10:
+        return {"valid": False, "message": f"'{symbol}' is not a valid ticker format", "price": None, "name": None}
+    
+    try:
+        import yfinance as yf
+        ticker = yf.Ticker(symbol)
+        
+        # Try to get current price - this confirms the ticker exists
+        hist = ticker.history(period="1d")
+        
+        if hist.empty:
+            # Fallback: try info (slower but more reliable for some tickers)
+            info = ticker.info
+            if not info or info.get("regularMarketPrice") is None:
+                return {"valid": False, "message": f"'{symbol}' not found on market", "price": None, "name": None}
+            
+            price = info.get("regularMarketPrice", 0)
+            name = info.get("shortName", symbol)
+        else:
+            price = float(hist["Close"].iloc[-1])
+            # Get name from fast_info if available
+            try:
+                name = ticker.info.get("shortName", symbol)
+            except:
+                name = symbol
+        
+        return {"valid": True, "message": "", "price": price, "name": name}
+        
+    except Exception as e:
+        return {"valid": False, "message": f"Could not validate '{symbol}': {str(e)[:50]}", "price": None, "name": None}
 
 # ============================================================
 # LAYOUT
@@ -118,6 +167,14 @@ layout = dbc.Container([
         color="info",
         className="mb-3"
     ),
+    dbc.Button(
+        [html.I(className="bi bi-skip-forward me-2"), "Next Staged Order"],
+        id="btn-next-staged-order",
+        color="primary",
+        size="sm",
+        disabled=True,
+        className="mb-4"
+    ),
     
     # Main Content: Order Form + Preview
     dbc.Row([
@@ -150,16 +207,22 @@ layout = dbc.Container([
                     dbc.Row([
                         dbc.Col([
                             dbc.Label("Ticker", className="fw-bold"),
-                            dcc.Dropdown(
-                                id="trade-ticker",
-                                options=get_ticker_options(),
-                                placeholder="Select or type ticker...",
-                                className="mb-3",
-                                style={
-                                    "backgroundColor": "#333",
-                                    "color": "#fff"
-                                }
+                            # Datalist provides autocomplete suggestions from owned tickers
+                            html.Datalist(
+                                id="ticker-suggestions",
+                                children=[html.Option(value=t) for t in get_owned_tickers()]
                             ),
+                            dbc.Input(
+                                id="trade-ticker",
+                                type="text",
+                                placeholder="Enter any ticker symbol...",
+                                list="ticker-suggestions",  # Links to datalist for autocomplete
+                                debounce=True,  # Triggers callback after typing stops
+                                className="mb-1",
+                                style={"backgroundColor": "#333", "color": "#fff", "border": "1px solid #555"}
+                            ),
+                            # Validation error/success message
+                            html.Div(id="ticker-validation-msg", className="small mb-2"),
                         ], width=6),
                         dbc.Col([
                             dbc.Label("Quantity", className="fw-bold"),
@@ -359,6 +422,7 @@ layout = dbc.Container([
     # Hidden stores for state management
     dcc.Store(id="preview-data-store"),
     dcc.Store(id="selected-lots-store", data=[]),
+    dcc.Store(id="staged-order-index", data=0),
     
     # Hidden placeholder for dynamically created Execute Order button
     # Required because Dash callbacks must reference IDs that exist in initial layout
@@ -376,35 +440,142 @@ layout = dbc.Container([
 
 # 1. Handle staged order from rebalancing page
 @callback(
-    [Output("staged-order-alert", "children"),
-     Output("staged-order-alert", "is_open"),
-     Output("trade-action", "value"),
-     Output("trade-ticker", "value"),
-     Output("trade-quantity", "value")],
-    [Input("url", "pathname")],
-    [State("staged-order-store", "data")],
-    prevent_initial_call=True
+    [Output("staged-order-alert", "children", allow_duplicate=True),
+     Output("staged-order-alert", "is_open", allow_duplicate=True),
+     Output("trade-action", "value", allow_duplicate=True),
+     Output("trade-ticker", "value", allow_duplicate=True),
+     Output("trade-quantity", "value", allow_duplicate=True)],
+    [Input("url", "pathname"),
+     Input("staged-order-store", "data"),
+     Input("staged-order-index", "data")],
+    prevent_initial_call="initial_duplicate"
 )
-def load_staged_order(pathname, staged_order):
-    """Pre-fill form with staged order from rebalancing page."""
+def load_staged_order(pathname, staged_data, staged_index):
+    """Pre-fill form with staged order(s) from rebalancing page."""
     # Guard: Only update when on the /trade page (component must exist)
     if pathname != "/trade":
         raise dash.exceptions.PreventUpdate
     
-    if not staged_order:
+    if not staged_data:
         return "", False, "BUY", None, None
     
-    ticker = staged_order.get("ticker", "")
-    action = staged_order.get("action", "BUY")
-    quantity = staged_order.get("quantity", 0)
-    source = staged_order.get("source", "")
+    # Handle both single order (dict) and multiple orders (list)
+    if isinstance(staged_data, dict):
+        orders = [staged_data]
+    else:
+        orders = staged_data
     
-    alert_msg = [
-        html.I(className="bi bi-info-circle me-2"),
-        f"Order staged from {source}: {action} {quantity:.0f} shares of {ticker}"
-    ]
+    if not orders:
+        return "", False, "BUY", None, None
     
-    return alert_msg, True, action, ticker, int(quantity) if quantity else None
+    # Pre-fill form with the FIRST order
+    index = staged_index or 0
+    if index < 0:
+        index = 0
+    if index >= len(orders):
+        index = 0
+
+    current_order = orders[index]
+    ticker = current_order.get("ticker", "")
+    action = current_order.get("action", "BUY")
+    quantity = current_order.get("quantity", 0)
+    source = current_order.get("source", "")
+
+    display_qty = None
+    try:
+        qty_val = float(quantity)
+        if qty_val > 0:
+            display_qty = int(round(qty_val))
+            if display_qty <= 0:
+                display_qty = 1
+    except (TypeError, ValueError):
+        display_qty = None
+    
+    # Build alert message showing all staged orders
+    if len(orders) == 1:
+        alert_msg = [
+            html.I(className="bi bi-info-circle me-2"),
+            f"Order staged from {source}: {action} {display_qty or 0} shares of {ticker}"
+        ]
+    else:
+        # Multiple orders - show summary
+        order_lines = [html.Div([
+            html.I(className="bi bi-info-circle me-2"),
+            f"{len(orders)} orders staged from {source}:"
+        ])]
+        for i, order in enumerate(orders, 1):
+            order_lines.append(html.Div(
+                f"  {i}. {order.get('action')} {order.get('quantity', 0):.0f} shares of {order.get('ticker')}",
+                className="ms-4 small"
+            ))
+        order_lines.append(html.Div(
+            f"Form pre-filled with order {index + 1}. Execute orders one at a time.",
+            className="mt-2 text-muted small"
+        ))
+        alert_msg = order_lines
+    
+    return alert_msg, True, action, ticker, display_qty
+
+
+# 1b. Reset staged index when new staged orders arrive
+@callback(
+    Output("staged-order-index", "data", allow_duplicate=True),
+    Input("staged-order-store", "data"),
+    prevent_initial_call=True
+)
+def reset_staged_order_index(staged_data):
+    if not staged_data:
+        raise dash.exceptions.PreventUpdate
+    return 0
+
+
+# 1c. Advance to next staged order
+@callback(
+    Output("staged-order-index", "data"),
+    Input("btn-next-staged-order", "n_clicks"),
+    State("staged-order-index", "data"),
+    State("staged-order-store", "data"),
+    prevent_initial_call=True
+)
+def advance_staged_order(n_clicks, staged_index, staged_data):
+    if not n_clicks or not staged_data:
+        raise dash.exceptions.PreventUpdate
+
+    orders = [staged_data] if isinstance(staged_data, dict) else staged_data
+    if not orders:
+        raise dash.exceptions.PreventUpdate
+
+    current_index = staged_index or 0
+    next_index = current_index + 1
+    if next_index >= len(orders):
+        next_index = 0
+
+    return next_index
+
+
+# 1d. Update Next button state and label
+@callback(
+    [Output("btn-next-staged-order", "disabled"),
+     Output("btn-next-staged-order", "children")],
+    [Input("staged-order-store", "data"),
+     Input("staged-order-index", "data")],
+    prevent_initial_call=False
+)
+def update_next_staged_button(staged_data, staged_index):
+    icon = html.I(className="bi bi-skip-forward me-2")
+
+    if not staged_data:
+        return True, [icon, "Next Staged Order"]
+
+    orders = [staged_data] if isinstance(staged_data, dict) else staged_data
+    if not orders or len(orders) <= 1:
+        return True, [icon, "Next Staged Order"]
+
+    index = staged_index or 0
+    if index < 0 or index >= len(orders):
+        index = 0
+
+    return False, [icon, f"Next Staged Order ({index + 1}/{len(orders)})"]
 
 
 # 2. Toggle price fields based on order type
@@ -930,11 +1101,47 @@ def update_lot_picker_summary(selected_rows):
      Output("trade-order-type", "value"),
      Output("trade-limit-price", "value"),
      Output("trade-stop-price", "value"),
-     Output("staged-order-alert", "is_open", allow_duplicate=True)],
+     Output("staged-order-alert", "is_open", allow_duplicate=True),
+     Output("ticker-validation-msg", "children", allow_duplicate=True),
+     Output("ticker-validation-msg", "className", allow_duplicate=True)],
     [Input("btn-clear-trade-form", "n_clicks")],
     prevent_initial_call=True
 )
 def clear_trade_form(n_clicks):
     if not n_clicks:
         return dash.no_update
-    return "BUY", None, None, "MARKET", None, None, False
+    return "BUY", None, None, "MARKET", None, None, False, "", "small mb-2"
+
+
+# 10. Validate ticker symbol on input change
+@callback(
+    Output("ticker-validation-msg", "children"),
+    Output("ticker-validation-msg", "className"),
+    Input("trade-ticker", "value"),
+    prevent_initial_call=True
+)
+def validate_ticker_input(ticker_value):
+    """
+    Validate the ticker symbol when user finishes typing.
+    Shows success message with price, or error if invalid.
+    """
+    if not ticker_value:
+        return "", "small mb-2"
+    
+    # Clean the input
+    symbol = ticker_value.strip().upper()
+    
+    if len(symbol) < 1 or len(symbol) > 10:
+        return "Invalid ticker format", "small mb-2 text-danger"
+    
+    # Validate using yfinance
+    result = validate_ticker(symbol)
+    
+    if result["valid"]:
+        # Success: Show ticker name and current price
+        price_str = f"${result['price']:.2f}" if result['price'] else "N/A"
+        msg = f"✓ {result['name']} — Last: {price_str}"
+        return msg, "small mb-2 text-success"
+    else:
+        # Error: Show the error message
+        return f"✗ {result['message']}", "small mb-2 text-danger"
