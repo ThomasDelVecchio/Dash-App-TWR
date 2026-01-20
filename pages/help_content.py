@@ -23,7 +23,7 @@ The `config.py` file controls global settings and targets for the application.
 
 * **`FMP_API_KEY`**:
     * *Description*: Your API key for Financial Modeling Prep.
-    * *Usage*: Used to fetch dynamic **Sector Allocations** for ETFs (e.g., looking up that SPY is 30% Tech).
+    * *Usage*: Used to fetch pricing and dynamic **Sector Allocations** for ETFs (e.g., looking up that SPY is 30% Tech).
         """
     },
 
