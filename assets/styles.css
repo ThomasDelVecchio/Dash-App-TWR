@@ -441,3 +441,41 @@ mjx-container > svg {
 [data-theme="dark"] .Select-noresults {
     color: #888 !important;
 }
+
+/* ============================================================
+   LOT PICKER MODAL - MOBILE RESPONSIVE
+   ============================================================ */
+
+/* Ensure lot picker grid scrolls horizontally on narrow screens */
+#lot-picker-grid {
+    min-width: 100%;
+}
+
+#lot-picker-grid .ag-root-wrapper {
+    overflow-x: auto !important;
+}
+
+/* Ensure checkbox column has adequate tap target (44px min per Apple HIG) */
+#lot-picker-grid .ag-selection-checkbox {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Mobile: Ensure modal doesn't overflow viewport */
+@media (max-width: 768px) {
+    #lot-picker-grid {
+        height: 50vh !important;
+    }
+    
+    #lot-picker-grid .ag-header-cell-label {
+        font-size: 0.85rem;
+    }
+    
+    #lot-picker-grid .ag-cell {
+        font-size: 0.85rem;
+        padding: 4px 6px;
+    }
+}

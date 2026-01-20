@@ -1047,20 +1047,20 @@ def toggle_lot_picker(open_click, cancel_click, confirm_click, ticker, is_open):
                     ticker_lots["Date Acquired"], errors="coerce"
                 ).dt.strftime("%m/%d/%Y")
 
-            for col in ["Cost Basis", "Current Value", "Unrealized P/L"]:
+            for col in ["Cost Basis", "Market Value", "Unrealized P/L"]:
                 if col in ticker_lots.columns:
                     ticker_lots[col] = pd.to_numeric(ticker_lots[col], errors="coerce").round(2)
             
             column_defs = [
-                {"field": "Select", "headerName": "", "checkboxSelection": True, "headerCheckboxSelection": True, "minWidth": 60, "maxWidth": 70, "pinned": "left", "suppressMenu": True, "suppressMovable": True},
-                {"field": "Date Acquired", "minWidth": 140, "flex": 1},
-                {"field": "Shares", "minWidth": 90, "flex": 1, "type": "numericColumn"},
-                {"field": "Cost Basis", "minWidth": 130, "flex": 1, "valueFormatter": {"function": "'$' + value.toFixed(2)"}},
-                {"field": "Current Value", "minWidth": 130, "flex": 1, "valueFormatter": {"function": "'$' + value.toFixed(2)"}},
-                {"field": "Unrealized P/L", "minWidth": 140, "flex": 1,
+                {"field": "Select", "headerName": "", "checkboxSelection": True, "headerCheckboxSelection": True, "width": 50, "maxWidth": 50, "pinned": "left", "suppressMenu": True, "suppressMovable": True, "lockPosition": True},
+                {"field": "Date Acquired", "minWidth": 120, "flex": 1},
+                {"field": "Shares", "minWidth": 80, "flex": 1, "type": "numericColumn"},
+                {"field": "Cost Basis", "minWidth": 110, "flex": 1, "valueFormatter": {"function": "'$' + value.toFixed(2)"}},
+                {"field": "Market Value", "headerName": "Current Value", "minWidth": 110, "flex": 1, "valueFormatter": {"function": "'$' + value.toFixed(2)"}},
+                {"field": "Unrealized P/L", "minWidth": 110, "flex": 1,
                  "valueFormatter": {"function": "'$' + value.toFixed(2)"},
                  "cellStyle": {"function": "params.value >= 0 ? {'color': '#28a745'} : {'color': '#dc3545'}"}},
-                {"field": "Term", "minWidth": 120, "flex": 1},
+                {"field": "Term", "minWidth": 100, "flex": 1},
             ]
             
             grid = dag.AgGrid(
