@@ -17,6 +17,7 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import pandas as pd
 import numpy as np
+import threading
 from datetime import datetime
 
 # Local Imports
@@ -899,6 +900,19 @@ def execute_order_callback(n_clicks, preview_data):
     if result.get("success", False):
         order_id = result.get("order_id", "Unknown")
         status = result.get("status", "Submitted")
+        
+        # Trigger E*TRADE sync after 15 seconds to refresh holdings/transactions
+        # This runs in a background thread to not block the UI
+        def trigger_sync():
+            try:
+                from etrade_sync import sync_all
+                print("[POST-TRADE] Running automatic sync after order execution...")
+                sync_all()
+                print("[POST-TRADE] Sync complete.")
+            except Exception as e:
+                print(f"[POST-TRADE] Sync failed (non-critical): {e}")
+        
+        threading.Timer(15.0, trigger_sync).start()
         
         success_content = [
             dbc.Alert([

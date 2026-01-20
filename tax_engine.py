@@ -446,10 +446,15 @@ def simulate_sell(ticker, shares_to_sell, strategy="FIFO"):
 # OPTIMIZATION: TAX-AWARE SALES
 # ============================================================
 
-def calculate_tax_optimized_sales(candidates, avoid_st_gains=True):
+def calculate_tax_optimized_sales(candidates, avoid_st_gains=True, strategy="FIFO"):
     """
     Calculates recommended sales for multiple tickers to meet target sell amounts,
     prioritizing tax efficiency (Losses First, Gains Last).
+    
+    Args:
+        candidates: Dict of ticker -> amount_to_sell
+        avoid_st_gains: If True, skip short-term gain lots unless necessary
+        strategy: Tax lot ordering strategy ("FIFO", "LIFO", or "HIFO")
     
     Priority:
     1. Long-Term Losses (Harvest)
@@ -478,7 +483,7 @@ def calculate_tax_optimized_sales(candidates, avoid_st_gains=True):
         }
         
     # 1. Get All Lots
-    open_lots_df, _ = build_tax_lots(strategy="FIFO")
+    open_lots_df, _ = build_tax_lots(strategy=strategy)
     if open_lots_df.empty:
          return {
             "sales_df": pd.DataFrame(), 

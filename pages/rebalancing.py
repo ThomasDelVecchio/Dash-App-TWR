@@ -242,7 +242,8 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
             candidates[row["ticker"]] = abs(row["raw_diff"])
             
         # Calculate Optimized Sales
-        sales_res = calculate_tax_optimized_sales(candidates, avoid_st_gains=True)
+        # Use selected tax strategy (defaults to FIFO if not set)
+        sales_res = calculate_tax_optimized_sales(candidates, avoid_st_gains=True, strategy=tax_strategy or "FIFO")
         
         # Unpack Results
         sales_df_res = sales_res["sales_df"]

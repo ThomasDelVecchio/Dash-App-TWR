@@ -186,11 +186,17 @@ def _save_order_history(order_result: Dict):
         except:
             history = []
     
-    history.append({
+    # Flatten order_result into history entry (avoid nesting under "order" key)
+    history_entry = {
         "timestamp": datetime.now().isoformat(),
-        "order": order_result,
         "environment": "SANDBOX" if ETRADE_SANDBOX else "PRODUCTION"
-    })
+    }
+    # Merge order_result fields at top level
+    if isinstance(order_result, dict):
+        history_entry.update(order_result)
+    else:
+        history_entry["order"] = order_result  # Fallback for non-dict
+    history.append(history_entry)
     
     # Keep last 100 orders
     history = history[-100:]
@@ -602,7 +608,19 @@ def get_recent_orders(limit: int = 25) -> List[Dict]:
     try:
         with open(ORDER_HISTORY_FILE, "r") as f:
             history = json.load(f)
-        return history[-limit:][::-1]  # Most recent first
+        
+        # Migration: Unwrap nested "order" keys from old format
+        migrated = []
+        for record in history:
+            if "order" in record and isinstance(record["order"], dict):
+                # Old format: flatten nested order data to top level
+                flat = {k: v for k, v in record.items() if k != "order"}
+                flat.update(record["order"])
+                migrated.append(flat)
+            else:
+                migrated.append(record)
+        
+        return migrated[-limit:][::-1]  # Most recent first
     except:
         return []
 
