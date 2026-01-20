@@ -126,6 +126,7 @@ TRANSACTION_TYPE_MAP = {
     "Sold": "TRADE",
     "Buy": "TRADE",
     "Sell": "TRADE",
+    "Misc Trade": "TRADE",
     # Dividends (E*TRADE uses various names)
     "Dividend": "DIVIDEND",
     "Qualified Dividend": "DIVIDEND",
@@ -333,6 +334,8 @@ def transform_etrade_transaction(tx: Dict) -> Optional[Dict]:
         
         tx_date = tx.get("transactionDate")
         tx_type = tx.get("transactionType", "")
+        description = str(tx.get("description", "") or "")
+        desc_lower = description.lower()
         
         # Parse date (E*TRADE uses epoch milliseconds or string)
         # CRITICAL: Epoch timestamps are in UTC; convert to local for display
@@ -345,6 +348,17 @@ def transform_etrade_transaction(tx: Dict) -> Optional[Dict]:
         
         date_str = date_obj.strftime("%m/%d/%Y")
         
+        # Special case: "Misc Trade" that moves proceeds to a cash-hold bucket
+        # (not part of brokerage cash). Treat as external cash flow OUT.
+        if tx_type == "Misc Trade" and "cash hold" in desc_lower:
+            return {
+                "date": date_str,
+                "ticker": "CASH",
+                "shares": 0.0,
+                "amount": -abs(float(tx.get("amount", 0) or 0)),
+                "type": "FLOW"
+            }
+
         # Map transaction type
         our_type = TRANSACTION_TYPE_MAP.get(tx_type, None)
         if our_type is None:
@@ -362,6 +376,11 @@ def transform_etrade_transaction(tx: Dict) -> Optional[Dict]:
         # NOTE: E*TRADE returns 'amount' at TOP LEVEL of transaction, NOT inside brokerage object
         quantity = float(brokerage.get("quantity", 0) or 0)
         amount = float(tx.get("amount", 0) or 0)
+
+        # Guard: E*TRADE sometimes emits a CASH "trade" entry that mirrors
+        # the cash leg of a security trade. This would double-count cash.
+        if our_type == "TRADE" and ticker == "CASH" and abs(quantity) < 1e-9:
+            return None
         
         # Apply sign conventions for our schema:
         # - Shares: positive for buy, negative for sell
@@ -715,32 +734,36 @@ def sync_holdings() -> Tuple[bool, str]:
         # cashflows.csv which contains the full transaction history.
         
         if os.path.exists(HOLDINGS_EXTERNAL_FILE):
-            print(f"   📁 Loading external holdings from {HOLDINGS_EXTERNAL_FILE}")
-            external_df = pd.read_csv(HOLDINGS_EXTERNAL_FILE)
-            external_df.columns = [c.lower() for c in external_df.columns]
-            external_df["ticker"] = external_df["ticker"].str.upper()
-            
-            # Ensure required columns exist
-            if "asset_class" not in external_df.columns:
-                external_df["asset_class"] = "Unknown"
-            if "target_pct" not in external_df.columns:
-                external_df["target_pct"] = 0
-            
-            # Check for duplicates (position in both E*TRADE and external)
-            etrade_tickers = set(new_holdings["ticker"].unique())
-            external_tickers = set(external_df["ticker"].unique())
-            duplicates = etrade_tickers & external_tickers
-            
-            if duplicates:
-                print(f"   ⚠️  Warning: Tickers in both E*TRADE and external: {duplicates}")
-                print(f"       E*TRADE positions will be used for: {duplicates}")
-                # Remove duplicates from external (E*TRADE takes precedence)
-                external_df = external_df[~external_df["ticker"].isin(duplicates)]
-            
-            # Merge external positions
-            if not external_df.empty:
-                new_holdings = pd.concat([new_holdings, external_df], ignore_index=True)
-                print(f"   ✅ Merged {len(external_df)} external position(s)")
+            try:
+                print(f"   📁 Loading external holdings from {HOLDINGS_EXTERNAL_FILE}")
+                external_df = pd.read_csv(HOLDINGS_EXTERNAL_FILE)
+                external_df.columns = [c.lower() for c in external_df.columns]
+                external_df["ticker"] = external_df["ticker"].str.upper()
+                
+                # Ensure required columns exist
+                if "asset_class" not in external_df.columns:
+                    external_df["asset_class"] = "Unknown"
+                if "target_pct" not in external_df.columns:
+                    external_df["target_pct"] = 0
+                
+                # Check for duplicates (position in both E*TRADE and external)
+                etrade_tickers = set(new_holdings["ticker"].unique())
+                external_tickers = set(external_df["ticker"].unique())
+                duplicates = etrade_tickers & external_tickers
+                
+                if duplicates:
+                    print(f"   ⚠️  Warning: Tickers in both E*TRADE and external: {duplicates}")
+                    print(f"       E*TRADE positions will be used for: {duplicates}")
+                    # Remove duplicates from external (E*TRADE takes precedence)
+                    external_df = external_df[~external_df["ticker"].isin(duplicates)]
+                
+                # Merge external positions
+                if not external_df.empty:
+                    new_holdings = pd.concat([new_holdings, external_df], ignore_index=True)
+                    print(f"   ✅ Merged {len(external_df)} external position(s)")
+            except Exception:
+                # Optional file; ignore malformed/empty data
+                pass
         
         # ============================================================
         # PRESERVE EXITED TICKERS (0-share positions with metadata)
