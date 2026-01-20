@@ -272,6 +272,7 @@ app.layout = html.Div(
         
         # Staged Order Store (for Rebalancing -> Trade flow)
         dcc.Store(id="staged-order-store", storage_type="session"),
+        dcc.Store(id="staged-order-index", data=0),
         
         # Force Global MathJax Load
         dcc.Markdown(id="mathjax-preload", mathjax=True, style={"display": "none"}),

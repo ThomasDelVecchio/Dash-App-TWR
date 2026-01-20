@@ -422,7 +422,8 @@ layout = dbc.Container([
     # Hidden stores for state management
     dcc.Store(id="preview-data-store"),
     dcc.Store(id="selected-lots-store", data=[]),
-    dcc.Store(id="staged-order-index", data=0),
+    dcc.Store(id="trade-page-ready", data=1),
+    dcc.Store(id="trade-page-refresh", data=0),
     
     # Hidden placeholder for dynamically created Execute Order button
     # Required because Dash callbacks must reference IDs that exist in initial layout
@@ -445,17 +446,14 @@ layout = dbc.Container([
      Output("trade-action", "value", allow_duplicate=True),
      Output("trade-ticker", "value", allow_duplicate=True),
      Output("trade-quantity", "value", allow_duplicate=True)],
-    [Input("url", "pathname"),
-     Input("staged-order-store", "data"),
-     Input("staged-order-index", "data")],
+    [Input("trade-page-ready", "data"),
+     Input("trade-page-refresh", "data")],
+    [State("staged-order-store", "data"),
+     State("staged-order-index", "data")],
     prevent_initial_call="initial_duplicate"
 )
-def load_staged_order(pathname, staged_data, staged_index):
+def load_staged_order(_page_ready, _page_refresh, staged_data, staged_index):
     """Pre-fill form with staged order(s) from rebalancing page."""
-    # Guard: Only update when on the /trade page (component must exist)
-    if pathname != "/trade":
-        raise dash.exceptions.PreventUpdate
-    
     if not staged_data:
         return "", False, "BUY", None, None
     
@@ -531,13 +529,15 @@ def reset_staged_order_index(staged_data):
 
 # 1c. Advance to next staged order
 @callback(
-    Output("staged-order-index", "data"),
+    [Output("staged-order-index", "data"),
+     Output("trade-page-refresh", "data")],
     Input("btn-next-staged-order", "n_clicks"),
-    State("staged-order-index", "data"),
-    State("staged-order-store", "data"),
+    [State("staged-order-index", "data"),
+     State("staged-order-store", "data"),
+     State("trade-page-refresh", "data")],
     prevent_initial_call=True
 )
-def advance_staged_order(n_clicks, staged_index, staged_data):
+def advance_staged_order(n_clicks, staged_index, staged_data, page_refresh):
     if not n_clicks or not staged_data:
         raise dash.exceptions.PreventUpdate
 
@@ -550,18 +550,21 @@ def advance_staged_order(n_clicks, staged_index, staged_data):
     if next_index >= len(orders):
         next_index = 0
 
-    return next_index
+    refresh_val = (page_refresh or 0) + 1
+    return next_index, refresh_val
 
 
 # 1d. Update Next button state and label
 @callback(
     [Output("btn-next-staged-order", "disabled"),
      Output("btn-next-staged-order", "children")],
-    [Input("staged-order-store", "data"),
-     Input("staged-order-index", "data")],
+    [Input("trade-page-ready", "data"),
+     Input("trade-page-refresh", "data")],
+    [State("staged-order-store", "data"),
+     State("staged-order-index", "data")],
     prevent_initial_call=False
 )
-def update_next_staged_button(staged_data, staged_index):
+def update_next_staged_button(_page_ready, _page_refresh, staged_data, staged_index):
     icon = html.I(className="bi bi-skip-forward me-2")
 
     if not staged_data:
