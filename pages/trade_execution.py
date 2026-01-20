@@ -765,6 +765,7 @@ def preview_order_callback(n_clicks, action, ticker, quantity, order_type, durat
         "lot_strategy": lot_strategy,
         "lot_ids": lot_ids,
         "preview_id": preview_id,
+        "client_order_id": preview_result.get("client_order_id"),  # CRITICAL: Pass to place_order
         "estimated_total": est_total
     }
     
@@ -894,7 +895,8 @@ def execute_order_callback(n_clicks, preview_data):
         stop_price=preview_data.get("stop_price"),
         order_term=preview_data.get("duration"),
         lot_ids=preview_data.get("lot_ids"),
-        preview_id=preview_data.get("preview_id")
+        preview_id=preview_data.get("preview_id"),
+        client_order_id=preview_data.get("client_order_id")
     )
     
     if result.get("success", False):

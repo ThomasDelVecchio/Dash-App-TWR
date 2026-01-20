@@ -28,6 +28,8 @@ from config import ETRADE_SANDBOX, ETRADE_ACCOUNT_ID, is_etrade_configured
 # ENUMS & CONSTANTS
 # ============================================================
 
+USER_AGENT = "DELVEX-Portfolio-Analytics/1.0"
+
 class OrderAction(Enum):
     BUY = "BUY"
     SELL = "SELL"
@@ -66,7 +68,7 @@ def _get_account_id_key(session) -> Tuple[str, str]:
     """
     base_url = get_base_url()
     
-    headers = {"Accept": "application/json"}
+    headers = {"Accept": "application/json", "User-Agent": USER_AGENT}
     response = session.get(
         f"{base_url}/v1/accounts/list",
         headers=headers,
@@ -102,7 +104,13 @@ def _get_account_id_key(session) -> Tuple[str, str]:
     return first_acct.get("accountIdKey", ""), first_acct.get("accountId", "")
 
 
-def _build_order_payload(
+def _generate_client_order_id() -> str:
+    """Generate a unique 20-char max client order ID."""
+    import uuid
+    return str(uuid.uuid4())[:20]
+
+
+def _build_preview_payload(
     ticker: str,
     quantity: int,
     action: str,
@@ -110,67 +118,91 @@ def _build_order_payload(
     limit_price: Optional[float] = None,
     stop_price: Optional[float] = None,
     order_term: str = "GOOD_FOR_DAY",
-    lot_ids: Optional[List[str]] = None,
-    account_id_key: str = None,
+    client_order_id: str = None,
 ) -> Dict:
     """
-    Builds the E*TRADE order XML/JSON payload.
+    Builds the E*TRADE PreviewOrderRequest payload.
     
-    Args:
-        ticker: Stock symbol
-        quantity: Number of shares
-        action: BUY, SELL, etc.
-        price_type: MARKET, LIMIT, STOP, STOP_LIMIT
-        limit_price: Required for LIMIT orders
-        stop_price: Required for STOP orders
-        order_term: GOOD_FOR_DAY, GOOD_UNTIL_CANCEL, etc.
-        lot_ids: Specific lot IDs for tax lot selection (SELL orders)
-        account_id_key: E*TRADE account key
-    
-    Returns:
-        Dict: Order payload for API
+    EXACT structure that works (from test_order_api.py).
     """
-    # E*TRADE uses a nested structure
-    instrument = {
-        "Product": {
-            "securityType": "EQ",  # Equity
-            "symbol": ticker.upper()
-        },
-        "orderAction": action.upper(),
-        "quantityType": "QUANTITY",
-        "quantity": int(quantity)
-    }
+    if client_order_id is None:
+        client_order_id = _generate_client_order_id()
     
-    # Add lot details if specified (for tax lot selection on sells)
-    if lot_ids and action.upper() == "SELL":
-        instrument["Lots"] = {
-            "Lot": [{"id": lot_id} for lot_id in lot_ids]
+    return {
+        "PreviewOrderRequest": {
+            "orderType": "EQ",
+            "clientOrderId": client_order_id,
+            "Order": [
+                {
+                    "allOrNone": "false",
+                    "priceType": price_type.upper(),
+                    "orderTerm": order_term.upper(),
+                    "marketSession": "REGULAR",
+                    "stopPrice": str(stop_price) if stop_price is not None else "",
+                    "limitPrice": str(limit_price) if limit_price is not None else "",
+                    "Instrument": [
+                        {
+                            "Product": {
+                                "securityType": "EQ",
+                                "symbol": ticker.upper()
+                            },
+                            "orderAction": action.upper(),
+                            "quantityType": "QUANTITY",
+                            "quantity": str(quantity)
+                        }
+                    ]
+                }
+            ]
         }
-    
-    order_detail = {
-        "allOrNone": False,
-        "priceType": price_type.upper(),
-        "orderTerm": order_term.upper(),
-        "marketSession": "REGULAR",
-        "Instrument": [instrument]
     }
+
+
+def _build_place_payload(
+    ticker: str,
+    quantity: int,
+    action: str,
+    preview_id: str,
+    client_order_id: str,
+    price_type: str = "MARKET",
+    limit_price: Optional[float] = None,
+    stop_price: Optional[float] = None,
+    order_term: str = "GOOD_FOR_DAY",
+) -> Dict:
+    """
+    Builds the E*TRADE PlaceOrderRequest payload.
     
-    # Add price constraints based on order type
-    if price_type.upper() == "LIMIT" and limit_price:
-        order_detail["limitPrice"] = float(limit_price)
-    elif price_type.upper() == "STOP" and stop_price:
-        order_detail["stopPrice"] = float(stop_price)
-    elif price_type.upper() == "STOP_LIMIT":
-        if limit_price:
-            order_detail["limitPrice"] = float(limit_price)
-        if stop_price:
-            order_detail["stopPrice"] = float(stop_price)
-    
+    EXACT structure that works (from test_order_api.py).
+    """
     return {
         "PlaceOrderRequest": {
             "orderType": "EQ",
-            "clientOrderId": f"DELVEX_{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            "Order": [order_detail]
+            "clientOrderId": client_order_id,
+            "PreviewIds": [
+                {
+                    "previewId": preview_id
+                }
+            ],
+            "Order": [
+                {
+                    "allOrNone": "false",
+                    "priceType": price_type.upper(),
+                    "orderTerm": order_term.upper(),
+                    "marketSession": "REGULAR",
+                    "stopPrice": str(stop_price) if stop_price is not None else "",
+                    "limitPrice": str(limit_price) if limit_price is not None else "",
+                    "Instrument": [
+                        {
+                            "Product": {
+                                "securityType": "EQ",
+                                "symbol": ticker.upper()
+                            },
+                            "orderAction": action.upper(),
+                            "quantityType": "QUANTITY",
+                            "quantity": str(quantity)
+                        }
+                    ]
+                }
+            ]
         }
     }
 
@@ -203,6 +235,137 @@ def _save_order_history(order_result: Dict):
     
     with open(ORDER_HISTORY_FILE, "w") as f:
         json.dump(history, f, indent=2)
+
+
+def _build_order_xml(
+    ticker: str,
+    quantity: int,
+    action: str,
+    price_type: str = "MARKET",
+    limit_price: Optional[float] = None,
+    stop_price: Optional[float] = None,
+    order_term: str = "GOOD_FOR_DAY",
+    lot_ids: Optional[List[str]] = None,
+    account_id_key: str = None,
+    is_preview: bool = True,
+) -> str:
+    """
+    Build XML payload that EXACTLY matches E*TRADE's expected format.
+    
+    Based on working XML template:
+    - NO OrderDetail wrapper - fields go directly under Order
+    - routingDestination MUST be present
+    - stopPrice and limitPrice ALWAYS present (empty if not used)
+    - Single Order element (not array)
+    - Single Instrument element (not array)
+    """
+    client_order_id = f"DELVEX_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    
+    # Format price values
+    limit_price_str = f"{limit_price:.2f}" if limit_price is not None else ""
+    stop_price_str = f"{stop_price:.2f}" if stop_price is not None else ""
+    
+    # Determine the root element based on preview vs. place
+    root_element = "PreviewOrderRequest" if is_preview else "PlaceOrderRequest"
+    
+    xml = f'''<?xml version="1.0" encoding="UTF-8"?>
+<{root_element}>
+    <orderType>EQ</orderType>
+    <clientOrderId>{client_order_id}</clientOrderId>
+    <Order>
+        <allOrNone>false</allOrNone>
+        <priceType>{price_type.upper()}</priceType>
+        <orderTerm>{order_term.upper()}</orderTerm>
+        <marketSession>REGULAR</marketSession>
+        <stopPrice>{stop_price_str}</stopPrice>
+        <limitPrice>{limit_price_str}</limitPrice>
+        <routingDestination>AUTO</routingDestination>
+        <Instrument>
+            <Product>
+                <securityType>EQ</securityType>
+                <symbol>{ticker.upper()}</symbol>
+            </Product>
+            <orderAction>{action.upper()}</orderAction>
+            <quantityType>QUANTITY</quantityType>
+            <quantity>{quantity}</quantity>
+        </Instrument>
+    </Order>
+</{root_element}>'''
+    
+    return xml
+
+
+def _parse_preview_response(response_text: str, content_type: str = "json") -> Dict:
+    """Parse preview response from E*TRADE (JSON or XML)."""
+    import xml.etree.ElementTree as ET
+    
+    result = {
+        "estimated_value": 0.0,
+        "estimated_commission": 0.0,
+        "estimated_total": 0.0,
+        "preview_id": None,
+        "messages": []
+    }
+    
+    # Try JSON first
+    if "json" in content_type.lower() or response_text.strip().startswith("{"):
+        try:
+            data = json.loads(response_text)
+            preview = data.get("PreviewOrderResponse", {})
+            
+            # Order might be an array or single object
+            order_info = preview.get("Order", {})
+            if isinstance(order_info, list):
+                order_info = order_info[0] if order_info else {}
+            
+            result["estimated_value"] = float(order_info.get("estimatedOrderValue", 0))
+            result["estimated_commission"] = float(order_info.get("estimatedCommission", 0))
+            result["estimated_total"] = float(order_info.get("estimatedTotalAmount", 
+                result["estimated_value"] + result["estimated_commission"]))
+            
+            # Preview ID
+            preview_ids = preview.get("PreviewIds", {}).get("previewId", [])
+            if isinstance(preview_ids, list):
+                result["preview_id"] = preview_ids[0] if preview_ids else None
+            else:
+                result["preview_id"] = preview_ids
+            
+            # Messages
+            msg_container = order_info.get("messages", {})
+            msg_list = msg_container.get("Message", []) if isinstance(msg_container, dict) else []
+            if not isinstance(msg_list, list):
+                msg_list = [msg_list]
+            for msg in msg_list:
+                if isinstance(msg, dict):
+                    result["messages"].append(msg.get("description", str(msg)))
+                else:
+                    result["messages"].append(str(msg))
+            
+            return result
+        except json.JSONDecodeError:
+            pass  # Fall through to XML parsing
+    
+    # Try XML parsing
+    try:
+        root = ET.fromstring(response_text)
+        
+        # Find values with flexible path searching
+        result["estimated_value"] = float(root.findtext(".//estimatedOrderValue", "0"))
+        result["estimated_commission"] = float(root.findtext(".//estimatedCommission", "0"))
+        result["estimated_total"] = float(root.findtext(".//estimatedTotalAmount", 
+            str(result["estimated_value"] + result["estimated_commission"])))
+        result["preview_id"] = root.findtext(".//previewId")
+        
+        # Messages
+        for msg_elem in root.findall(".//Message"):
+            desc = msg_elem.findtext("description")
+            if desc:
+                result["messages"].append(desc)
+                
+    except ET.ParseError:
+        pass
+    
+    return result
 
 
 # ============================================================
@@ -239,9 +402,6 @@ def preview_order(
     """
     Preview an order WITHOUT placing it.
     
-    E*TRADE's preview endpoint returns estimated costs, commissions,
-    and validates the order before execution.
-    
     Args:
         ticker: Stock symbol (e.g., "AAPL")
         quantity: Number of shares
@@ -253,13 +413,7 @@ def preview_order(
         lot_ids: Specific lot IDs for SELL orders (tax lot selection)
     
     Returns:
-        Dict with preview details:
-            - estimated_value: Estimated order value
-            - estimated_commission: Commission/fees
-            - estimated_total: Total including fees
-            - order_id: Preview order ID (needed for placement)
-            - messages: Any warnings from E*TRADE
-            - success: True if preview succeeded
+        Dict with preview details including preview_id and client_order_id
     """
     try:
         session = get_etrade_session_safe()
@@ -273,8 +427,14 @@ def preview_order(
             }
         
         account_id_key, account_num = _get_account_id_key(session)
+        base_url = get_base_url()
+        url = f"{base_url}/v1/accounts/{account_id_key}/orders/preview"
         
-        payload = _build_order_payload(
+        # Generate client order ID (needed for both preview and place)
+        client_order_id = _generate_client_order_id()
+        
+        # Build payload using exact working structure
+        payload = _build_preview_payload(
             ticker=ticker,
             quantity=quantity,
             action=action,
@@ -282,91 +442,75 @@ def preview_order(
             limit_price=limit_price,
             stop_price=stop_price,
             order_term=order_term,
-            lot_ids=lot_ids,
-            account_id_key=account_id_key
+            client_order_id=client_order_id
         )
         
-        # Convert to PreviewOrderRequest
-        payload["PreviewOrderRequest"] = payload.pop("PlaceOrderRequest")
-        
-        base_url = get_base_url()
-        url = f"{base_url}/v1/accounts/{account_id_key}/orders/preview"
-        
         headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json"
         }
         
-        # DEBUG: Log request details
-        import json as json_module
-        print("\n" + "="*60)
-        print("DEBUG: E*TRADE Preview Order Request")
-        print("="*60)
-        print(f"URL: {url}")
-        print(f"Headers: {headers}")
-        print(f"Payload:\n{json_module.dumps(payload, indent=2)}")
-        print("="*60)
-        
-        response = session.post(url, json=payload, headers=headers, timeout=(10, 30))
-        
-        # DEBUG: Log response
-        print(f"\nDEBUG: Response Status: {response.status_code}")
-        print(f"DEBUG: Response Body: {response.text[:1000] if response.text else 'EMPTY'}")
-        print("="*60 + "\n")
+        response = session.post(url, json=payload, headers=headers, timeout=30)
         
         if response.status_code != 200:
-            error_text = response.text[:500] if response.text else "Unknown error"
             return {
                 "success": False,
-                "error": f"Preview failed: HTTP {response.status_code} - {error_text}",
+                "error": f"Preview failed: HTTP {response.status_code} - {response.text[:300]}",
                 "estimated_value": 0,
                 "estimated_commission": 0,
                 "estimated_total": 0
             }
         
         data = response.json()
-        preview = data.get("PreviewOrderResponse", {})
-        order_info = preview.get("Order", [{}])[0]
+        preview_response = data.get("PreviewOrderResponse", {})
         
-        # Extract preview details
-        estimated_value = float(order_info.get("estimatedOrderValue", 0))
-        estimated_commission = float(order_info.get("estimatedCommission", 0))
-        estimated_total = float(order_info.get("estimatedTotalAmount", estimated_value + estimated_commission))
+        # Extract previewId
+        preview_ids = preview_response.get("PreviewIds", [])
+        if isinstance(preview_ids, dict):
+            preview_ids = [preview_ids]
+        preview_id = preview_ids[0].get("previewId") if preview_ids else None
         
-        # Get preview ID (required for placement)
-        preview_ids = preview.get("PreviewIds", {}).get("previewId", [])
-        preview_id = preview_ids[0] if preview_ids else None
+        # Extract order details
+        orders = preview_response.get("Order", [])
+        if isinstance(orders, dict):
+            orders = [orders]
+        order_info = orders[0] if orders else {}
         
-        # Get any messages/warnings
+        # Extract messages
         messages = []
-        msg_list = order_info.get("messages", {}).get("Message", [])
-        if not isinstance(msg_list, list):
-            msg_list = [msg_list]
-        for msg in msg_list:
-            if isinstance(msg, dict):
-                messages.append(msg.get("description", str(msg)))
-            else:
-                messages.append(str(msg))
+        msg_container = order_info.get("messages", {})
+        if isinstance(msg_container, dict):
+            msg_list = msg_container.get("Message", [])
+            if isinstance(msg_list, dict):
+                msg_list = [msg_list]
+            for msg in msg_list:
+                if isinstance(msg, dict):
+                    messages.append(msg.get("description", ""))
         
         return {
             "success": True,
             "preview_id": preview_id,
+            "client_order_id": client_order_id,  # CRITICAL: Pass to place_order
             "ticker": ticker.upper(),
             "action": action.upper(),
             "quantity": quantity,
             "price_type": price_type.upper(),
-            "estimated_value": estimated_value,
-            "estimated_commission": estimated_commission,
-            "estimated_total": estimated_total,
+            "limit_price": limit_price,
+            "stop_price": stop_price,
+            "order_term": order_term.upper(),
+            "estimated_value": float(order_info.get("estimatedOrderValue", 0) or 0),
+            "estimated_commission": float(order_info.get("estimatedCommission", 0) or 0),
+            "estimated_total": float(order_info.get("estimatedTotalAmount", 0) or 0),
             "messages": messages,
             "account": account_num,
             "environment": "SANDBOX" if ETRADE_SANDBOX else "PRODUCTION"
         }
         
     except Exception as e:
+        import traceback
         return {
             "success": False,
-            "error": str(e),
+            "error": f"{str(e)}\n{traceback.format_exc()}",
             "estimated_value": 0,
             "estimated_commission": 0,
             "estimated_total": 0
@@ -383,6 +527,7 @@ def place_order(
     order_term: str = "GOOD_FOR_DAY",
     lot_ids: Optional[List[str]] = None,
     preview_id: Optional[str] = None,
+    client_order_id: Optional[str] = None,
 ) -> Dict:
     """
     Place an order with E*TRADE.
@@ -399,7 +544,8 @@ def place_order(
         stop_price: Required for STOP orders
         order_term: "GOOD_FOR_DAY", "GOOD_UNTIL_CANCEL", etc.
         lot_ids: Specific lot IDs for SELL orders
-        preview_id: Preview ID from preview_order() (recommended)
+        preview_id: Preview ID from preview_order() (REQUIRED)
+        client_order_id: Client order ID from preview_order() (REQUIRED)
     
     Returns:
         Dict with order result:
@@ -410,6 +556,18 @@ def place_order(
             - error: Error message if failed
     """
     try:
+        # Validate required params
+        if not preview_id:
+            return {
+                "success": False,
+                "error": "preview_id is required. Call preview_order() first."
+            }
+        if not client_order_id:
+            return {
+                "success": False,
+                "error": "client_order_id is required. Pass the value from preview_order()."
+            }
+        
         session = get_etrade_session_safe()
         if session is None:
             return {
@@ -418,36 +576,30 @@ def place_order(
             }
         
         account_id_key, account_num = _get_account_id_key(session)
-        
-        payload = _build_order_payload(
-            ticker=ticker,
-            quantity=quantity,
-            action=action,
-            price_type=price_type,
-            limit_price=limit_price,
-            stop_price=stop_price,
-            order_term=order_term,
-            lot_ids=lot_ids,
-            account_id_key=account_id_key
-        )
-        
-        # Add preview ID if available (validates against preview)
-        if preview_id:
-            payload["PlaceOrderRequest"]["PreviewIds"] = {
-                "previewId": [preview_id]
-            }
-        
         base_url = get_base_url()
         url = f"{base_url}/v1/accounts/{account_id_key}/orders/place"
         
+        # Build payload using exact working structure
+        payload = _build_place_payload(
+            ticker=ticker,
+            quantity=quantity,
+            action=action,
+            preview_id=preview_id,
+            client_order_id=client_order_id,
+            price_type=price_type,
+            limit_price=limit_price,
+            stop_price=stop_price,
+            order_term=order_term
+        )
+        
         headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json"
         }
         
-        response = session.post(url, json=payload, headers=headers, timeout=(10, 30))
+        response = session.post(url, json=payload, headers=headers, timeout=30)
         
-        if response.status_code not in (200, 201):
+        if response.status_code != 200:
             error_text = response.text[:500] if response.text else "Unknown error"
             return {
                 "success": False,
@@ -455,19 +607,23 @@ def place_order(
             }
         
         data = response.json()
-        order_response = data.get("PlaceOrderResponse", {})
-        order_info = order_response.get("Order", [{}])[0]
+        place_response = data.get("PlaceOrderResponse", {})
         
-        # Extract order details
-        order_id = order_info.get("orderId")
+        # Extract order ID from OrderIds array
+        order_ids = place_response.get("OrderIds", [])
+        if isinstance(order_ids, dict):
+            order_ids = [order_ids]
+        order_id = order_ids[0].get("orderId") if order_ids else None
         
-        # Get order status
-        order_detail = order_info.get("OrderDetail", [{}])[0]
-        status = order_detail.get("status", "UNKNOWN")
+        # Get order details
+        orders = place_response.get("Order", [])
+        if isinstance(orders, dict):
+            orders = [orders]
+        order_info = orders[0] if orders else {}
         
-        # Get filled info
-        filled_qty = int(order_detail.get("filledQuantity", 0))
-        executed_price = float(order_detail.get("executedPrice", 0))
+        # For market orders, usually fills immediately
+        # But status may still be OPEN until confirmed
+        status = "PLACED"
         
         result = {
             "success": True,
@@ -475,9 +631,10 @@ def place_order(
             "ticker": ticker.upper(),
             "action": action.upper(),
             "quantity": quantity,
+            "price_type": price_type.upper(),
             "status": status,
-            "filled_quantity": filled_qty,
-            "executed_price": executed_price,
+            "estimated_commission": float(order_info.get("estimatedCommission", 0) or 0),
+            "estimated_total": float(order_info.get("estimatedTotalAmount", 0) or 0),
             "account": account_num,
             "environment": "SANDBOX" if ETRADE_SANDBOX else "PRODUCTION",
             "timestamp": datetime.now().isoformat()
@@ -515,7 +672,7 @@ def get_order_status(order_id: str) -> Dict:
         base_url = get_base_url()
         url = f"{base_url}/v1/accounts/{account_id_key}/orders/{order_id}"
         
-        headers = {"Accept": "application/json"}
+        headers = {"Accept": "application/json", "User-Agent": USER_AGENT}
         response = session.get(url, headers=headers, timeout=(10, 30))
         
         if response.status_code != 200:
@@ -571,7 +728,8 @@ def cancel_order(order_id: str) -> Dict:
         
         headers = {
             "Accept": "application/json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": USER_AGENT
         }
         
         response = session.put(url, json=payload, headers=headers, timeout=(10, 30))
