@@ -240,7 +240,8 @@ def run_analytics_engine(end_date=None):
         "errors": errors,
         "risk_return": dynamic_risk_return,
         "correlation_matrix": dynamic_corr_matrix,
-        "effective_as_of": effective_as_of
+        "effective_as_of": effective_as_of,
+        "selected_end_date": end_date
     }
 
 def _prepare_sector_df(sec_table):
@@ -691,8 +692,9 @@ def get_horizon_analysis(data):
     if as_of is None:
         as_of = pv.index.max()
     
-    # Dynamic Label for 1D
-    label_1d = get_display_label_for_1d(as_of)
+    # Dynamic Label for 1D - use raw user-selected date (not snapped) to match Holdings page
+    report_end_date = data.get("selected_end_date") or as_of
+    label_1d = get_display_label_for_1d(report_end_date)
 
     rows = []
     

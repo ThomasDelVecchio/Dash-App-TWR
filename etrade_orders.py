@@ -104,6 +104,124 @@ def _get_account_id_key(session) -> Tuple[str, str]:
     return first_acct.get("accountIdKey", ""), first_acct.get("accountId", "")
 
 
+def fetch_position_lots(ticker: str) -> List[Dict]:
+    """
+    Fetch tax lots for a specific position from E*TRADE Portfolio API.
+    
+    This returns E*TRADE's internal positionLotId for each lot, which is
+    required to specify specific lots when placing sell orders.
+    
+    Args:
+        ticker: Stock symbol (e.g., "AAPL")
+    
+    Returns:
+        List of lot dicts with keys:
+            - positionLotId: E*TRADE's internal lot ID (required for order API)
+            - acquiredDate: Date lot was acquired (epoch ms)
+            - originalQty: Original shares in lot
+            - remainingQty: Shares remaining in lot
+            - price: Cost basis per share
+            - marketValue: Current market value
+            - pricePaid: Total cost basis
+            - termCode: 1 = Short-Term, 2 = Long-Term
+            - daysGain: Dollar gain/loss
+            - daysGainPct: Percent gain/loss
+            - shortType: 0 = Normal, 1 = Wash Sale
+    """
+    try:
+        from etrade_auth import get_etrade_session_safe, get_base_url
+        
+        session = get_etrade_session_safe()
+        if session is None:
+            print("[fetch_position_lots] Not authenticated")
+            return []
+        
+        account_id_key, account_num = _get_account_id_key(session)
+        base_url = get_base_url()
+        
+        # Request portfolio with lot details
+        url = f"{base_url}/v1/accounts/{account_id_key}/portfolio"
+        params = {
+            "lotsRequired": "true",
+            "view": "COMPLETE"
+        }
+        headers = {"Accept": "application/json", "User-Agent": USER_AGENT}
+        
+        response = session.get(url, params=params, headers=headers, timeout=(10, 30))
+        
+        if response.status_code != 200:
+            print(f"[fetch_position_lots] API error: HTTP {response.status_code}")
+            return []
+        
+        data = response.json()
+        
+        # Navigate E*TRADE's nested response
+        portfolio = data.get("PortfolioResponse", {}).get("AccountPortfolio", [])
+        if isinstance(portfolio, dict):
+            portfolio = [portfolio]
+        
+        # Find positions and their lots
+        ticker_upper = ticker.upper()
+        lots = []
+        
+        for account in portfolio:
+            positions = account.get("Position", [])
+            if isinstance(positions, dict):
+                positions = [positions]
+            
+            for position in positions:
+                product = position.get("Product", {})
+                symbol = product.get("symbol", "").upper()
+                
+                if symbol != ticker_upper:
+                    continue
+                
+                # Extract lots from PositionLot array
+                pos_lots = position.get("PositionLot", [])
+                if isinstance(pos_lots, dict):
+                    pos_lots = [pos_lots]
+                
+                for lot in pos_lots:
+                    lot_data = {
+                        "positionLotId": lot.get("positionLotId"),
+                        "acquiredDate": lot.get("acquiredDate"),
+                        "originalQty": float(lot.get("originalQty", 0)),
+                        "remainingQty": float(lot.get("remainingQty", 0)),
+                        "price": float(lot.get("price", 0)),
+                        "marketValue": float(lot.get("marketValue", 0)),
+                        "pricePaid": float(lot.get("pricePaid", 0)),
+                        "termCode": lot.get("termCode", 0),
+                        "daysGain": float(lot.get("daysGain", 0)),
+                        "daysGainPct": float(lot.get("daysGainPct", 0)),
+                        "shortType": lot.get("shortType", 0),  # 0=Normal, 1=Wash Sale
+                    }
+                    
+                    # Convert acquiredDate from epoch ms to readable format
+                    if lot_data["acquiredDate"]:
+                        try:
+                            from datetime import datetime
+                            ts = lot_data["acquiredDate"] / 1000
+                            lot_data["acquiredDateStr"] = datetime.fromtimestamp(ts).strftime("%m/%d/%Y")
+                        except:
+                            lot_data["acquiredDateStr"] = "Unknown"
+                    else:
+                        lot_data["acquiredDateStr"] = "Unknown"
+                    
+                    # Determine term label
+                    lot_data["termLabel"] = "Long-Term" if lot_data["termCode"] == 2 else "Short-Term"
+                    
+                    # Wash sale indicator
+                    lot_data["isWashSale"] = lot_data["shortType"] == 1
+                    
+                    lots.append(lot_data)
+        
+        return lots
+        
+    except Exception as e:
+        print(f"[fetch_position_lots] Error: {e}")
+        return []
+
+
 def _generate_client_order_id() -> str:
     """Generate a unique 20-char max client order ID."""
     import uuid
@@ -119,14 +237,36 @@ def _build_preview_payload(
     stop_price: Optional[float] = None,
     order_term: str = "GOOD_FOR_DAY",
     client_order_id: str = None,
+    lots: Optional[List[Dict]] = None,
 ) -> Dict:
     """
     Builds the E*TRADE PreviewOrderRequest payload.
     
     EXACT structure that works (from test_order_api.py).
+    
+    Args:
+        lots: Optional list of lot specifications for SELL orders.
+              Each dict should have: {"id": positionLotId, "size": shares_to_sell}
     """
     if client_order_id is None:
         client_order_id = _generate_client_order_id()
+    
+    # Build base Instrument object
+    instrument = {
+        "Product": {
+            "securityType": "EQ",
+            "symbol": ticker.upper()
+        },
+        "orderAction": action.upper(),
+        "quantityType": "QUANTITY",
+        "quantity": str(quantity)
+    }
+    
+    # Add lot specification for SELL orders with specific lots
+    if action.upper() == "SELL" and lots:
+        instrument["Lots"] = {
+            "Lot": [{"id": lot["id"], "size": lot["size"]} for lot in lots]
+        }
     
     return {
         "PreviewOrderRequest": {
@@ -140,17 +280,7 @@ def _build_preview_payload(
                     "marketSession": "REGULAR",
                     "stopPrice": str(stop_price) if stop_price is not None else "",
                     "limitPrice": str(limit_price) if limit_price is not None else "",
-                    "Instrument": [
-                        {
-                            "Product": {
-                                "securityType": "EQ",
-                                "symbol": ticker.upper()
-                            },
-                            "orderAction": action.upper(),
-                            "quantityType": "QUANTITY",
-                            "quantity": str(quantity)
-                        }
-                    ]
+                    "Instrument": [instrument]
                 }
             ]
         }
@@ -167,12 +297,34 @@ def _build_place_payload(
     limit_price: Optional[float] = None,
     stop_price: Optional[float] = None,
     order_term: str = "GOOD_FOR_DAY",
+    lots: Optional[List[Dict]] = None,
 ) -> Dict:
     """
     Builds the E*TRADE PlaceOrderRequest payload.
     
     EXACT structure that works (from test_order_api.py).
+    
+    Args:
+        lots: Optional list of lot specifications for SELL orders.
+              Each dict should have: {"id": positionLotId, "size": shares_to_sell}
     """
+    # Build base Instrument object
+    instrument = {
+        "Product": {
+            "securityType": "EQ",
+            "symbol": ticker.upper()
+        },
+        "orderAction": action.upper(),
+        "quantityType": "QUANTITY",
+        "quantity": str(quantity)
+    }
+    
+    # Add lot specification for SELL orders with specific lots
+    if action.upper() == "SELL" and lots:
+        instrument["Lots"] = {
+            "Lot": [{"id": lot["id"], "size": lot["size"]} for lot in lots]
+        }
+    
     return {
         "PlaceOrderRequest": {
             "orderType": "EQ",
@@ -190,17 +342,7 @@ def _build_place_payload(
                     "marketSession": "REGULAR",
                     "stopPrice": str(stop_price) if stop_price is not None else "",
                     "limitPrice": str(limit_price) if limit_price is not None else "",
-                    "Instrument": [
-                        {
-                            "Product": {
-                                "securityType": "EQ",
-                                "symbol": ticker.upper()
-                            },
-                            "orderAction": action.upper(),
-                            "quantityType": "QUANTITY",
-                            "quantity": str(quantity)
-                        }
-                    ]
+                    "Instrument": [instrument]
                 }
             ]
         }
@@ -442,7 +584,8 @@ def preview_order(
             limit_price=limit_price,
             stop_price=stop_price,
             order_term=order_term,
-            client_order_id=client_order_id
+            client_order_id=client_order_id,
+            lots=lot_ids
         )
         
         headers = {
@@ -589,7 +732,8 @@ def place_order(
             price_type=price_type,
             limit_price=limit_price,
             stop_price=stop_price,
-            order_term=order_term
+            order_term=order_term,
+            lots=lot_ids
         )
         
         headers = {

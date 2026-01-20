@@ -112,7 +112,7 @@
                 <div style="opacity: 0.8;">Executive Integrity Dashboard</div>
             </div>
             <div class="meta">
-                <div>Date: 2026-01-19 20:18:43</div>
+                <div>Date: 2026-01-20 16:32:08</div>
                 <div>Version: 3.0 (Modular Opus Suite)</div>
             </div>
         </header>
@@ -165,10 +165,10 @@ Checking Holdings...
 [PASS] Holdings loaded: 15 positions. Columns valid.
 
 Checking External Cashflows...
-[PASS] Cashflows loaded: 1 entries.
+[PASS] Cashflows loaded: 2 entries.
 
 Checking Transactions...
-[PASS] Transactions loaded: 40 trades.
+[PASS] Transactions loaded: 43 trades.
 
 Checking Dividends...
 [PASS] Dividends loaded: 10 entries.
@@ -284,19 +284,14 @@ Reconciling Shares (Holdings vs Transactions)...
 --- Testing P/L Attribution (The Accounting Ledger) ---
 Loading live data via Analytics Engine...
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-18 (1d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Data stale: Latest 2026-01-18 (1d ago)']
 Data loaded.
-[PASS] [1W] Match! Port: 299.46 | Sum: 299.46 | Gap: -0.00
-[PASS] [1M] Match! Port: 1,711.02 | Sum: 1,710.95 | Gap: 0.07
-[PASS] [MTD] Match! Port: 1,167.81 | Sum: 1,167.81 | Gap: -0.00
-[PASS] [YTD] Match! Port: 1,167.81 | Sum: 1,167.81 | Gap: -0.00
+[PASS] [1W] Match! Port: -582.55 | Sum: -582.55 | Gap: -0.00
+[PASS] [1M] Match! Port: 701.23 | Sum: 701.16 | Gap: 0.07
+[PASS] [MTD] Match! Port: 448.93 | Sum: 448.93 | Gap: -0.00
+[PASS] [YTD] Match! Port: 448.93 | Sum: 448.93 | Gap: -0.00
 [1Y] Insufficient data for Portfolio P/L.
-[PASS] [SI] Match! Port: 2,364.00 | Sum: 2,363.85 | Gap: 0.15
+[PASS] [SI] Match! Port: 1,645.12 | Sum: 1,644.97 | Gap: 0.15
 
 --- Dividend Integrity Check ---
 Checking Dividend: CASH on 2025-11-28 for $0.08
@@ -319,23 +314,16 @@ Checking Dividend: CASH on 2025-11-28 for $0.08
 --- Testing Risk Intelligence (Institutional Upgrade) ---
 Loading live data...
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-18 (1d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Data stale: Latest 2026-01-18 (1d ago)']
 Checking Correlation Matrix...
 [PASS] Correlation Matrix Diagonal is all 1.0
 [PASS] Correlation Matrix is Symmetric
 [PASS] Correlation Values within [-1, 1]
-[PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1182
+[PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1189
 Checking Active Metrics (Beta/TE)...
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
-[PASS] Beta vs SPY calculated: 0.6012
-[PASS] Tracking Error calculated: 5.9462%
+[PASS] Beta vs SPY calculated: 0.6244
+[PASS] Tracking Error calculated: 5.9982%
 Checking Drawdown Logic...
 [PASS] Max Drawdown (-2.83%) matches Minimum of Series
 [PASS] Drawdown Series is always <= 0.0
@@ -357,22 +345,17 @@ Checking Drawdown Logic...
 --- Testing Consistency Matrix (The Truth-Teller) ---
 Loading live data...
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-18 (1d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Data stale: Latest 2026-01-18 (1d ago)']
 Checking Snapshot vs Chart...
-[PASS] Cumulative SI TWR (0.0501) matches Chart Final Value (0.0501)
+[PASS] Cumulative SI TWR (0.0348) matches Chart Final Value (0.0348)
 Checking Snapshot vs Horizon Table...
-[PASS] Snapshot SI P/L (2,364.00) matches Horizon Table (2,364.00)
+[PASS] Snapshot SI P/L (1,645.12) matches Horizon Table (1,645.12)
 Checking Growth Table vs P/L...
-[PASS] Growth Table Total (2,364.00) matches SI P/L (2,364.00)
+[PASS] Growth Table Total (1,645.12) matches SI P/L (1,645.12)
 Checking Attribution vs SI TWR...
-[PASS] Attribution Sum (5.01%) matches SI TWR (5.01%)
+[PASS] Attribution Sum (3.48%) matches SI TWR (3.48%)
 Checking Risk Chart vs Horizon Table...
-Risk Chart US Large Cap Return: 22.52%
+Risk Chart US Large Cap Return: 14.99%
 [PASS] Risk Data exists.
 
 [SUCCESS] audit_05_consistency_matrix.py passed.
@@ -637,7 +620,7 @@ Final GIPS Score: 5/5
   Passed:       199
   Failed:       0
   Pass Rate:    100.0%
-  Duration:     0.21s
+  Duration:     0.22s
 ======================================================================
 
 📝 Appended new Frontend Stress section to report.
@@ -659,14 +642,11 @@ Final GIPS Score: 5/5
 --- Testing Time Machine Consistency ---
 Running Live Engine...
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
-Time Machine Target: 2026-01-02
+Time Machine Target: 2026-01-06
 Running Historical Engine...
-DEBUG: data_loader returning CACHED prices with 1 errors.
 
 Checking PV Consistency...
-[PASS] PV Matches: History=48509.60 vs Live=48509.60
+[PASS] PV Matches: History=49368.23 vs Live=49368.23
 
 Checking Future Leakage (Transactions)...
 [PASS] No future tickers detected in historical view.
@@ -688,18 +668,13 @@ Checking Future Leakage (Transactions)...
 --- Testing Custom Report Logic (Curve Slicing) ---
 Loading Live Data...
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-18 (1d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Data stale: Latest 2026-01-18 (1d ago)']
 
-Scanning Last 30 Days (2025-12-17 to 2026-01-16)...
-[PASS] Last 30 Days: Match! Slice=0.040114 vs Rigorous=0.040114
+Scanning Last 30 Days (2025-12-21 to 2026-01-20)...
+[PASS] Last 30 Days: Match! Slice=0.014550 vs Rigorous=0.014550
 
-Scanning Middle 20 Days (2025-12-10 to 2025-12-30)...
-[PASS] Middle 20 Days: Match! Slice=0.011341 vs Rigorous=0.011341
+Scanning Middle 20 Days (2025-12-12 to 2026-01-01)...
+[PASS] Middle 20 Days: Match! Slice=0.007409 vs Rigorous=0.007409
 
 [SUCCESS] audit_09_custom_report.py passed.
 </div>
@@ -742,12 +717,7 @@ Scanning Middle 20 Days (2025-12-10 to 2025-12-30)...
 Objective: Ensure Asset Class returns match Ticker returns exactly when 1:1.
 Loading engine data...
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-18 (1d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
-DEBUG: dash_wrappers found errors: ['Data stale: Latest 2026-01-18 (1d ago)']
 Found 3 single-ticker asset classes: {'International Equity': 'VXUS', 'Gold / Precious Metals': 'GLD', 'Digital Assets': 'FBTC'}
 
 Checking International Equity vs VXUS...
@@ -851,7 +821,6 @@ PORTFOLIO ENGINE: 366 Days
                     <div class="log-output">
 --- Testing Tax Lot Identification (FIFO/LIFO/HIFO) ---
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
 [WARNING] Missing Price Data:
   2025-11-03: TEST
   2025-11-04: TEST
@@ -864,11 +833,11 @@ PORTFOLIO ENGINE: 366 Days
   2025-11-13: TEST
   2025-11-14: TEST
   2025-11-17: TEST
-DEBUG: data_loader returning 2 errors attached to prices.
+DEBUG: data_loader returning 1 errors attached to prices.
 [PASS] FIFO Strategy correctly identified Low Cost lot (Gain $500.00).
-DEBUG: data_loader returning CACHED prices with 2 errors.
+DEBUG: data_loader returning CACHED prices with 1 errors.
 [PASS] LIFO Strategy correctly identified Last lot (Loss $-500.00).
-DEBUG: data_loader returning CACHED prices with 2 errors.
+DEBUG: data_loader returning CACHED prices with 1 errors.
 [PASS] HIFO Strategy correctly identified High Cost lot (Loss $-500.00).
 
 --- Testing Term Classification (ST vs LT) ---
@@ -877,7 +846,6 @@ DEBUG: data_loader returning CACHED prices with 2 errors.
 
 --- Testing Wash Sale Logic ---
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
 [WARNING] Missing Price Data:
   2025-11-03: WASH_TEST
   2025-11-04: WASH_TEST
@@ -931,7 +899,8 @@ DEBUG: data_loader returning CACHED prices with 2 errors.
   2026-01-14: WASH_TEST
   2026-01-15: WASH_TEST
   2026-01-16: WASH_TEST
-DEBUG: data_loader returning 2 errors attached to prices.
+  2026-01-20: WASH_TEST
+DEBUG: data_loader returning 1 errors attached to prices.
 [PASS] Wash sale correctly adjusted cost basis of new lot.
 
 [SUCCESS] audit_14_tax_rebalancing.py passed all checks.
@@ -983,8 +952,6 @@ Current Configuration:
  Test 2: yfinance-Only Mode
 ======================================================================
 [PRICE] yfinance-only mode (2yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: Returns DataFrame
 [PASS]: SPY column present
 [PASS]: QQQ column present
@@ -996,7 +963,7 @@ DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: yfinance ticker list populated
         Count: 2
 [PASS]: Date coverage > 85%
-        725 days (99.3%) from 2024-01-22 to 2026-01-16
+        729 days (99.9%) from 2024-01-22 to 2026-01-20
 
 ======================================================================
  Test 3: Hybrid Mode Structure
@@ -1004,15 +971,13 @@ DEBUG: data_loader returning 1 errors attached to prices.
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (5yr)
 [FMP] HTTP 403 for SPY
 [PRICE] FMP success: 0/1, yfinance fallback: 1
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: Returns DataFrame
 [PASS]: Source marked as 'hybrid'
         Got: 'hybrid'
 [PASS]: FMP range tracked
-        Range: (Timestamp('2021-01-20 00:00:00'), Timestamp('2026-01-19 00:00:00'))
+        Range: (Timestamp('2021-01-21 00:00:00'), Timestamp('2026-01-20 00:00:00'))
 [PASS]: yfinance range tracked
-        Range: (Timestamp('2016-01-22 00:00:00'), Timestamp('2021-01-20 00:00:00'))
+        Range: (Timestamp('2016-01-23 00:00:00'), Timestamp('2021-01-21 00:00:00'))
         FMP success count: 0
         yfinance fallback count: 1
 
@@ -1022,12 +987,10 @@ DEBUG: data_loader returning 1 errors attached to prices.
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (5yr)
 [FMP] HTTP 403 for SPY
 [PRICE] FMP success: 0/1, yfinance fallback: 1
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: SPY data available
         2512 rows
 [PASS]: Stitch date identified
-        2021-01-20
+        2021-01-21
 [PASS]: Sufficient data around stitch
         14 days
 [PASS]: Price continuity (no >5% jump)
@@ -1036,8 +999,8 @@ DEBUG: data_loader returning 1 errors attached to prices.
 
         Prices around stitch boundary:
           2021-01-19: $378.65
-          2021-01-20: $383.89 <-- STITCH
-          2021-01-21: $384.24
+          2021-01-20: $383.89
+          2021-01-21: $384.24 <-- STITCH
           2021-01-22: $382.88
 
 ======================================================================
@@ -1069,15 +1032,11 @@ DEBUG: data_loader returning 1 errors attached to prices.
  Test 7: Close vs Adjusted Close Parameter
 ======================================================================
 [PRICE] yfinance-only mode (1yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PRICE] yfinance-only mode (1yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: Both price sets available
-        Close: 250 rows, Adj: 250 rows
+        Close: 251 rows, Adj: 251 rows
 [PASS]: Close and Adj Close have data
-        Close: $691.66, Adj: $691.66, Diff: 0.00%
+        Close: $677.58, Adj: $677.58, Diff: 0.00%
 [PASS]: Difference is reasonable (<5%)
         Historical divergence: Close $603.05, Adj $596.05, Diff: 1.16%
 
@@ -1085,55 +1044,41 @@ DEBUG: data_loader returning 1 errors attached to prices.
  Test 8: Multi-Ticker Fetch Consistency
 ======================================================================
 [PRICE] yfinance-only mode (3yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: Multi-ticker fetch successful
         751 rows
 [PASS]: All tickers present
         All 5 tickers
-        SPY: 751 valid prices, 2023-01-20 to 2026-01-16
-        QQQ: 751 valid prices, 2023-01-20 to 2026-01-16
-        VTI: 751 valid prices, 2023-01-20 to 2026-01-16
-        BND: 751 valid prices, 2023-01-20 to 2026-01-16
-        GLD: 751 valid prices, 2023-01-20 to 2026-01-16
+        SPY: 751 valid prices, 2023-01-23 to 2026-01-20
+        QQQ: 751 valid prices, 2023-01-23 to 2026-01-20
+        VTI: 751 valid prices, 2023-01-23 to 2026-01-20
+        BND: 751 valid prices, 2023-01-23 to 2026-01-20
+        GLD: 751 valid prices, 2023-01-23 to 2026-01-20
 [PASS]: SPY (default benchmark) present
 
 ======================================================================
  Test 9: Date Range Coverage
 ======================================================================
 [PRICE] yfinance-only mode (1yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: 1Y coverage >= 85%
-        360 days (98.6%), 2025-01-21 to 2026-01-16
+        364 days (99.7%), 2025-01-21 to 2026-01-20
 [PRICE] yfinance-only mode (3yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: 3Y coverage >= 85%
-        1092 days (99.7%), 2023-01-20 to 2026-01-16
+        1093 days (99.8%), 2023-01-23 to 2026-01-20
 [PRICE] yfinance-only mode (5yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: 5Y coverage >= 85%
-        1822 days (99.8%), 2021-01-20 to 2026-01-16
+        1825 days (100.0%), 2021-01-21 to 2026-01-20
 [PRICE] yfinance-only mode (10yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: 10Y coverage >= 80%
-        3647 days (99.9%), 2016-01-22 to 2026-01-16
+        3648 days (99.9%), 2016-01-25 to 2026-01-20
 
 ======================================================================
  Test 10: Error Tracking Attributes
 ======================================================================
 [PRICE] yfinance-only mode (1yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: attrs dictionary exists
 [PASS]: 'errors' key in attrs
 [PASS]: 'errors' is a list
         Type: list
-        Found 1 error(s):
-          - Data stale: Latest 2026-01-16 (3d ago)
 [PASS]: 'source' key in attrs
 [PASS]: 'source' has valid value
         Value: 'yfinance'
@@ -1148,18 +1093,13 @@ DEBUG: data_loader returning 1 errors attached to prices.
  Test 11: Cache Key Differentiation
 ======================================================================
 [PRICE] yfinance-only mode (1yr history)
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: Cache populated after yfinance fetch
         Size: 1
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (-4yr)
 [FMP] HTTP 403 for SPY
 [PRICE] FMP success: 0/1, yfinance fallback: 1
-[WARNING] Data stale: Latest 2026-01-16 (3d ago)
-DEBUG: data_loader returning 1 errors attached to prices.
 [PASS]: Hybrid mode creates separate cache entry
         Cache size: 1 -> 2
-DEBUG: data_loader returning CACHED prices with 1 errors.
 [PASS]: Same mode uses cached data
 
         Cache keys:

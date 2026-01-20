@@ -734,7 +734,23 @@ def get_audit_modal_content(request_data):
             else:
                 # ZERO LOGIC
                 content.append(html.P("No trade recommended.", className="fw-bold"))
-                if full_target_buy < 0 and not allow_sales:
+                
+                # TAX TRAP DETECTION
+                # If overweight, sales allowed, but amount is 0, it means the Tax Engine blocked the sale.
+                is_overweight = full_target_buy < -0.01
+                tax_trap_detected = is_overweight and allow_sales and amount == 0
+                
+                if tax_trap_detected:
+                     content.append(dbc.Alert(
+                         [
+                             html.H6("Tax Optimized Hold", className="alert-heading"),
+                             html.P("The sale was blocked by the Tax Engine to avoid Short-Term Capital Gains or Wash Sale violations."),
+                             html.Hr(),
+                             html.P("Although this asset is overweight and 'Allow Sales' is enabled, no tax lots could be sold without triggering unfavorable tax events.", className="mb-0 small")
+                         ], 
+                         color="info"
+                     ))
+                elif full_target_buy < 0 and not allow_sales:
                      content.append(dbc.Alert("Asset is Overweight, but 'Allow Sales' is disabled.", color="warning"))
                 elif abs(full_target_buy) < 0.01:
                      content.append(dbc.Alert("Asset is exactly on target.", color="success"))
