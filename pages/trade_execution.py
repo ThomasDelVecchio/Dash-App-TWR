@@ -911,8 +911,57 @@ def execute_order_callback(n_clicks, preview_data):
                 print("[POST-TRADE] Running automatic sync after order execution...")
                 sync_all()
                 print("[POST-TRADE] Sync complete.")
+                
+                # Persist updated files to Google Drive for cross-platform access
+                persist_to_drive()
+                
             except Exception as e:
                 print(f"[POST-TRADE] Sync failed (non-critical): {e}")
+        
+        def persist_to_drive():
+            """
+            Persist cashflows.csv and sample holdings.csv to Google Drive.
+            Supports both:
+            - Colab environment (Drive mounted at /content/drive/)
+            - Desktop environment (using Google Drive API via token.json)
+            """
+            import os
+            import shutil
+            
+            files_to_persist = ["cashflows.csv", "sample holdings.csv", "etrade_sync_status.json"]
+            
+            # Check if running in Colab (Drive mounted)
+            colab_drive_path = "/content/drive/MyDrive/Dash-App-TWR"
+            if os.path.exists("/content/drive/MyDrive"):
+                print("[POST-TRADE] Colab detected - persisting to mounted Drive...")
+                try:
+                    os.makedirs(colab_drive_path, exist_ok=True)
+                    for f in files_to_persist:
+                        if os.path.exists(f):
+                            shutil.copy(f, os.path.join(colab_drive_path, f))
+                            print(f"[POST-TRADE] ✅ Persisted {f} to Drive")
+                    print("[POST-TRADE] Drive persistence complete.")
+                except Exception as e:
+                    print(f"[POST-TRADE] Drive persistence failed: {e}")
+                return
+            
+            # Desktop environment - use Google Drive API
+            token_file = "token.json"
+            if os.path.exists(token_file):
+                print("[POST-TRADE] Desktop detected - uploading to Drive via API...")
+                try:
+                    from dash_wrappers import send_to_drive
+                    for f in files_to_persist:
+                        if os.path.exists(f):
+                            with open(f, "r") as fp:
+                                content = fp.read()
+                            result = send_to_drive(content, f, mimetype="text/csv")
+                            print(f"[POST-TRADE] {f}: {result}")
+                    print("[POST-TRADE] Drive API upload complete.")
+                except Exception as e:
+                    print(f"[POST-TRADE] Drive API upload failed: {e}")
+            else:
+                print("[POST-TRADE] No Drive credentials found (token.json). Skipping Drive persistence.")
         
         threading.Timer(15.0, trigger_sync).start()
         
