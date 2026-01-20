@@ -22,6 +22,7 @@ from pages import overview, performance, allocations, attribution, flows, holdin
 # E*TRADE SYNC ON STARTUP
 # ============================================================
 _ETRADE_SYNC_STATUS = None
+_LAST_REFRESHED_SYNC_TIME = None  # Track when we last refreshed for a sync
 
 def _run_etrade_sync():
     """Run E*TRADE sync if configured. Updates global status and returns it."""
@@ -249,8 +250,8 @@ app.layout = html.Div(
     [
         dcc.Location(id="url"),
         
-        # Interval for E*TRADE sync status polling (every 60 seconds)
-        dcc.Interval(id="sync-status-interval", interval=60*1000, n_intervals=0),
+        # Interval for E*TRADE sync status polling (every 30 seconds)
+        dcc.Interval(id="sync-status-interval", interval=30*1000, n_intervals=0),
         
         # Stores for Global State
         dcc.Store(id="data-signal", data=datetime.now().isoformat()),
@@ -515,15 +516,35 @@ def toggle_sidebar(n, sidebar_class, content_class):
             return sidebar_class + " hidden", content_class + " expanded"
     return sidebar_class, content_class
 
-# 5. E*TRADE Sync Badge Callback (Dynamic Update)
+# 5. E*TRADE Sync Badge Callback (Dynamic Update + Data Refresh)
 @app.callback(
-    Output("etrade-sync-badge", "children"),
-    [Input("sync-status-interval", "n_intervals"),
-     Input("data-signal", "data")]  # Also update on data refresh
+    [Output("etrade-sync-badge", "children"),
+     Output("data-signal", "data", allow_duplicate=True)],
+    [Input("sync-status-interval", "n_intervals")],
+    [State("data-signal", "data")],
+    prevent_initial_call=True
 )
-def update_sync_badge(n_intervals, data_signal):
-    """Dynamically update the E*TRADE sync status badge."""
-    return _get_sync_status_badge()
+def update_sync_badge(n_intervals, current_signal):
+    """Dynamically update the E*TRADE sync status badge and refresh data if sync changed."""
+    global _LAST_REFRESHED_SYNC_TIME
+    
+    # Reload sync status from file to detect changes from background sync
+    from etrade_sync import get_sync_status
+    current_status = get_sync_status()
+    current_sync_time = current_status.get("last_sync")
+    
+    # Check if sync occurred since our last refresh
+    if current_sync_time and current_sync_time != _LAST_REFRESHED_SYNC_TIME:
+        print(f"🔄 Detected new sync ({current_sync_time}), refreshing data cache...")
+        _LAST_REFRESHED_SYNC_TIME = current_sync_time
+        dw.refresh_data()
+        # Update global status for badge
+        global _ETRADE_SYNC_STATUS
+        _ETRADE_SYNC_STATUS = current_status
+        # Return new signal to trigger UI updates
+        return _get_sync_status_badge(), datetime.now().isoformat()
+    
+    return _get_sync_status_badge(), dash.no_update
 
 # 6. Chatbot Callbacks
 chatbot.register_callbacks(app)
