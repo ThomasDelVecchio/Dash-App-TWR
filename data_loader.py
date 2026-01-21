@@ -80,7 +80,7 @@ def save_metadata_cache():
 
 # Initialize cache on module load
 load_metadata_cache()
-load_price_cache_from_disk()
+# load_price_cache_from_disk()
 
 # ------------------------------------------------------------
 # Sector Loading Logic (FMP -> YF -> Equity)
@@ -511,15 +511,18 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
     # Include FMP flag in cache key to ensure correct invalidation when toggling modes
     key = (tuple(unique_tickers), int(years_back), use_adj_close, FMP_PRICE_ENABLED)
 
+    # SMART CACHING:
+    # If we have this exact key in memory, and it was fetched "recently" (e.g. within this session/engine run),
+    # use it to prevent the Engine and Wrappers from double-hitting the API for the same tickers in the same second.
+    # However, if 'force_refresh' is passed (implied if not in cache or if user explicitly asks - strict logic below), we fetch.
+    
+    # Simple logic: If in memory cache, assume it's fresh enough for this specific function call.
+    # The external trigger (app.py or polling) determines when to clear/reload the cache.
     if key in _PRICE_CACHE:
         # Return a copy so callers can't mutate the cached DataFrame in-place
         cached = _PRICE_CACHE[key]
         res = cached.copy()
         res.attrs = cached.attrs
-        # DEBUG: Confirm errors are attached on cache hit
-        errors = res.attrs.get('errors', [])
-        if errors:
-            print(f"DEBUG: data_loader returning CACHED prices with {len(errors)} errors.")
         return res
 
     # Calculate date boundaries
@@ -617,6 +620,12 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
         # Combine all tickers into single DataFrame
         if all_prices:
             prices = pd.DataFrame(all_prices)
+        elif key in _PRICE_CACHE:
+            print(f"[CACHE] Hybrid fetch failed. Using cached data (last successful fetch).")
+            cached = _PRICE_CACHE[key]
+            res = cached.copy()
+            res.attrs = cached.attrs
+            return res
         else:
             raise RuntimeError("Hybrid fetch returned no data. Check API keys and network.")
         
@@ -665,6 +674,12 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
                 time.sleep(wait)
         
         if raw.empty:
+            if key in _PRICE_CACHE:
+                print(f"[CACHE] yfinance fetch failed. Using cached data (last successful fetch).")
+                cached = _PRICE_CACHE[key]
+                res = cached.copy()
+                res.attrs = cached.attrs
+                return res
             # This raises error if ALL failed. 
             # If partial failed, we continue and check active_holdings logic below.
             raise RuntimeError("yfinance returned no data after 3 attempts. Check tickers or network.")
