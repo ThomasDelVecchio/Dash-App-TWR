@@ -1060,6 +1060,8 @@ def get_audit_modal_content(request_data):
     
     content = []
     content.append(html.H4(f"Audit: {ticker} ({col_id}){period_label}", className="mb-3"))
+    if date_str:
+        content.append(html.Div(date_str, className="text-muted small mb-3"))
     
     def fmt_num(n): return f"{n:,.2f}"
     
