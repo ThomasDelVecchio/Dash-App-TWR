@@ -5,6 +5,8 @@ import yfinance as yf
 import requests
 import json
 import os
+import pickle
+import time
 from config import FMP_API_KEY, FMP_PRICE_ENABLED, FMP_PRICE_LOOKBACK_YEARS
 
 # ============================================================
@@ -15,6 +17,8 @@ CASHFLOWS_FILE = "cashflows.csv"
 COMPOSITE_MAPPING_FILE = "composite_mapping.csv"
 PRICE_LOOKBACK_YEARS = 10
 METADATA_CACHE_FILE = "metadata_cache.json"
+PRICE_CACHE_FILE = "price_cache.pkl"
+PRICE_CACHE_EXPIRY_HOURS = 12
 
 # Simple in-memory cache for price history to keep horizons consistent
 _PRICE_CACHE = {}
@@ -22,6 +26,36 @@ _METADATA_CACHE = {}
 
 # Global set to track tickers we've already warned about to avoid console spam
 _REPORTED_MISSING = set()
+
+# ------------------------------------------------------------
+# Price Cache Management (Persistent)
+# ------------------------------------------------------------
+
+def load_price_cache_from_disk():
+    global _PRICE_CACHE
+    if os.path.exists(PRICE_CACHE_FILE):
+        try:
+            # Check expiry
+            modified_time = datetime.fromtimestamp(os.path.getmtime(PRICE_CACHE_FILE))
+            age = datetime.now() - modified_time
+            if age > timedelta(hours=PRICE_CACHE_EXPIRY_HOURS):
+                 print(f"[CACHE] Price cache expired ({age}). Refreshing from API...")
+                 return
+
+            with open(PRICE_CACHE_FILE, "rb") as f:
+                _PRICE_CACHE = pickle.load(f)
+            print(f"[CACHE] Loaded {len(_PRICE_CACHE)} price entries from disk.")
+        except Exception as e:
+            print(f"[CACHE] Error loading price cache: {e}")
+            _PRICE_CACHE = {}
+
+def save_price_cache_to_disk():
+    try:
+        with open(PRICE_CACHE_FILE, "wb") as f:
+            pickle.dump(_PRICE_CACHE, f)
+        # print("[CACHE] Price cache saved to disk.")
+    except Exception as e:
+        print(f"[CACHE] Error saving price cache: {e}")
 
 # ------------------------------------------------------------
 # Metadata Cache Management
@@ -45,6 +79,7 @@ def save_metadata_cache():
 
 # Initialize cache on module load
 load_metadata_cache()
+load_price_cache_from_disk()
 
 # ------------------------------------------------------------
 # Sector Loading Logic (FMP -> YF -> Equity)
@@ -609,8 +644,10 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
                     group_by="column",
                 )
                 if not raw.empty:
-                    break
-            except Exception:
+                    break as e:
+                wait = 2 ** attempt
+                print(f"[YF] Attempt {attempt+1} failed: {e}. Retrying in {wait}s...")
+                time.sleep(wait)xception:
                 pass
         
         if raw.empty:
@@ -827,6 +864,7 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
     if errors:
         print(f"DEBUG: data_loader returning {len(errors)} errors attached to prices.")
 
+    save_price_cache_to_disk()
     # Store in cache and return a copy
     _PRICE_CACHE[key] = prices
     
