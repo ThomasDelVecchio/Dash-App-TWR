@@ -350,14 +350,16 @@ def transform_etrade_transaction(tx: Dict) -> Optional[Dict]:
         
         # Special case: "Misc Trade" that moves proceeds to a cash-hold bucket
         # (not part of brokerage cash). Treat as external cash flow OUT/IN.
-        if tx_type == "Misc Trade" and "cash hold" in desc_lower:
-            return {
-                "date": date_str,
-                "ticker": "CASH",
-                "shares": 0.0,
-                "amount": float(tx.get("amount", 0) or 0),
-                "type": "FLOW"
-            }
+        # DISABLED (2026-01-21): This causes double-counting of cash outflow during settlement.
+        # We prefer to track Trade Date accounting, so we ignore these holds.
+        # if tx_type == "Misc Trade" and "cash hold" in desc_lower:
+        #     return {
+        #         "date": date_str,
+        #         "ticker": "CASH",
+        #         "shares": 0.0,
+        #         "amount": float(tx.get("amount", 0) or 0),
+        #         "type": "FLOW"
+        #     }
 
         # Map transaction type
         our_type = TRANSACTION_TYPE_MAP.get(tx_type, None)
