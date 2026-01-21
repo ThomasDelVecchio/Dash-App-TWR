@@ -142,7 +142,9 @@ def fetch_fmp_sector_weights(ticker: str) -> dict:
         return {}
         
     try:
-        url = f"https://financialmodelingprep.com/api/v3/etf-sector-weightings/{ticker}?apikey={FMP_API_KEY}"
+        # UPDATED: Use /stable/ endpoint (Jan 2026)
+        # Old: /api/v3/etf-sector-weightings/{ticker}
+        url = f"https://financialmodelingprep.com/stable/etf/sector-weightings?symbol={ticker}&apikey={FMP_API_KEY}"
         resp = requests.get(url, timeout=5)
         if resp.status_code == 200:
             data = resp.json()
@@ -150,9 +152,13 @@ def fetch_fmp_sector_weights(ticker: str) -> dict:
             weights = {}
             for item in data:
                 sector = item.get("sector", "")
-                pct_str = item.get("weightPercentage", "0").replace("%", "")
+                pct_val = item.get("weightPercentage", 0)
                 try:
-                    pct = float(pct_str)
+                    if isinstance(pct_val, str):
+                        pct = float(pct_val.replace("%", ""))
+                    else:
+                        pct = float(pct_val)
+                        
                     if sector and pct > 0:
                         weights[sector] = pct
                 except ValueError:
@@ -215,7 +221,8 @@ def fetch_fmp_price_history_single(ticker: str, start_date: str, end_date: str) 
         return pd.DataFrame()
     
     try:
-        url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?from={start_date}&to={end_date}&apikey={FMP_API_KEY}"
+        # UPDATED: Use /stable/ endpoint (Jan 2026) for non-legacy users
+        url = f"https://financialmodelingprep.com/stable/historical-price-eod/full?symbol={ticker}&from={start_date}&to={end_date}&apikey={FMP_API_KEY}"
         resp = requests.get(url, timeout=15)
         
         if resp.status_code != 200:
@@ -224,8 +231,14 @@ def fetch_fmp_price_history_single(ticker: str, start_date: str, end_date: str) 
         
         data = resp.json()
         
-        # FMP returns: {"symbol": "SPY", "historical": [{"date": "2025-01-14", "close": 123.45, ...}, ...]}
-        historical = data.get("historical", [])
+        # Handle dict response (v3) vs list response (stable)
+        if isinstance(data, dict) and "historical" in data:
+            historical = data["historical"]
+        elif isinstance(data, list):
+            historical = data
+        else:
+            historical = []
+
         if not historical:
             return pd.DataFrame()
         

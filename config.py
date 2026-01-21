@@ -77,7 +77,7 @@ def is_etrade_configured() -> bool:
 # FMP Starter Plan provides 5 years of historical data.
 # Set FMP_PRICE_ENABLED=True to use FMP for last 5 years + yfinance for older data.
 # Set FMP_PRICE_ENABLED=False to use yfinance only (free, unlimited history).
-FMP_PRICE_ENABLED = False
+FMP_PRICE_ENABLED = True
 FMP_PRICE_LOOKBACK_YEARS = 5  # FMP covers last 5 years (Starter plan limit)
 
 TARGET_PORTFOLIO_VALUE = 50000.0
