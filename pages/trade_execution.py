@@ -742,7 +742,7 @@ def preview_order_callback(n_clicks, action, ticker, quantity, order_type, durat
         
         dbc.Row([
             dbc.Col([
-                html.Div("Estimated Value", className="text-muted small"),
+                html.Div("Estimated Value (Gross)", className="text-muted small"),
                 html.Div(fmt_dollar_clean(est_value), className="fw-bold fs-5"),
             ], width=6),
             dbc.Col([
@@ -754,7 +754,7 @@ def preview_order_callback(n_clicks, action, ticker, quantity, order_type, durat
         html.Hr(),
         dbc.Row([
             dbc.Col([
-                html.Div("Estimated Total", className="text-muted small"),
+                html.Div("Estimated Total (Net of fees)", className="text-muted small"),
                 html.Div(
                     fmt_dollar_clean(est_total), 
                     className="fw-bold fs-4 text-success" if action == "SELL" else "fw-bold fs-4 text-danger"
@@ -1036,7 +1036,7 @@ def toggle_confirm_modal(execute_click, cancel_click, confirm_click, preview_dat
             dbc.Card([
                 dbc.CardBody([
                     html.H5(f"{action} {quantity} shares of {ticker}", className="mb-2"),
-                    html.P(f"Estimated Total: {fmt_dollar_clean(est_total)}", className="mb-0"),
+                    html.P(f"Estimated Total (Net of fees): {fmt_dollar_clean(est_total)}", className="mb-0"),
                 ])
             ], className="mb-3"),
         ]
