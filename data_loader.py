@@ -40,6 +40,7 @@ def load_price_cache_from_disk():
             age = datetime.now() - modified_time
             if age > timedelta(hours=PRICE_CACHE_EXPIRY_HOURS):
                  print(f"[CACHE] Price cache expired ({age}). Refreshing from API...")
+                 _PRICE_CACHE = {}
                  return
 
             with open(PRICE_CACHE_FILE, "rb") as f:
@@ -644,11 +645,11 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
                     group_by="column",
                 )
                 if not raw.empty:
-                    break as e:
+                    break
+            except Exception as e:
                 wait = 2 ** attempt
                 print(f"[YF] Attempt {attempt+1} failed: {e}. Retrying in {wait}s...")
-                time.sleep(wait)xception:
-                pass
+                time.sleep(wait)
         
         if raw.empty:
             # This raises error if ALL failed. 
@@ -864,9 +865,9 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
     if errors:
         print(f"DEBUG: data_loader returning {len(errors)} errors attached to prices.")
 
-    save_price_cache_to_disk()
     # Store in cache and return a copy
     _PRICE_CACHE[key] = prices
+    save_price_cache_to_disk()
     
     # Explicitly ensure attrs are preserved in the copy
     res = prices.copy()
