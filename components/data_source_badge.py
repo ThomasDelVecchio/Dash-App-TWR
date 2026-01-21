@@ -113,29 +113,34 @@ def create_price_source_badge(price_source_metadata, badge_id="price-source-badg
         header = "No price data available."
     
     # Build tooltip content
-    summary_lines = []
+    tooltip_elements = [html.P(header, className="mb-2 fw-bold")]
     
     if total_fmp > 0:
         fmp_start, fmp_end = fmp_range
+        range_str = ""
         if fmp_start and fmp_end:
-            summary_lines.append(f"• FMP: {total_fmp} tickers ({fmp_start.strftime('%Y-%m-%d')} to {fmp_end.strftime('%Y-%m-%d')})")
-        else:
-            summary_lines.append(f"• FMP: {total_fmp} tickers")
+            range_str = f" ({fmp_start.strftime('%Y-%m-%d')} to {fmp_end.strftime('%Y-%m-%d')})"
+        tooltip_elements.append(html.P(f"• FMP: {total_fmp} tickers{range_str}", className="mb-0 small"))
     
     if total_yf > 0:
         yf_start, yf_end = yf_range
+        range_str = ""
         if yf_start and yf_end:
-            summary_lines.append(f"• yfinance: {total_yf} tickers ({yf_start.strftime('%Y-%m-%d')} to {yf_end.strftime('%Y-%m-%d')})")
-        else:
-            summary_lines.append(f"• yfinance: {total_yf} tickers")
+            range_str = f" ({yf_start.strftime('%Y-%m-%d')} to {yf_end.strftime('%Y-%m-%d')})"
+        tooltip_elements.append(html.P(f"• yfinance: {total_yf} tickers{range_str}", className="mb-0 small"))
+        
+        # Display specific tickers for YFinance fallbacks
+        if yf_tickers:
+            tooltip_elements.append(html.P(
+                ", ".join(sorted(yf_tickers)), 
+                className="mb-0 small text-muted", 
+                style={"fontSize": "0.7rem", "marginLeft": "10px", "wordBreak": "break-word"}
+            ))
     
     if mixed_tickers:
-        summary_lines.append(f"• Stitched: {len(mixed_tickers)} tickers (FMP+YF)")
+        tooltip_elements.append(html.P(f"• Stitched: {len(mixed_tickers)} tickers (FMP+YF)", className="mb-0 small"))
     
-    tooltip_content = html.Div([
-        html.P(header, className="mb-2 fw-bold"),
-        html.Div([html.P(line, className="mb-0 small") for line in summary_lines]),
-    ], style={"textAlign": "left", "padding": "5px"})
+    tooltip_content = html.Div(tooltip_elements, style={"textAlign": "left", "padding": "5px", "maxWidth": "300px"})
     
     badge = dbc.Badge(
         [html.I(className="bi bi-database me-1"), label],
