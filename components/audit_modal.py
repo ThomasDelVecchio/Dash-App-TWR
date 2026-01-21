@@ -1144,6 +1144,7 @@ def get_audit_modal_content(request_data):
         rows.append(html.Tr([html.Td(html.Hr(className="my-1"), colSpan=2)]))
         
         cum_ret = r_cum_val * 100
+        cum_ret_class = "text-success" if cum_ret >= 0 else "text-danger"
         
         if is_annualized:
              rows.append(html.Tr([
@@ -1160,8 +1161,8 @@ def get_audit_modal_content(request_data):
              ]))
         else:
              rows.append(html.Tr([
-                 html.Td("Modified Dietz Return", className="fw-bold text-success"), 
-                 html.Td(f"{cum_ret:+.2f}%", className="text-end fw-bold text-success")
+                 html.Td("Modified Dietz Return", className=f"fw-bold {cum_ret_class}"), 
+                 html.Td(f"{cum_ret:+.2f}%", className=f"text-end fw-bold {cum_ret_class}")
              ]))
         content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '400px'}))
         

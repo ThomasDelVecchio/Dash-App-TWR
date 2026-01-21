@@ -451,7 +451,14 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
                 disabled=True
             ),
             html.Span(id="stage-selected-count", className="ms-3 text-muted small")
-        ], className="d-flex align-items-center")
+        ], className="d-flex align-items-center"),
+        html.Div(
+            html.Small(
+                "Rebalancing ‘Current %’ excludes CASH; Holdings ‘Weight’ includes CASH.",
+                className="text-muted fst-italic"
+            ),
+            className="mt-2 text-center"
+        )
     ])
     
     # Check if all actions are Hold (diagnostic message)

@@ -349,13 +349,13 @@ def transform_etrade_transaction(tx: Dict) -> Optional[Dict]:
         date_str = date_obj.strftime("%m/%d/%Y")
         
         # Special case: "Misc Trade" that moves proceeds to a cash-hold bucket
-        # (not part of brokerage cash). Treat as external cash flow OUT.
+        # (not part of brokerage cash). Treat as external cash flow OUT/IN.
         if tx_type == "Misc Trade" and "cash hold" in desc_lower:
             return {
                 "date": date_str,
                 "ticker": "CASH",
                 "shares": 0.0,
-                "amount": -abs(float(tx.get("amount", 0) or 0)),
+                "amount": float(tx.get("amount", 0) or 0),
                 "type": "FLOW"
             }
 
