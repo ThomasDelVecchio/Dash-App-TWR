@@ -22,7 +22,7 @@ from datetime import datetime
 
 # Local Imports
 import dash_wrappers as dw
-from config import ETRADE_SANDBOX, is_etrade_configured
+from config import ETRADE_SANDBOX, is_etrade_configured, TAX_RATE_ST, TAX_RATE_LT
 from tax_engine import build_tax_lots, simulate_sell
 from etrade_orders import (
     get_environment_info,
@@ -30,7 +30,8 @@ from etrade_orders import (
     place_order,
     get_order_status,
     cancel_order,
-    get_recent_orders
+    get_recent_orders,
+    fetch_position_lots
 )
 from report_formatting import fmt_dollar_clean, fmt_pct_clean
 
@@ -387,6 +388,9 @@ layout = dbc.Container([
         ])
     ], className="mt-4"),
     
+    # Store for selected ticker in Lot Picker
+    dcc.Store(id="lot-picker-ticker-store"),
+
     # Lot Picker Modal
     dbc.Modal([
         dbc.ModalHeader(dbc.ModalTitle("Select Tax Lots")),
@@ -650,8 +654,50 @@ def preview_order_callback(n_clicks, action, ticker, quantity, order_type, durat
     lot_ids = None
     if action == "SELL":
         if lot_strategy == "MANUAL" and selected_lots:
-            lot_ids = selected_lots
+            
+            # Logic: We take selected lots in order (sorted by selected order? or just list order) 
+            # and allocate 'quantity' to them.
+            
+            qty_remaining = quantity
+            mapped_lots = []
+            
+            # Sort lots? Or trust user selection order?
+            # selected_lots is usually in grid order or selection order.
+            
+            for lot in selected_lots:
+                if qty_remaining <= 0:
+                    break
+                    
+                available = float(lot.get("Shares", 0))  # AG Grid column name
+                to_sell_from_lot = min(qty_remaining, available)
+                
+                mapped_lots.append({
+                    "id": lot.get("positionLotId"),
+                    "size": to_sell_from_lot
+                })
+                
+                qty_remaining -= to_sell_from_lot
+            
+            # If we didn't satisfy full quantity, should we warn?
+            # The API will probably error if sum(lots) != quantity
+            
+            lot_ids = mapped_lots
+            
         # For FIFO/LIFO/HIFO, lot selection is handled by the API or our logic
+    
+    # Validate manual lot quantity matches order quantity
+    if lot_ids and action == "SELL":
+        total_selected = sum(float(lot.get("size", 0)) for lot in lot_ids)
+        if abs(total_selected - quantity) > 0.01:
+            return [dbc.Alert(
+                [
+                    html.I(className="bi bi-exclamation-triangle-fill me-2"),
+                    f"Mismatch: Order Quantity is {quantity}, but you selected lots totaling {total_selected:,.2f}.",
+                    html.Br(),
+                    "Please adjust Quantity or select more lots."
+                ],
+                color="danger"
+            )], None, None
     
     # Call preview API
     preview_result = preview_order(
@@ -717,6 +763,53 @@ def preview_order_callback(n_clicks, action, ticker, quantity, order_type, durat
         ], className="mb-3"),
     ]
     
+    # Show selected lots in preview (for MANUAL mode verification)
+    if lot_ids and action == "SELL":
+        preview_content.append(html.Hr())
+        preview_content.append(html.Div("Selected Tax Lots (Manual)", className="text-muted small mb-2"))
+        
+        lot_details = []
+        for i, lot in enumerate(lot_ids):
+            lot_id = lot.get("id")
+            lot_size = lot.get("size", 0)
+            
+            # Try to find the original lot data for more context
+            original_lot = None
+            if selected_lots:
+                for sl in selected_lots:
+                    if sl.get("positionLotId") == lot_id:
+                        original_lot = sl
+                        break
+            
+            if original_lot:
+                acq_date = original_lot.get("Date Acquired", "Unknown")  # AG Grid column name
+                term = original_lot.get("Term", "")  # AG Grid column name
+                cost_basis = original_lot.get("Cost Basis", 0)  # AG Grid column name
+                lot_details.append(
+                    html.Div([
+                        html.I(className="bi bi-check-circle-fill text-success me-2"),
+                        html.Span(f"{lot_size:.0f} shares from {acq_date} ({term})", className="fw-bold"),
+                        html.Span(f" — Lot ID: {lot_id}", className="text-muted small ms-2"),
+                    ], className="mb-1")
+                )
+            else:
+                lot_details.append(
+                    html.Div([
+                        html.I(className="bi bi-check-circle-fill text-success me-2"),
+                        html.Span(f"{lot_size:.0f} shares", className="fw-bold"),
+                        html.Span(f" — Lot ID: {lot_id}", className="text-muted small ms-2"),
+                    ], className="mb-1")
+                )
+        
+        preview_content.append(html.Div(lot_details))
+        preview_content.append(
+            dbc.Alert(
+                "✓ These specific lots will be sold (not FIFO default).",
+                color="success",
+                className="py-2 mt-2 mb-0"
+            )
+        )
+    
     # Add any messages from preview
     if messages:
         preview_content.append(html.Hr())
@@ -740,18 +833,42 @@ def preview_order_callback(n_clicks, action, ticker, quantity, order_type, durat
     # Build tax impact section for sells
     tax_section = None
     if action == "SELL":
-        # Use global tax strategy if not manual
-        strategy = global_tax_strategy or "FIFO"
-        if lot_strategy != "MANUAL":
-            strategy = lot_strategy
-        
-        # Get tax simulation
-        try:
-            tax_result = simulate_sell(ticker, quantity, strategy=strategy)
-            if tax_result:
-                tax_section = build_tax_impact_card(tax_result, ticker, quantity)
-        except Exception as e:
-            print(f"Tax simulation error: {e}")
+        if lot_strategy == "MANUAL" and lot_ids:
+            # Construct manual lot impact from selected lot details
+            manual_lots_info = []
+            for l_alloc in lot_ids:
+                l_id = l_alloc.get("id")
+                l_size = l_alloc.get("size")
+                # find in selected_lots
+                match = next((s for s in selected_lots if str(s.get("positionLotId")) == str(l_id)), None)
+                if match:
+                    # Calculate per-share basis from the original lot totals
+                    orig_shares = float(match.get("Shares", 0))
+                    orig_cost = float(match.get("Cost Basis", 0))
+                    per_share_basis = orig_cost / orig_shares if orig_shares > 0 else 0
+                    
+                    manual_lots_info.append({
+                        "size": l_size,
+                        "per_share_basis": per_share_basis,
+                        "term": match.get("Term", "Unknown"),
+                        "acq_date": match.get("Date Acquired", "Unknown")
+                    })
+            
+            tax_section = build_manual_lot_impact_card(manual_lots_info, est_total)
+            
+        else:
+            # Use global tax strategy if not manual
+            strategy = global_tax_strategy or "FIFO"
+            if lot_strategy != "MANUAL" and lot_strategy:
+                strategy = lot_strategy
+            
+            # Get tax simulation
+            try:
+                tax_result = simulate_sell(ticker, quantity, strategy=strategy)
+                if tax_result:
+                    tax_section = build_tax_impact_card(tax_result, ticker, quantity)
+            except Exception as e:
+                print(f"Tax simulation error: {e}")
     
     # Store preview data for execution
     preview_data = {
@@ -809,6 +926,77 @@ def build_tax_impact_card(tax_result, ticker, quantity):
                     ) for lot in breakdown[:5]  # Show max 5 lots
                 ])
             ]) if breakdown else None
+        ])
+    ], className="mt-3")
+
+    
+def build_manual_lot_impact_card(lots, estimated_total):
+    """Build tax impact summary for MANUAL lot selection."""
+    if not lots: return None
+    
+    total_gain = 0
+    st_gain = 0  # Short-term gains (taxed at higher rate)
+    lt_gain = 0  # Long-term gains (taxed at lower rate)
+    est_total_val = abs(estimated_total) if estimated_total else 0
+    total_shares_to_sell = sum(lot.get("size", 0) for lot in lots)
+    
+    # Infer execution price per share
+    est_price = est_total_val / total_shares_to_sell if total_shares_to_sell > 0 else 0
+    
+    breakdown_display = []
+    
+    for lot_info in lots:
+        sold_shares = lot_info.get("size", 0)
+        per_share_basis = lot_info.get("per_share_basis", 0)
+        
+        # Calculate cost of sold portion
+        cost_of_sold = sold_shares * per_share_basis
+        proceeds = sold_shares * est_price
+        gain = proceeds - cost_of_sold
+        total_gain += gain
+        
+        # Track gains by term for proper tax calculation
+        term = lot_info.get('term', 'Short-Term')
+        if term == 'Long-Term':
+            lt_gain += max(0, gain)
+        else:
+            st_gain += max(0, gain)
+        
+        breakdown_display.append(
+            html.Div(
+                f"{sold_shares:.0f} shares from {lot_info.get('acq_date')} @ ${per_share_basis:.2f} → "
+                f"{lot_info.get('term')} ({fmt_dollar_clean(gain)})",
+                className="small"
+            )
+        )
+        
+    gain_color = "text-success" if total_gain >= 0 else "text-danger"
+    
+    # Apply correct tax rates by term (GIPS-compliant)
+    est_tax = (st_gain * TAX_RATE_ST) + (lt_gain * TAX_RATE_LT) 
+    
+    return dbc.Card([
+        dbc.CardHeader([
+            html.I(className="bi bi-bank me-2"),
+            "Estimated Tax Impact (Manual Lots)"
+        ]),
+        dbc.CardBody([
+            dbc.Row([
+                dbc.Col([
+                    html.Div("Total Gain/Loss", className="text-muted small"),
+                    html.Div(fmt_dollar_clean(total_gain), className=f"fw-bold fs-5 {gain_color}"),
+                ], width=6),
+                dbc.Col([
+                    html.Div("Est. Tax Impact", className="text-muted small"),
+                    html.Div(f"~{fmt_dollar_clean(est_tax)}", className="fw-bold fs-5"),
+                ], width=6),
+            ], className="mb-3"),
+            
+            html.Div([
+                html.Hr(),
+                html.Div("Selected Lot Breakdown", className="text-muted small mb-2"),
+                html.Div(breakdown_display)
+            ])
         ])
     ], className="mt-3")
 
@@ -1067,7 +1255,9 @@ def load_recent_orders(n_clicks, pathname):
 # 8. Lot Picker Modal
 @callback(
     [Output("lot-picker-modal", "is_open"),
-     Output("lot-picker-grid-container", "children")],
+     Output("lot-picker-grid-container", "children"),
+     Output("lot-picker-ticker-store", "data"),
+     Output("btn-lot-picker-confirm", "disabled")],
     [Input("btn-open-lot-picker", "n_clicks"),
      Input("btn-lot-picker-cancel", "n_clicks"),
      Input("btn-lot-picker-confirm", "n_clicks")],
@@ -1077,63 +1267,115 @@ def load_recent_orders(n_clicks, pathname):
 def toggle_lot_picker(open_click, cancel_click, confirm_click, ticker, is_open):
     ctx = callback_context
     if not ctx.triggered:
-        return False, []
+        return False, [], None, False
     
     triggered_id = ctx.triggered_id
     
     if triggered_id == "btn-open-lot-picker" and ticker:
-        # Build lot picker grid
+        # Build lot picker grid using LIVE E*TRADE DATA
         try:
-            lots_df, _ = build_tax_lots(strategy="FIFO")  # Unpack tuple (open_lots, realized)
-            ticker_lots = lots_df[lots_df["Ticker"] == ticker].copy()
+            # Clean ticker
+            ticker = ticker.strip().upper()
+            lots = fetch_position_lots(ticker)
             
-            if ticker_lots.empty:
-                return True, [html.P("No tax lots found for this ticker.", className="text-muted")]
+            if not lots:
+                # If no lots found, check if it's an error or just empty
+                msg = html.Div([
+                    html.I(className="bi bi-exclamation-triangle text-warning display-4 mb-3"),
+                    html.H5("No Tax Lots Found"),
+                    html.P([
+                        f"Could not retrieve cost basis details for {ticker}. ",
+                        html.Br(),
+                        "This may happen if:",
+                        html.Ul([
+                            html.Li("The position was just acquired today"),
+                            html.Li("The E*TRADE API is currently unavailable"),
+                            html.Li("The position is held in a non-brokerage account")
+                        ]),
+                        "You can still place the order, but it will use the default FIFO method."
+                    ], className="text-muted")
+                ], className="text-center py-5")
+                
+                return True, msg, ticker, True # Disable confirm button
             
-            # Normalize display formats
-            ticker_lots["Select"] = False
-
-            if "Date Acquired" in ticker_lots.columns:
-                ticker_lots["Date Acquired"] = pd.to_datetime(
-                    ticker_lots["Date Acquired"], errors="coerce"
-                ).dt.strftime("%m/%d/%Y")
-
-            for col in ["Cost Basis", "Market Value", "Unrealized P/L"]:
-                if col in ticker_lots.columns:
-                    ticker_lots[col] = pd.to_numeric(ticker_lots[col], errors="coerce").round(2)
+            # Format lots for AG Grid
+            grid_data = []
+            for lot in lots:
+                # Convert epoch date to string
+                acq_date = datetime.fromtimestamp(lot.get("acquiredDate", 0) / 1000).strftime("%m/%d/%Y")
+                
+                # Check for wash sale
+                is_wash = lot.get("shortType", 0) == 1
+                date_display = f"{acq_date} ⚠️" if is_wash else acq_date
+                
+                item = {
+                    "Date Acquired": date_display,
+                    "Shares": lot.get("remainingQty", 0),
+                    "Cost Basis": lot.get("pricePaid", 0), # Total cost for remaining shares
+                    "Current Price": lot.get("marketValue", 0) / lot.get("remainingQty", 1) if lot.get("remainingQty", 0) > 0 else 0,
+                    "Gain/Loss": float(lot.get("marketValue", 0)) - float(lot.get("pricePaid", 0)),
+                    "Term": "Short" if lot.get("termCode") == 1 else "Long",
+                    "positionLotId": lot.get("positionLotId"), # HIDDEN KEY
+                    "Select": False
+                }
+                grid_data.append(item)
             
             column_defs = [
-                {"field": "Select", "headerName": "", "checkboxSelection": True, "headerCheckboxSelection": True, "width": 50, "maxWidth": 50, "pinned": "left", "suppressMenu": True, "suppressMovable": True, "lockPosition": True},
-                {"field": "Date Acquired", "minWidth": 120, "flex": 1},
-                {"field": "Shares", "minWidth": 80, "flex": 1, "type": "numericColumn"},
-                {"field": "Cost Basis", "minWidth": 110, "flex": 1, "valueFormatter": {"function": "'$' + value.toFixed(2)"}},
-                {"field": "Market Value", "headerName": "Current Value", "minWidth": 110, "flex": 1, "valueFormatter": {"function": "'$' + value.toFixed(2)"}},
-                {"field": "Unrealized P/L", "minWidth": 110, "flex": 1,
-                 "valueFormatter": {"function": "'$' + value.toFixed(2)"},
-                 "cellStyle": {"function": "params.value >= 0 ? {'color': '#28a745'} : {'color': '#dc3545'}"}},
-                {"field": "Term", "minWidth": 100, "flex": 1},
+                {
+                    "field": "Select", "headerName": "", 
+                    "checkboxSelection": True, "headerCheckboxSelection": True, 
+                    "width": 50, "maxWidth": 50, "pinned": "left", 
+                    "suppressMenu": True, "suppressMovable": True, "lockPosition": True
+                },
+                {"field": "Date Acquired", "minWidth": 140, "flex": 1},
+                {"field": "Shares", "minWidth": 90, "flex": 1, "type": "numericColumn"},
+                {
+                    "field": "Cost Basis", "headerName": "Total Cost", 
+                    "minWidth": 110, "flex": 1, 
+                    "valueFormatter": {"function": "'$' + (value ? value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00')"}
+                },
+                {
+                    "field": "Current Price", "headerName": "Price", 
+                    "minWidth": 90, "flex": 1, 
+                    "valueFormatter": {"function": "'$' + (value ? value.toFixed(2) : '0.00')"}
+                },
+                {
+                    "field": "Gain/Loss", "minWidth": 110, "flex": 1,
+                    "valueFormatter": {"function": "(value > 0 ? '+' : '') + '$' + (value ? value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00')"},
+                    "cellStyle": {"function": "params.value >= 0 ? {'color': '#28a745'} : {'color': '#dc3545'}"}
+                },
+                {"field": "Term", "minWidth": 90, "flex": 1},
+                # HIDDEN ID COLUMN
+                {"field": "positionLotId", "hide": True}
             ]
             
             grid = dag.AgGrid(
                 id="lot-picker-grid",
-                rowData=ticker_lots.to_dict("records"),
+                rowData=grid_data,
                 columnDefs=column_defs,
                 defaultColDef={"sortable": True, "filter": True, "resizable": True},
                 dashGridOptions={"rowSelection": "multiple", "suppressRowClickSelection": True},
                 style={"height": "60vh", "width": "100%"}
             )
             
-            return True, [grid]
+            return True, [grid], ticker, False
             
         except Exception as e:
-            return True, [html.P(f"Error loading lots: {e}", className="text-danger")]
+            err_msg = html.Div([
+                html.I(className="bi bi-x-circle text-danger display-4 mb-3"),
+                html.H5("Error Loading Lots"),
+                html.P(str(e), className="text-danger"),
+                html.P("Please check your connection and try again.", className="text-muted")
+            ], className="text-center py-5")
+            return True, err_msg, ticker, True
     
-    return False, []
+    return False, [], None, False
 
 
 # 8b. Save selected lots when Confirm is clicked
 @callback(
-    Output("selected-lots-store", "data"),
+    [Output("selected-lots-store", "data"),
+     Output("lot-picker-modal", "is_open", allow_duplicate=True)], # Close modal on confirm
     Input("btn-lot-picker-confirm", "n_clicks"),
     State("lot-picker-grid", "selectedRows"),
     prevent_initial_call=True
@@ -1141,13 +1383,13 @@ def toggle_lot_picker(open_click, cancel_click, confirm_click, ticker, is_open):
 def save_selected_lots(n_clicks, selected_rows):
     """Save manually selected tax lots to the store."""
     if not n_clicks:
-        return dash.no_update
+        return dash.no_update, dash.no_update
     
     if not selected_rows:
-        return []
+        return [], False
     
     # Return the selected lot records
-    return selected_rows
+    return selected_rows, False
 
 
 # 8c. Update lot picker summary as user selects rows

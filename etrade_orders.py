@@ -177,22 +177,57 @@ def fetch_position_lots(ticker: str) -> List[Dict]:
                     continue
                 
                 # Extract lots from PositionLot array
-                pos_lots = position.get("PositionLot", [])
+                # E*TRADE API requires a second call to the lotsDetails URL
+                # The portfolio response contains a URL, not inline lot data
+                lots_url = position.get("lotsDetails")
+                
+                if not lots_url:
+                    print(f"[fetch_position_lots] No lotsDetails URL for {ticker}")
+                    return []
+                
+                # Fetch the actual lot data from the lotsDetails URL
+                print(f"[fetch_position_lots] Fetching lots from: {lots_url}")
+                lots_response = session.get(
+                    lots_url,
+                    headers={"Accept": "application/json"},
+                    timeout=(10, 30)
+                )
+                
+                if lots_response.status_code != 200:
+                    print(f"[fetch_position_lots] Lots API returned {lots_response.status_code}")
+                    return []
+                
+                lots_data = lots_response.json()
+                pos_lots = lots_data.get("PositionLotsResponse", {}).get("PositionLot", [])
+                
                 if isinstance(pos_lots, dict):
                     pos_lots = [pos_lots]
                 
+                print(f"[fetch_position_lots] Found {len(pos_lots)} lot(s) for {ticker}")
+                
                 for lot in pos_lots:
+                    # Robust field extraction
+                    price = float(lot.get("price", 0))
+                    qty = float(lot.get("remainingQty", 0))
+                    price_paid = float(lot.get("pricePaid", 0))
+                    
+                    # Fallback for Total Cost if API returns 0
+                    if price_paid == 0 and price > 0 and qty > 0:
+                        price_paid = price * qty
+                        
                     lot_data = {
                         "positionLotId": lot.get("positionLotId"),
                         "acquiredDate": lot.get("acquiredDate"),
                         "originalQty": float(lot.get("originalQty", 0)),
-                        "remainingQty": float(lot.get("remainingQty", 0)),
-                        "price": float(lot.get("price", 0)),
+                        "remainingQty": qty,
+                        "price": price,
                         "marketValue": float(lot.get("marketValue", 0)),
-                        "pricePaid": float(lot.get("pricePaid", 0)),
+                        "pricePaid": price_paid,
                         "termCode": lot.get("termCode", 0),
                         "daysGain": float(lot.get("daysGain", 0)),
                         "daysGainPct": float(lot.get("daysGainPct", 0)),
+                        "totalGain": float(lot.get("totalGain", 0)),
+                        "totalGainPct": float(lot.get("totalGainPct", 0)),
                         "shortType": lot.get("shortType", 0),  # 0=Normal, 1=Wash Sale
                     }
                     
@@ -278,8 +313,8 @@ def _build_preview_payload(
                     "priceType": price_type.upper(),
                     "orderTerm": order_term.upper(),
                     "marketSession": "REGULAR",
-                    "stopPrice": str(stop_price) if stop_price is not None else "",
-                    "limitPrice": str(limit_price) if limit_price is not None else "",
+                    "stopPrice": f"{stop_price:.2f}" if stop_price is not None else "",
+                    "limitPrice": f"{limit_price:.2f}" if limit_price is not None else "",
                     "Instrument": [instrument]
                 }
             ]
@@ -340,8 +375,8 @@ def _build_place_payload(
                     "priceType": price_type.upper(),
                     "orderTerm": order_term.upper(),
                     "marketSession": "REGULAR",
-                    "stopPrice": str(stop_price) if stop_price is not None else "",
-                    "limitPrice": str(limit_price) if limit_price is not None else "",
+                    "stopPrice": f"{stop_price:.2f}" if stop_price is not None else "",
+                    "limitPrice": f"{limit_price:.2f}" if limit_price is not None else "",
                     "Instrument": [instrument]
                 }
             ]
@@ -478,10 +513,21 @@ def _parse_preview_response(response_text: str, content_type: str = "json") -> D
             if not isinstance(msg_list, list):
                 msg_list = [msg_list]
             for msg in msg_list:
+                msg_text = ""
                 if isinstance(msg, dict):
-                    result["messages"].append(msg.get("description", str(msg)))
+                    msg_text = msg.get("description", str(msg))
                 else:
-                    result["messages"].append(str(msg))
+                    msg_text = str(msg)
+                
+                # Strip status code prefix (e.g., "200|Your order...")
+                if "|" in msg_text:
+                    parts = msg_text.split("|", 1)
+                    # specific heuristic: if left side is digits, remove it
+                    # Also strip whitespace to handle " 200 " etc
+                    if parts[0].strip().isdigit():
+                        msg_text = parts[1]
+                
+                result["messages"].append(msg_text)
             
             return result
         except json.JSONDecodeError:
@@ -627,9 +673,28 @@ def preview_order(
             if isinstance(msg_list, dict):
                 msg_list = [msg_list]
             for msg in msg_list:
+                msg_text = ""
                 if isinstance(msg, dict):
-                    messages.append(msg.get("description", ""))
+                    msg_text = msg.get("description", "")
+                else:
+                    msg_text = str(msg)
+                
+                # Strip status code prefix (e.g., "200|Your order...")
+                if "|" in msg_text:
+                    parts = msg_text.split("|", 1)
+                    # specific heuristic: if left side is digits, remove it
+                    if parts[0].strip().isdigit():
+                        msg_text = parts[1]
+                
+                if msg_text:
+                    messages.append(msg_text)
         
+        est_commission = float(order_info.get("estimatedCommission", 0) or 0)
+        est_total = float(order_info.get("estimatedTotalAmount", 0) or 0)
+        est_value = float(order_info.get("estimatedOrderValue", 0) or 0)
+        if (not est_value) and est_total:
+            est_value = max(abs(est_total) - est_commission, 0.0)
+
         return {
             "success": True,
             "preview_id": preview_id,
@@ -641,9 +706,9 @@ def preview_order(
             "limit_price": limit_price,
             "stop_price": stop_price,
             "order_term": order_term.upper(),
-            "estimated_value": float(order_info.get("estimatedOrderValue", 0) or 0),
-            "estimated_commission": float(order_info.get("estimatedCommission", 0) or 0),
-            "estimated_total": float(order_info.get("estimatedTotalAmount", 0) or 0),
+            "estimated_value": est_value,
+            "estimated_commission": est_commission,
+            "estimated_total": est_total,
             "messages": messages,
             "account": account_num,
             "environment": "SANDBOX" if ETRADE_SANDBOX else "PRODUCTION"

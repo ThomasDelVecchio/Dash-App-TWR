@@ -281,16 +281,30 @@ def build_tax_lots(strategy="FIFO", signal=None, as_of_date=None):
         # Fetch current prices
         unique_tickers = open_lots_df["Ticker"].unique().tolist()
         try:
+            # FIX: Ensure we fetch price history AND allow fallback to current if history ends yesterday
             prices = fetch_price_history(unique_tickers)
+            
             if as_of_date:
                 cutoff = pd.Timestamp(as_of_date)
                 # Find last price on or before cutoff
                 prices_hist = prices[prices.index <= cutoff]
-                latest_prices = prices_hist.iloc[-1] if not prices_hist.empty else pd.Series(dtype=float)
+                if not prices_hist.empty:
+                    latest_prices = prices_hist.iloc[-1]
+                else:
+                    latest_prices = pd.Series(dtype=float)
             else:
-                latest_prices = prices.iloc[-1]
+                if not prices.empty:
+                    latest_prices = prices.iloc[-1]
+                else:
+                    latest_prices = pd.Series(dtype=float)
+                    
         except Exception:
             latest_prices = pd.Series(dtype=float)
+            
+        # FIX: Manual Override for known tickers if yfinance returns 0 or NaN
+        # Sometimes yfinance history is slightly delayed vs real-time quote
+        # We can try to fetch a "live" quote if price is missing, or just rely on history logic
+        # For now, we will add a check inside `get_market_metrics` to handle 0 price gracefully
             
         def get_market_metrics(row):
             ticker = row["Ticker"]
@@ -300,7 +314,12 @@ def build_tax_lots(strategy="FIFO", signal=None, as_of_date=None):
             
             curr_price = 0.0
             if ticker in latest_prices:
-                curr_price = float(latest_prices[ticker])
+                val = latest_prices[ticker]
+                if pd.notna(val):
+                    curr_price = float(val)
+            
+            # Fallback: if price is 0, we can't calc market value.
+            # Just keep as 0 rather than crashing or inventing data.
             
             mkt_val = shares * curr_price
             unrealized_pl = mkt_val - cost
@@ -342,6 +361,9 @@ def simulate_sell(ticker, shares_to_sell, strategy="FIFO"):
 
     open_lots_df, _ = build_tax_lots(strategy=strategy) # Rebuild to get fresh state using strategy
     
+    # Load raw transactions for wash sale detection
+    raw_tx = load_transactions_raw()
+    
     if open_lots_df.empty or ticker not in open_lots_df["Ticker"].values:
         return {"summary_text": f"No open lots found for {ticker}.", "total_gain": 0, "est_tax": 0, "breakdown": []}
         
@@ -368,7 +390,33 @@ def simulate_sell(ticker, shares_to_sell, strategy="FIFO"):
     
     # Check for Wash Sale Risk (Recent Buy)
     # Check raw tx for buys in last 30 days
-    raw_tx = load_transactions_raw()
+    # FIX: Handle cases where no lots have a valid price (e.g. newly added ticker with no history)
+    if "Current Price" in lots_df.columns:
+        curr_price_series = lots_df["Current Price"]
+        # Take max price found (assume if one lot has 0, others might have it)
+        # Or just take the first non-zero?
+        valid_prices = curr_price_series[curr_price_series > 0]
+        if not valid_prices.empty:
+            curr_price = float(valid_prices.iloc[0])
+        else:
+            # Fallback: Can't simulate P/L without a price.
+            # Try fetch explicitly one last time? Or return error?
+            try:
+                fresh = fetch_price_history([ticker])
+                if not fresh.empty and ticker in fresh.columns:
+                    possible_price = float(fresh[ticker].iloc[-1])
+                    if possible_price > 0:
+                        curr_price = possible_price
+                    else:
+                        return {"summary_text": f"Error: No market price available for {ticker}. Cannot simulate trade.", "total_gain": 0, "est_tax": 0, "breakdown": []}
+                else:
+                    return {"summary_text": f"Error: No market price available for {ticker}. Cannot simulate trade.", "total_gain": 0, "est_tax": 0, "breakdown": []}
+            except:
+                return {"summary_text": f"Error: No market price available for {ticker}. Cannot simulate trade.", "total_gain": 0, "est_tax": 0, "breakdown": []}
+    else:
+        # Should not happen if build_tax_lots works
+        return {"summary_text": f"Error: Asset data incomplete for {ticker}.", "total_gain": 0, "est_tax": 0, "breakdown": []}
+    
     if not raw_tx.empty:
         raw_tx["ticker"] = raw_tx["ticker"].apply(normalize_ticker)
         recent_buys = raw_tx[
@@ -387,7 +435,13 @@ def simulate_sell(ticker, shares_to_sell, strategy="FIFO"):
     total_st_gain = 0.0
     total_lt_gain = 0.0
     
-    curr_price = lots_df.iloc[0]["Current Price"]
+    if curr_price <= 0:
+        return {
+            "summary_text": f"Error: No market price available for {ticker}. Cannot simulate trade.",
+            "total_gain": 0,
+            "est_tax": 0,
+            "breakdown": []
+        }
     summary_parts = []
     
     for _, lot in lots_df.iterrows():
@@ -404,10 +458,11 @@ def simulate_sell(ticker, shares_to_sell, strategy="FIFO"):
         gain = proceeds - cost
         
         impact_records.append({
-            "Date": date_str,
-            "Shares": sold,
-            "Term": term,
-            "Gain": gain
+            "date": date_str,
+            "shares": sold,
+            "term": term,
+            "gain": gain,
+            "cost_basis": lot["Cost Per Share"]
         })
         
         if sold == available:
@@ -420,10 +475,24 @@ def simulate_sell(ticker, shares_to_sell, strategy="FIFO"):
         
         remaining_to_sell -= sold
             
-    # Calculate Tax
-    tax_st = max(0, total_st_gain) * TAX_RATE_ST
-    tax_lt = max(0, total_lt_gain) * TAX_RATE_LT
-    total_tax = tax_st + tax_lt
+    # Calculate Tax with IRS Cross-Netting Rules (Schedule D)
+    net_st = total_st_gain
+    net_lt = total_lt_gain
+    total_tax = 0.0
+    
+    if net_st >= 0 and net_lt >= 0:
+        total_tax = (net_st * TAX_RATE_ST) + (net_lt * TAX_RATE_LT)
+    elif net_st <= 0 and net_lt <= 0:
+        total_tax = 0.0
+    else:
+        net_total = net_st + net_lt
+        if net_total <= 0:
+            total_tax = 0.0
+        else:
+            if net_st > 0:
+                total_tax = net_total * TAX_RATE_ST
+            else:
+                total_tax = net_total * TAX_RATE_LT
     
     # Narrative
     action_text = f"Selling {shares_to_sell} shares will " + " and ".join(summary_parts) + "."
@@ -561,8 +630,25 @@ def calculate_tax_optimized_sales(candidates, avoid_st_gains=True, strategy="FIF
             lot_value = lot["Market Value"]
             lot_shares = lot["Shares"]
             
+            # Robust price check to prevent div/0
+            if curr_price <= 0:
+                # Attempt to derive from lot data
+                if lot_shares > 0:
+                    effective_price = lot_value / lot_shares
+                else:
+                    effective_price = 0
+                
+                if effective_price > 0:
+                    sell_price = effective_price
+                else:
+                    # Last resort: use cost basis (assumes flat) or 1.0 just to process volume
+                    # This happens if market data is completely missing
+                    sell_price = lot["Cost Per Share"] if lot["Cost Per Share"] > 0 else 1.0
+            else:
+                sell_price = curr_price
+            
             sell_value = min(lot_value, remaining_target_usd)
-            sell_shares = sell_value / curr_price
+            sell_shares = sell_value / sell_price
             
             # Record Sale
             cost_basis_sold = sell_shares * lot["Cost Per Share"]
