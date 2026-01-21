@@ -280,32 +280,41 @@ def update_trade_lab(n_clicks, ticker, side, amount, swap_target):
             x=years, 
             y=sim_data["percentiles"]["50"],
             mode="lines",
-            name=f"{name} Median",
-            line=dict(color=color_line, width=2)
+            name=f"{name} Med",
+            line=dict(color=color_line, width=2),
+            hovertemplate=f"<b>{name} Median</b><br>Value %{{y:$,.0f}}<extra></extra>"
         ))
         # Cone (10th-90th)
+        # Note: Hover on the cone usually snaps to the boundary lines
         fig.add_trace(go.Scatter(
             x=years + years[::-1],
             y=sim_data["percentiles"]["90"] + sim_data["percentiles"]["10"][::-1],
             fill='toself',
             fillcolor=color_fill,
             line=dict(color='rgba(255,255,255,0)'),
-            name=f"{name} 90% Conf.",
-            showlegend=True
+            name=f"{name} 10–90%",
+            showlegend=True,
+            hovertemplate=f"<b>{name} 10–90% Band</b><br>Value %{{y:$,.0f}}<extra></extra>"
         ))
 
-    # Current (Blue)
-    add_sim_traces(sim_current, "Current", GLOBAL_PALETTE[0], dw._hex_to_rgba(GLOBAL_PALETTE[0], 0.2))
+    # Define Professional Palette (Blue vs Orange)
+    # SIM_COLORS = ["#2979FF", "#FF9100"] 
+    # Use GLOBAL_PALETTE for consistency (Steel Blue vs Muted Red)
+    SIM_COLORS = [GLOBAL_PALETTE[0], GLOBAL_PALETTE[2]]
+
+    # Current (Steel Blue)
+    add_sim_traces(sim_current, "Current", SIM_COLORS[0], dw._hex_to_rgba(SIM_COLORS[0], 0.2))
     
-    # New (Orange/Gold)
-    add_sim_traces(sim_new, "Hypothetical", GLOBAL_PALETTE[10], dw._hex_to_rgba(GLOBAL_PALETTE[10], 0.2))
+    # New (Muted Red)
+    add_sim_traces(sim_new, "Hypothetical", SIM_COLORS[1], dw._hex_to_rgba(SIM_COLORS[1], 0.2))
     
     fig.update_layout(
         title="Projected Portfolio Value (10 Years)",
         xaxis_title="Years",
         yaxis_title="Portfolio Value ($)",
         template="plotly_dark",
-        hovermode="x unified"
+        hovermode="x unified",
+        xaxis=dict(hoverformat=".1f")
     )
     
     # Stats Text - Helper

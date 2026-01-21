@@ -404,6 +404,7 @@ def run_engine(end_date=None):
             sec_table.loc[cash_mask, f"meta_{h}_is_annualized"] = is_annualized(start_h, effective_as_of)
             sec_table.loc[cash_mask, f"meta_{h}_days"] = (effective_as_of - start_h).days
             sec_table.loc[cash_mask, f"meta_{h}_end_date"] = effective_as_of
+            sec_table.loc[cash_mask, f"meta_{h}_start_date"] = start_h
 
     # ------ Asset-class MD (Unified Loop for ALL Horizons + SI) ------
     
@@ -462,6 +463,7 @@ def run_engine(end_date=None):
                 
                 row[f"meta_{h}_is_annualized"] = is_annualized(start_h, effective_as_of)
                 row[f"meta_{h}_days"] = (effective_as_of - start_h).days
+                row[f"meta_{h}_start_date"] = start_h
                 row[f"meta_{h}_end_date"] = effective_as_of
         else:
             # Pre-calculate asset class inception for gating logic
