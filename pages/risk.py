@@ -369,7 +369,7 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal):
             'threshold': {'line': {'color': GLOBAL_PALETTE[2], 'width': 4}, 'thickness': 0.75, 'value': current_return}
         }
     ))
-    return_gauge.update_layout(template=template, height=375, margin=dict(l=20, r=20, t=50, b=20))
+    return_gauge.update_layout(template=template, height=300, margin=dict(l=20, r=20, t=50, b=20))
     
     vol_gauge = go.Figure(go.Indicator(
         mode="gauge+number+delta",
@@ -388,7 +388,7 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal):
             'threshold': {'line': {'color': GLOBAL_PALETTE[2], 'width': 4}, 'thickness': 0.75, 'value': current_vol}
         }
     ))
-    vol_gauge.update_layout(template=template, height=375, margin=dict(l=20, r=20, t=50, b=20))
+    vol_gauge.update_layout(template=template, height=300, margin=dict(l=20, r=20, t=50, b=20))
     
     return return_gauge, vol_gauge, total_display, labels
 

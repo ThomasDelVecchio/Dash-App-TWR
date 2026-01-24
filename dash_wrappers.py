@@ -1056,7 +1056,7 @@ def get_correlation_heatmap(data, theme="light"):
         # title="90-Day Rolling Correlation (Top Holdings)", # Removed to avoid duplicate title in UI
         template="plotly_dark",
         margin=dict(l=20, r=20, t=10, b=40), # Reduced margins to maximize chart area
-        height=625
+        height=500
     )
     return fig
 
@@ -1277,7 +1277,7 @@ def get_pv_mountain_chart(data, theme="light"):
         template="plotly_dark",
         margin=dict(l=40, r=20, t=40, b=40),
         hovermode="x unified",
-        height=535
+        height=428
     )
     return fig
 
@@ -1389,7 +1389,7 @@ def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, t
         margin=dict(l=40, r=20, t=40, b=40),
         hovermode="x unified",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        height=563
+        height=450
     )
     return fig
 
@@ -1446,7 +1446,7 @@ def get_asset_allocation_charts(data, theme="light"):
         
         template="plotly_dark",
         margin=dict(l=20, r=20, t=40, b=20),
-        height=563,
+        height=450,
         legend=dict(
             orientation="v",
             yanchor="top",
@@ -1483,7 +1483,7 @@ def get_asset_allocation_charts(data, theme="light"):
         yaxis_title="Percentage (%)",
         template="plotly_dark",
         margin=dict(l=40, r=20, t=40, b=40),
-        height=563
+        height=450
     )
     
     return pie_fig, bar_fig
@@ -1551,7 +1551,7 @@ def get_asset_drilldown_chart(data, asset_class, theme="light"):
         title=dict(text=f"{full_name}", x=0.5,y=0.5, xanchor='center', yanchor='middle', font=dict(size=14, color='white')),
         template="plotly_dark",
         margin=dict(l=20, r=20, t=40, b=20),
-        height=563,
+        height=450,
         legend=dict(
             orientation="v",
             yanchor="top",
@@ -1586,7 +1586,7 @@ def get_sector_allocation_chart(data, theme="light"):
         xaxis_title="Exposure (%)",
         template="plotly_dark",
         margin=dict(l=20, r=20, t=40, b=20),
-        height=563
+        height=450
     )
     return fig
 
@@ -1673,7 +1673,7 @@ def get_allocation_history_chart(data, theme="light"):
         template="plotly_dark",
         margin=dict(l=40, r=20, t=40, b=40),
         hovermode="x unified",
-        height=563,
+        height=450,
         legend=dict(
             orientation="h",
             yanchor="top",
@@ -1880,15 +1880,19 @@ def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="lig
 
     # Set vars for plotting
     period = 'M' if freq == 'ME' else 'D'
-    x_labels = mkt_agg.index.strftime(fmt)
-    custom_data = [{'period': p_label, 'date': label} for label in x_labels]
+    # Use actual datetimes for X to allow intelligent sampling (no cramming)
+    # Plotly will default to Date axis which handles auto-spacing/hiding
+    x_values = mkt_agg.index
+    # Keep string representation for customdata/tooltip 
+    x_labels_fmt = mkt_agg.index.strftime(fmt)
+    custom_data = [{'period': p_label, 'date': label} for label in x_labels_fmt]
 
 
     fig = go.Figure()
 
     # External Flows Bar
     fig.add_trace(go.Bar(
-        x=x_labels,
+        x=x_values,
         y=ext_agg,
         name="External Flows",
         marker_color=GLOBAL_PALETTE[1],
@@ -1897,7 +1901,7 @@ def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="lig
 
     # Market Effect Bar
     fig.add_trace(go.Bar(
-        x=x_labels,
+        x=x_values,
         y=mkt_agg,
         name="Market Effect",
         marker_color=GLOBAL_PALETTE[0],
@@ -1912,7 +1916,7 @@ def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="lig
     cum = mkt_agg.cumsum()
     
     fig.add_trace(go.Scatter(
-        x=x_labels,
+        x=x_values,
         y=cum.values,
         mode='lines+markers',
         name="Cumulative ΔPV",
@@ -1936,10 +1940,15 @@ def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="lig
         barmode='relative',
         template="plotly_dark",
         margin=dict(l=40, r=40, t=80, b=40), # Increased top margin (t) to 80
-        height=563,
+        height=450,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         xaxis_title="Period",
-        xaxis=dict(type='category'),
+        xaxis=dict(
+            # Switch to 'date' type explicitly to handle cramping
+            type='date',
+            tickformat='%b %y' if freq == 'ME' else '%b %d',
+            # dtick="M1" if freq == 'ME' else None # Let Plotly decide
+        ),
         bargap=0.3
     )
     # Ensure text labels don't clip at the axis edge
@@ -1983,7 +1992,7 @@ def get_risk_return_chart(data, theme="light"):
         yaxis_title="Expected Return (%)",
         template="plotly_dark",
         showlegend=True,
-        height=625,
+        height=500,
         margin=dict(l=40, r=40, t=40, b=80), # Standardized margin
         legend=dict(
             orientation="h",
@@ -2037,7 +2046,7 @@ def get_drawdown_chart(data, theme="light"):
         template="plotly_dark",
         margin=dict(l=40, r=40, t=40, b=40),
         hovermode="x unified",
-        height=563,
+        height=450,
         yaxis=dict(autorange="reversed") # Invert axis so 0 is at top
     )
     return fig
@@ -2110,7 +2119,7 @@ def get_projections_chart(data, theme="light", rate_pct=None, monthly_contrib=No
         yaxis_title="Portfolio Value ($)",
         template="plotly_dark",
         hovermode="x unified",
-        height=563
+        height=450
     )
     return fig
 
@@ -2152,7 +2161,7 @@ def get_flows_chart(data, theme="light", start_date=None, end_date=None):
         
         xaxis_title="Net Flow ($)",
         template="plotly_dark",
-        height=563
+        height=450
     )
     return fig
 
@@ -2272,7 +2281,7 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
         yaxis_title="Excess Return (%)",
         barmode='group',
         template="plotly_dark",
-        height=563
+        height=450
     )
     return fig
 
@@ -2316,7 +2325,7 @@ def get_ticker_allocation_charts(data, theme="light"):
         
         template="plotly_dark",
         margin=dict(l=20, r=20, t=40, b=20),
-        height=563,
+        height=450,
         legend=dict(
             orientation="v",
             yanchor="top",
@@ -2363,7 +2372,7 @@ def get_ticker_allocation_charts(data, theme="light"):
         yaxis_title="Percentage (%)",
         template="plotly_dark",
         margin=dict(l=40, r=20, t=40, b=40),
-        height=563
+        height=450
     )
     
     return pie_fig, bar_fig
@@ -2860,7 +2869,7 @@ def get_growth_of_capital_chart(data, filter_value="Total", theme="light", end_d
         template="plotly_dark",
         margin=dict(l=40, r=20, t=60, b=40),
         hovermode="x unified",
-        height=563,
+        height=450,
         legend=dict(
             orientation="h",
             yanchor="top",
@@ -3975,7 +3984,7 @@ def get_tax_liability_sunburst(open_lots, realized_events, theme="light"):
     fig.update_layout(
         template="plotly_dark",
         margin=dict(t=10, l=10, r=10, b=10),
-        height=438
+        height=350
     )
     return fig
 
@@ -4034,7 +4043,7 @@ def get_tax_tactical_radar(open_lots, theme="light"):
         xaxis_title="Days Held",
         yaxis_title="Unrealized P/L ($)",
         showlegend=False,
-        height=438
+        height=350
     )
     
     # Format X and Y axes

@@ -136,11 +136,11 @@ layout = html.Div([
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5("Portfolio Value (Since Inception %)", className="card-title p-2"),
-            dcc.Graph(id='pv-chart', style={'height': '535px'})
+            dcc.Graph(id='pv-chart', style={'height': '428px'})
         ]), width=7),
         dbc.Col(dbc.Card([
             html.H5("Portfolio Snapshot", className="card-title p-2"),
-            dcc.Loading(html.Div(id='snapshot-table-container', style={'height': '535px'}))
+            dcc.Loading(html.Div(id='snapshot-table-container', style={'height': '428px'}))
         ]), width=5)
     ], className="mb-4"),
     
@@ -322,7 +322,7 @@ def update_overview(signal, chat_cmd, _filters):
         dashGridOptions={
             "domLayout": "normal",
         },
-        style={"height": "535px"}
+        style={"height": "428px"}
     )
     
     # 2. Highlights Table

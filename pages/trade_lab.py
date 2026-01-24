@@ -84,7 +84,7 @@ layout = html.Div([
             dbc.CardHeader("Simulation Results (10-Year Horizon)"),
             dbc.CardBody([
                 dcc.Loading([
-                    dcc.Graph(id="sim-overlay-chart", style={"height": "500px"}),
+                    dcc.Graph(id="sim-overlay-chart", style={"height": "400px"}),
                     html.Div(id="sim-loading-dummy", style={"display": "none"})
                 ]),
                 html.Small(

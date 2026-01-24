@@ -139,7 +139,7 @@ def update_attribution_detail(click_data, figure):
             yaxis_title="Contribution (%)",
             template="plotly_dark",
             margin=dict(l=40, r=20, t=80, b=40),
-            height=500,
+            height=400,
             showlegend=False,
             yaxis=dict(range=y_range)
         )
@@ -164,7 +164,7 @@ def update_attribution_detail(click_data, figure):
             defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "resizable": True},
             className="ag-theme-alpine-dark audit-target",
             dashGridOptions={"domLayout": "normal"},
-            style={"height": "500px"}
+            style={"height": "400px"}
         )
         
         detail_content = dbc.Row([
@@ -232,7 +232,7 @@ def update_si_attribution(signal):
         yaxis_title="Contribution (%)",
         template="plotly_dark",
         margin=dict(l=40, r=20, t=80, b=40),
-        height=500,
+        height=400,
         showlegend=False,
         yaxis=dict(range=y_range)
     )
@@ -260,7 +260,7 @@ def update_si_attribution(signal):
         defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "resizable": True},
         className="ag-theme-alpine-dark audit-target",
         dashGridOptions={"domLayout": "normal"},
-        style={"height": "500px"}
+        style={"height": "400px"}
     )
 
     footnote = html.P(

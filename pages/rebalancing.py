@@ -573,7 +573,7 @@ def build_drift_chart(target_df, theme):
         barmode="group",
         template=template,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        height=max(375, len(plot_df) * 50),
+        height=max(300, len(plot_df) * 40),
         margin=dict(l=100, r=20, t=60, b=40)
     )
     
