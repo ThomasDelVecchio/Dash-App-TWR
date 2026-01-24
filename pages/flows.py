@@ -10,11 +10,13 @@ layout = html.Div([
     # --- HEADER ---
     dbc.Row([
         dbc.Col([
-            html.H2("Cash Flows", className="fw-bold text-body"),
-            html.P("External deposits, withdrawals, and internal trading activity", className="text-muted small")
+            html.H2([
+                html.I(className="bi bi-arrow-left-right page-title-icon me-2"),
+                "Cash Flows"
+            ], className="fw-bold text-body"),
+            html.P("Track external flows and internal trading activity", className="subtitle")
         ], width=12)
-    ], className="mb-4"),
-    
+    ], className="page-header mb-4"),
     # External Flows Table
     dbc.Row([
         dbc.Col(dbc.Card([

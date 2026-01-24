@@ -245,10 +245,15 @@ def apply_print_theme(fig):
 # ============================================================
 layout = html.Div(className="custom-report-page", children=[
     # Page Header
-    html.Div([
-        html.H2("Custom Report Builder", className="fw-bold text-body mb-2"),
-        html.P("Configure and generate institutional-quality PDF reports", className="text-muted small mb-3")
-    ]),
+    dbc.Row([
+        dbc.Col([
+            html.H2([
+                html.I(className="bi bi-file-earmark-text page-title-icon me-2"),
+                "Custom Report Builder"
+            ], className="fw-bold text-body mb-2"),
+            html.P("Configure and generate institutional-quality PDF reports", className="subtitle mb-3")
+        ], width=12)
+    ], className="page-header mb-4"),
     
     # Report Configuration Accordion
     dbc.Accordion([
@@ -776,13 +781,13 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             if start_date:
                 fig.update_xaxes(range=[start_date, end_date])
 
-            fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            fig.update_layout(height=625, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
             
             perf_section = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.H4("Portfolio Performance", className="section-title mb-3"),
-                        dcc.Graph(figure=fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        dcc.Graph(figure=fig, config={'displayModeBar': False}, style={'height': '625px', 'width': '100%'}, responsive=True),
                     ], width=12)
                 ])
             ], className="report-section page-break-before")
@@ -856,9 +861,9 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             if start_date:
                 hist_fig.update_xaxes(range=[start_date, end_date])
 
-            pie_fig.update_layout(height=450, margin=dict(l=0, r=0, t=30, b=20), autosize=True)
-            bar_fig.update_layout(height=450, margin=dict(l=0, r=0, t=30, b=20), autosize=True)
-            hist_fig.update_layout(height=500, margin=dict(l=0, r=0, t=40, b=40), autosize=True)
+            pie_fig.update_layout(height=563, margin=dict(l=0, r=0, t=30, b=20), autosize=True)
+            bar_fig.update_layout(height=563, margin=dict(l=0, r=0, t=30, b=20), autosize=True)
+            hist_fig.update_layout(height=625, margin=dict(l=0, r=0, t=40, b=40), autosize=True)
             
             alloc_section = html.Div([
                 dbc.Row([
@@ -866,14 +871,14 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
                         html.H4("Asset Allocation", className="section-title mb-3"),
                     ], width=12),
                     dbc.Col([
-                        dcc.Graph(figure=pie_fig, config={'displayModeBar': False}, style={'height': '450px', 'width': '100%'}, responsive=True)
+                        dcc.Graph(figure=pie_fig, config={'displayModeBar': False}, style={'height': '563px', 'width': '100%'}, responsive=True)
                     ], width=12, className="mb-4"),
                     dbc.Col([
-                        dcc.Graph(figure=bar_fig, config={'displayModeBar': False}, style={'height': '450px', 'width': '100%'}, responsive=True)
+                        dcc.Graph(figure=bar_fig, config={'displayModeBar': False}, style={'height': '563px', 'width': '100%'}, responsive=True)
                     ], width=12, className="mb-4"),
                     dbc.Col([
                         html.H5("Allocation History", className="mt-2 mb-2"),
-                        dcc.Graph(figure=hist_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        dcc.Graph(figure=hist_fig, config={'displayModeBar': False}, style={'height': '625px', 'width': '100%'}, responsive=True),
                         html.Small("Historical evolution of asset class weights over time.", className="text-muted d-block mt-2", style={"fontSize": "0.85rem"})
                     ], width=12),
                 ])
@@ -885,13 +890,13 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             sector_fig = dw.get_sector_allocation_chart(data, theme)
             if print_preview:
                 sector_fig = apply_print_theme(sector_fig)
-            sector_fig.update_layout(height=500, margin=dict(l=0, r=0, t=40, b=40), autosize=True)
+            sector_fig.update_layout(height=625, margin=dict(l=0, r=0, t=40, b=40), autosize=True)
             
             sector_section = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.H4("Sector Breakdown", className="section-title mb-3"),
-                        dcc.Graph(figure=sector_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True)
+                        dcc.Graph(figure=sector_fig, config={'displayModeBar': False}, style={'height': '625px', 'width': '100%'}, responsive=True)
                     ], width=12)
                 ])
             ], className="report-section no-break")
@@ -1004,7 +1009,7 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             flows_fig = dw.get_flows_chart(data, theme, start_date=start_date, end_date=end_date)
             if print_preview:
                 flows_fig = apply_print_theme(flows_fig)
-            flows_fig.update_layout(height=400, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            flows_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
             
             flows_section = html.Div([
                 dbc.Row([
@@ -1026,7 +1031,7 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
                                 )
                             ], width=12, md=6),
                             dbc.Col([
-                                dcc.Graph(figure=flows_fig, config={'displayModeBar': False}, style={'height': '350px', 'width': '100%'}, responsive=True)
+                                dcc.Graph(figure=flows_fig, config={'displayModeBar': False}, style={'height': '438px', 'width': '100%'}, responsive=True)
                             ], width=12, md=6),
                         ])
                     ], width=12)
@@ -1110,13 +1115,13 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             if print_preview:
                 tax_fig = apply_print_theme(tax_fig)
                 
-            tax_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            tax_fig.update_layout(height=625, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
             
             sunburst_section = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.H4("Tax Liability Breakdown", className="section-title mb-3"),
-                        dcc.Graph(figure=tax_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        dcc.Graph(figure=tax_fig, config={'displayModeBar': False}, style={'height': '625px', 'width': '100%'}, responsive=True),
                         html.Small("Breakdown of Estimated Tax Liability by Status (Realized vs Unrealized) and Term (Short-Term vs Long-Term).", className="text-muted d-block mt-2", style={"fontSize": "0.85rem"})
                     ], width=12)
                 ])
@@ -1137,9 +1142,9 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             if start_date:
                 dd_fig.update_xaxes(range=[start_date, end_date])
                 
-            risk_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
-            corr_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
-            dd_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            risk_fig.update_layout(height=625, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            corr_fig.update_layout(height=625, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            dd_fig.update_layout(height=625, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
                 
             risk_section = html.Div([
                 dbc.Row([
@@ -1147,15 +1152,15 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
                         html.H4("Risk Analysis", className="section-title mb-3"),
                     ], width=12),
                     dbc.Col([
-                        dcc.Graph(figure=risk_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        dcc.Graph(figure=risk_fig, config={'displayModeBar': False}, style={'height': '625px', 'width': '100%'}, responsive=True),
                         html.Small("Risk/Return Profile: Calculated using 10-year realized volatility and geometric returns. Markers represent asset classes.", className="text-muted d-block mt-2 mb-4", style={"fontSize": "0.85rem"})
                     ], width=12),
                     dbc.Col([
-                        dcc.Graph(figure=corr_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        dcc.Graph(figure=corr_fig, config={'displayModeBar': False}, style={'height': '625px', 'width': '100%'}, responsive=True),
                         html.Small("90-Day Rolling Correlation matrix of top holdings. Red indicates high correlation, Blue indicates diversification benefit.", className="text-muted d-block mt-2 mb-4", style={"fontSize": "0.85rem"})
                     ], width=12),
                     dbc.Col([
-                        dcc.Graph(figure=dd_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        dcc.Graph(figure=dd_fig, config={'displayModeBar': False}, style={'height': '625px', 'width': '100%'}, responsive=True),
                         html.Small("Underwater Plot: Peak-to-trough decline over time. Shaded area represents deviation from all-time highs.", className="text-muted d-block mt-2", style={"fontSize": "0.85rem"})
                     ], width=12)
                 ])
@@ -1180,17 +1185,17 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             if start_date:
                 growth_fig.update_xaxes(range=[start_date, end_date])
                 
-            cum_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
-            growth_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            cum_fig.update_layout(height=625, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            growth_fig.update_layout(height=625, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
                 
             perf_deep_section = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.H4("Performance Deep Dive", className="section-title mb-3"),
                         html.H5("Cumulative Return vs Benchmark", className="mb-2"),
-                        dcc.Graph(figure=cum_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True),
+                        dcc.Graph(figure=cum_fig, config={'displayModeBar': False}, style={'height': '625px', 'width': '100%'}, responsive=True),
                         html.H5("Growth of Invested Capital", className="mt-4 mb-2"),
-                        dcc.Graph(figure=growth_fig, config={'displayModeBar': False}, style={'height': '500px', 'width': '100%'}, responsive=True)
+                        dcc.Graph(figure=growth_fig, config={'displayModeBar': False}, style={'height': '625px', 'width': '100%'}, responsive=True)
                     ], width=12)
                 ])
             ], className="report-section page-break-before")
@@ -1203,13 +1208,13 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             if print_preview:
                 attr_fig = apply_print_theme(attr_fig)
 
-            attr_fig.update_layout(height=600, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
+            attr_fig.update_layout(height=750, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
                 
             attr_section = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.H4("Attribution Analysis", className="section-title mb-3"),
-                        dcc.Graph(figure=attr_fig, config={'displayModeBar': False}, style={'height': '600px', 'width': '100%'}, responsive=True),
+                        dcc.Graph(figure=attr_fig, config={'displayModeBar': False}, style={'height': '750px', 'width': '100%'}, responsive=True),
                         html.Small([
                             html.I(className="fa-solid fa-triangle-exclamation me-1"),
                             "Note: Attribution effects are approximated using an arithmetic difference method. Minor discrepancies labeled as 'Recon/Residual' are expected when compared to the geometrically-linked Time-Weighted Return (TWR) shown in the Performance section. ",

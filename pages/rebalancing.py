@@ -21,11 +21,13 @@ layout = html.Div([
     # --- HEADER ---
     dbc.Row([
         dbc.Col([
-            html.H2("Rebalancing Tool", className="fw-bold text-body"),
-            html.P("Target-based rebalancing with tax-aware sales & deployment", className="text-muted small")
+            html.H2([
+                html.I(className="bi bi-sliders page-title-icon me-2"),
+                "Rebalancing Tool"
+            ], className="fw-bold text-body"),
+            html.P("Tax-aware drift analysis and cash deployment", className="subtitle")
         ], width=12)
-    ], className="mb-4"),
-
+    ], className="page-header mb-4"),
     # --- INPUT CONTROLS ---
     dbc.Row([
         dbc.Col(dbc.Card([
@@ -571,7 +573,7 @@ def build_drift_chart(target_df, theme):
         barmode="group",
         template=template,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        height=max(300, len(plot_df) * 40),
+        height=max(375, len(plot_df) * 50),
         margin=dict(l=100, r=20, t=60, b=40)
     )
     

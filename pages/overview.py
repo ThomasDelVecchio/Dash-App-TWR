@@ -69,6 +69,17 @@ def create_kpi_card(title, value, subtext=None, is_positive=None):
     )
 
 layout = html.Div([
+    # --- HEADER ---
+    dbc.Row([
+        dbc.Col([
+            html.H2([
+                html.I(className="bi bi-house-door page-title-icon me-2"),
+                "Overview"
+            ], className="fw-bold text-body"),
+            html.P("Portfolio summary and daily highlights", className="subtitle")
+        ], width=12)
+    ], className="page-header mb-4"),
+
     # Data Status Note
     html.Div(id='data-status-container', style={'position': 'fixed', 'top': '15px', 'right': '20px', 'zIndex': 2000, 'maxWidth': '90vw'}),
     
@@ -125,11 +136,11 @@ layout = html.Div([
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5("Portfolio Value (Since Inception %)", className="card-title p-2"),
-            dcc.Graph(id='pv-chart', style={'height': '428px'})
+            dcc.Graph(id='pv-chart', style={'height': '535px'})
         ]), width=7),
         dbc.Col(dbc.Card([
             html.H5("Portfolio Snapshot", className="card-title p-2"),
-            dcc.Loading(html.Div(id='snapshot-table-container'))
+            dcc.Loading(html.Div(id='snapshot-table-container', style={'height': '535px'}))
         ]), width=5)
     ], className="mb-4"),
     
@@ -309,8 +320,9 @@ def update_overview(signal, chat_cmd, _filters):
         defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "filter": True, "resizable": True},
         className="ag-theme-alpine-dark audit-target", # Added audit-target class
         dashGridOptions={
-            "domLayout": "autoHeight",
-        }
+            "domLayout": "normal",
+        },
+        style={"height": "535px"}
     )
     
     # 2. Highlights Table

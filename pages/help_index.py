@@ -10,11 +10,15 @@ from pages.help_content import HELP_TOPICS
 layout = dbc.Container([
     
     # Header
-    html.Div([
-        html.H1("Help Index & Documentation", className="display-5 text-body"),
-        html.P("Technical reference for calculations, methodologies, and configuration.", className="lead text-muted"),
-        html.Hr()
-    ], className="mb-4"),
+    dbc.Row([
+        dbc.Col([
+            html.H2([
+                html.I(className="bi bi-question-circle page-title-icon me-2"),
+                "Help Index & Documentation"
+            ], className="fw-bold text-body"),
+            html.P("Technical reference for calculations, methodologies, and configuration.", className="subtitle")
+        ], width=12)
+    ], className="page-header mb-4"),
 
     # Dynamic Content Generation
     html.Div([

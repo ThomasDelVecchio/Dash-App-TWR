@@ -12,10 +12,13 @@ layout = html.Div([
     # --- HEADER ---
     dbc.Row([
         dbc.Col([
-            html.H2("Risk Intelligence", className="fw-bold text-body"),
-            html.P("Volatility, correlation, drawdown analysis, and projections", className="text-muted small")
+            html.H2([
+                html.I(className="bi bi-shield-exclamation page-title-icon me-2"),
+                "Risk Intelligence"
+            ], className="fw-bold text-body"),
+            html.P("Volatility, correlation, drawdown analysis, and projections", className="subtitle")
         ], width=12)
-    ], className="mb-4"),
+    ], className="page-header mb-4"),
     
     # 1. RISK & CORRELATION ROW
     dbc.Row([
@@ -366,7 +369,7 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal):
             'threshold': {'line': {'color': GLOBAL_PALETTE[2], 'width': 4}, 'thickness': 0.75, 'value': current_return}
         }
     ))
-    return_gauge.update_layout(template=template, height=300, margin=dict(l=20, r=20, t=50, b=20))
+    return_gauge.update_layout(template=template, height=375, margin=dict(l=20, r=20, t=50, b=20))
     
     vol_gauge = go.Figure(go.Indicator(
         mode="gauge+number+delta",
@@ -385,7 +388,7 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal):
             'threshold': {'line': {'color': GLOBAL_PALETTE[2], 'width': 4}, 'thickness': 0.75, 'value': current_vol}
         }
     ))
-    vol_gauge.update_layout(template=template, height=300, margin=dict(l=20, r=20, t=50, b=20))
+    vol_gauge.update_layout(template=template, height=375, margin=dict(l=20, r=20, t=50, b=20))
     
     return return_gauge, vol_gauge, total_display, labels
 

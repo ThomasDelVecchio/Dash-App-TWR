@@ -17,11 +17,13 @@ layout = html.Div([
     # --- HEADER ---
     dbc.Row([
         dbc.Col([
-            html.H2("Settings", className="fw-bold text-body"),
-            html.P("Data management, module configuration, and export options", className="text-muted small")
+            html.H2([
+                html.I(className="bi bi-gear page-title-icon me-2"),
+                "Settings"
+            ], className="fw-bold text-body"),
+            html.P("Manage configuration, modules, and integrations", className="subtitle")
         ], width=12)
-    ], className="mb-4"),
-    
+    ], className="page-header mb-4"),
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5("Data Management", className="card-title p-2"),

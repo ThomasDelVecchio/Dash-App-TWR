@@ -117,18 +117,19 @@ GLOBAL_PALETTE = [
 # MODULE CONFIGURATION
 # ============================================================
 NAV_MODULES = [
-    {"label": "Overview", "href": "/", "id": "overview", "can_toggle": False},
-    {"label": "Performance", "href": "/performance", "id": "performance", "can_toggle": True},
-    {"label": "Allocation", "href": "/allocations", "id": "allocations", "can_toggle": True},
-    {"label": "Attribution", "href": "/attribution", "id": "attribution", "can_toggle": True},
-    {"label": "Flows", "href": "/flows", "id": "flows", "can_toggle": True},
-    {"label": "Holdings", "href": "/holdings", "id": "holdings", "can_toggle": True},
-    {"label": "Risk & Projections", "href": "/risk", "id": "risk", "can_toggle": True},
-    {"label": "Trade Lab", "href": "/trade-lab", "id": "trade_lab", "can_toggle": True},
-    {"label": "Tax Authority", "href": "/taxes", "id": "taxes", "can_toggle": True},
-    {"label": "Rebalancing", "href": "/rebalancing", "id": "rebalancing", "can_toggle": True},
-    {"label": "Trade Execution", "href": "/trade", "id": "trade", "can_toggle": True},
-    {"label": "Custom Report", "href": "/custom-report", "id": "custom_report", "can_toggle": True},
-    {"label": "Settings", "href": "/settings", "id": "settings", "can_toggle": False},
-    {"label": "Help", "href": "/help", "id": "help", "can_toggle": False},
+    {"label": "Overview", "href": "/", "id": "overview", "icon": "bi-house-door", "can_toggle": False},
+    {"label": "Performance", "href": "/performance", "id": "performance", "icon": "bi-graph-up-arrow", "can_toggle": True},
+    {"label": "Allocation", "href": "/allocations", "id": "allocations", "icon": "bi-pie-chart", "can_toggle": True},
+    {"label": "Attribution", "href": "/attribution", "id": "attribution", "icon": "bi-bar-chart-line", "can_toggle": True},
+    {"label": "Flows", "href": "/flows", "id": "flows", "icon": "bi-arrow-left-right", "can_toggle": True},
+    {"label": "Holdings", "href": "/holdings", "id": "holdings", "icon": "bi-wallet2", "can_toggle": True},
+    {"label": "Risk & Projections", "href": "/risk", "id": "risk", "icon": "bi-shield-exclamation", "can_toggle": True},
+    {"label": "Trade Lab", "href": "/trade-lab", "id": "trade_lab", "icon": "bi-lightning", "can_toggle": True},
+    {"label": "Tax Authority", "href": "/taxes", "id": "taxes", "icon": "bi-receipt", "can_toggle": True},
+    {"label": "Rebalancing", "href": "/rebalancing", "id": "rebalancing", "icon": "bi-sliders", "can_toggle": True},
+    {"label": "Trade Execution", "href": "/trade", "id": "trade", "icon": "bi-cart-check", "can_toggle": True},
+    {"label": "Custom Report", "href": "/custom-report", "id": "custom_report", "icon": "bi-file-earmark-text", "can_toggle": True},
+    {"label": "Settings", "href": "/settings", "id": "settings", "icon": "bi-gear", "can_toggle": False},
+    {"label": "Help", "href": "/help", "id": "help", "icon": "bi-question-circle", "can_toggle": False},
 ]
+

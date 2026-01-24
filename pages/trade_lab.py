@@ -13,11 +13,13 @@ layout = html.Div([
     # --- HEADER ---
     dbc.Row([
         dbc.Col([
-            html.H2("What-If Trade Lab", className="fw-bold text-body"),
-            html.P("Simulate the impact of hypothetical trades on your long-term success probability", className="text-muted small")
+            html.H2([
+                html.I(className="bi bi-lightning page-title-icon me-2"),
+                "What-If Trade Lab"
+            ], className="fw-bold text-body"),
+            html.P("Simulate trades and visualize portfolio impact", className="subtitle")
         ], width=12)
-    ], className="mb-4"),
-    
+    ], className="page-header mb-4"),
     dbc.Row([
         # Input Panel
         dbc.Col(dbc.Card([
@@ -82,7 +84,7 @@ layout = html.Div([
             dbc.CardHeader("Simulation Results (10-Year Horizon)"),
             dbc.CardBody([
                 dcc.Loading([
-                    dcc.Graph(id="sim-overlay-chart", style={"height": "400px"}),
+                    dcc.Graph(id="sim-overlay-chart", style={"height": "500px"}),
                     html.Div(id="sim-loading-dummy", style={"display": "none"})
                 ]),
                 html.Small(

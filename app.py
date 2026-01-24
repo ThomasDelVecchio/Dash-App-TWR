@@ -157,11 +157,15 @@ def _get_sync_status_badge():
 
 sidebar = html.Div(
     [
-        html.H3("DELVEX", className="display-6"),
-        html.P("Portfolio Analytics", className="lead"),
+        # Brand Header
+        html.Div([
+            html.I(className="bi bi-graph-up-arrow sidebar-brand-icon"),
+            html.Span("DELVEX", className="display-6 sidebar-brand-text"),
+        ], className="sidebar-brand"),
+        html.P("Portfolio Analytics", className="lead sidebar-subtitle"),
         
         # E*TRADE Sync Status Badge (dynamically updated via callback)
-        html.Div(id="etrade-sync-badge"),
+        html.Div(id="etrade-sync-badge", className="sidebar-sync-badge"),
         
         html.Hr(),
         
@@ -174,7 +178,7 @@ sidebar = html.Div(
         
         html.Hr(),
         
-        # Controls
+        # Controls (wrapped for collapse behavior)
         html.Div([
             dbc.Label("Tax Methodology"),
             dbc.Select(
@@ -236,7 +240,7 @@ sidebar = html.Div(
 
             html.Hr(),
             dbc.Button("Clear All Filters", id="btn-clear-global", color="secondary", className="w-100"),
-        ]),
+        ], className="sidebar-controls"),
     ],
     id="sidebar",
     className="sidebar",
@@ -581,12 +585,23 @@ def toggle_audit_modal(request_data, is_open):
     Input("active-modules-store", "data")
 )
 def update_sidebar_modules(active_modules_ids):
+    """Generate sidebar nav links with icons for icon-only mode support."""
+    
+    def create_nav_link(module):
+        """Create a NavLink with icon and text for responsive sidebar."""
+        icon_class = module.get("icon", "bi-circle")
+        return dbc.NavLink(
+            [
+                html.I(className=f"{icon_class} nav-icon"),
+                html.Span(module["label"], className="nav-text")
+            ],
+            href=module["href"],
+            active="exact"
+        )
+    
     # Fallback: if data is None, show ALL modules (default ON)
     if active_modules_ids is None:
-        return [
-            dbc.NavLink(m["label"], href=m["href"], active="exact")
-            for m in NAV_MODULES
-        ]
+        return [create_nav_link(m) for m in NAV_MODULES]
     
     # Filter modules
     # Always include non-toggleable modules (can_toggle=False)
@@ -595,9 +610,9 @@ def update_sidebar_modules(active_modules_ids):
     filtered_links = []
     for m in NAV_MODULES:
         if not m["can_toggle"]:
-            filtered_links.append(dbc.NavLink(m["label"], href=m["href"], active="exact"))
+            filtered_links.append(create_nav_link(m))
         elif m["id"] in active_modules_ids:
-            filtered_links.append(dbc.NavLink(m["label"], href=m["href"], active="exact"))
+            filtered_links.append(create_nav_link(m))
             
     return filtered_links
 

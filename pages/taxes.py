@@ -15,8 +15,17 @@ from pages.overview import create_kpi_card
 layout = html.Div([
     # --- HEADER ---
     dbc.Row([
-        dbc.Col(html.H2("Tax Authority", className="fw-bold text-body"), width=12)
-    ], className="mb-4"),
+        dbc.Col(
+            [
+                html.H2([
+                    html.I(className="bi bi-receipt page-title-icon me-2"),
+                    "Tax Authority"
+                ], className="fw-bold text-body"),
+                html.P("Tax lots, liabilities, and harvesting insights", className="subtitle")
+            ],
+            width=12
+        )
+    ], className="page-header mb-4"),
 
     # --- KPI CARDS ---
     dbc.Row([
@@ -312,7 +321,7 @@ def update_tax_dashboard(signal, chat_cmd, strategy, date_range):
                 columnDefs=col_defs,
                 defaultColDef=default_col_def,
                 className=f"{grid_theme} audit-target",
-                dashGridOptions={"domLayout": "autoHeight"},
+                dashGridOptions={"domLayout": "normal"},
                 style={"height": "400px", "width": "100%"},
             )
         else:

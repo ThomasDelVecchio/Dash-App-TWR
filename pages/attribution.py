@@ -11,10 +11,13 @@ layout = html.Div([
     # --- HEADER ---
     dbc.Row([
         dbc.Col([
-            html.H2("Attribution", className="fw-bold text-body"),
-            html.P("Performance attribution by asset class and time period", className="text-muted small")
+            html.H2([
+                html.I(className="bi bi-bar-chart-line page-title-icon me-2"),
+                "Attribution"
+            ], className="fw-bold text-body"),
+            html.P("Performance attribution by asset class and time period", className="subtitle")
         ], width=12)
-    ], className="mb-4"),
+    ], className="page-header mb-4"),
     
     # Active Strategy Section
     dbc.Row([
@@ -136,7 +139,7 @@ def update_attribution_detail(click_data, figure):
             yaxis_title="Contribution (%)",
             template="plotly_dark",
             margin=dict(l=40, r=20, t=80, b=40),
-            height=400,
+            height=500,
             showlegend=False,
             yaxis=dict(range=y_range)
         )
@@ -160,7 +163,8 @@ def update_attribution_detail(click_data, figure):
             ],
             defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "resizable": True},
             className="ag-theme-alpine-dark audit-target",
-            dashGridOptions={"domLayout": "autoHeight"}
+            dashGridOptions={"domLayout": "normal"},
+            style={"height": "500px"}
         )
         
         detail_content = dbc.Row([
@@ -228,7 +232,7 @@ def update_si_attribution(signal):
         yaxis_title="Contribution (%)",
         template="plotly_dark",
         margin=dict(l=40, r=20, t=80, b=40),
-        height=400,
+        height=500,
         showlegend=False,
         yaxis=dict(range=y_range)
     )
@@ -255,7 +259,8 @@ def update_si_attribution(signal):
         ],
         defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "resizable": True},
         className="ag-theme-alpine-dark audit-target",
-        dashGridOptions={"domLayout": "autoHeight"}
+        dashGridOptions={"domLayout": "normal"},
+        style={"height": "500px"}
     )
 
     footnote = html.P(

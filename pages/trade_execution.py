@@ -143,10 +143,10 @@ layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             html.H2([
-                html.I(className="bi bi-send-check me-2"),
+                html.I(className="bi bi-cart-check page-title-icon me-2"),
                 "Trade Execution"
             ], className="fw-bold text-body mb-0"),
-            html.P("Place and manage orders via E*TRADE", className="text-muted small mb-0"),
+            html.P("Place and manage orders via E*TRADE", className="subtitle mb-0"),
         ], width=8),
         dbc.Col([
             html.Div([
@@ -159,7 +159,7 @@ layout = dbc.Container([
                 )
             ], className="d-flex justify-content-end align-items-center")
         ], width=4),
-    ], className="mb-4"),
+    ], className="page-header mb-4"),
     
     # Alert for staged order notification
     dbc.Alert(

@@ -13,10 +13,13 @@ layout = html.Div([
     # --- HEADER ---
     dbc.Row([
         dbc.Col([
-            html.H2("Performance", className="fw-bold text-body"),
-            html.P("Cumulative returns, horizon analysis, and benchmark comparison", className="text-muted small")
+            html.H2([
+                html.I(className="bi bi-graph-up-arrow page-title-icon me-2"),
+                "Performance"
+            ], className="fw-bold text-body"),
+            html.P("Cumulative returns, horizon analysis, and benchmark comparison", className="subtitle")
         ], width=12)
-    ], className="mb-4"),
+    ], className="page-header mb-4"),
     
     # Price Source Badge (Fixed position)
     html.Div(id='perf-price-source-badge-container', style={'position': 'fixed', 'top': '15px', 'right': '20px', 'zIndex': 1999}),
@@ -41,8 +44,8 @@ layout = html.Div([
                 dbc.Row([
                     dbc.Col(html.H5("Horizon Returns (Modified Dietz)", className="card-title p-0 m-0"), width=True),
                     dbc.Col([
-                        dbc.Button("Expand All", id="btn-ret-expand", size="sm", color="light", outline=True, className="me-2", n_clicks=0),
-                        dbc.Button("Collapse All", id="btn-ret-collapse", size="sm", color="light", outline=True, n_clicks=0),
+                        dbc.Button("Expand All", id="btn-ret-expand", size="sm", color="secondary", className="me-2 text-white", n_clicks=0),
+                        dbc.Button("Collapse All", id="btn-ret-collapse", size="sm", color="secondary", className="text-white", n_clicks=0),
                     ], width="auto")
                 ], align="center")
             ]),
@@ -59,8 +62,8 @@ layout = html.Div([
                 dbc.Row([
                     dbc.Col(html.H5("Horizon P/L (Economic)", className="card-title p-0 m-0"), width=True),
                     dbc.Col([
-                        dbc.Button("Expand All", id="btn-pl-expand", size="sm", color="light", outline=True, className="me-2", n_clicks=0),
-                        dbc.Button("Collapse All", id="btn-pl-collapse", size="sm", color="light", outline=True, n_clicks=0),
+                        dbc.Button("Expand All", id="btn-pl-expand", size="sm", color="secondary", className="me-2 text-white", n_clicks=0),
+                        dbc.Button("Collapse All", id="btn-pl-collapse", size="sm", color="secondary", className="text-white", n_clicks=0),
                     ], width="auto")
                 ], align="center")
             ]),
