@@ -17,6 +17,7 @@
     let sidebarElement = null;
     let contentElement = null;
     let toggleButton = null;
+    let openButton = null;
     
     const HIDE_DELAY = 5000; // 5 seconds
     const SWIPE_THRESHOLD = 80; // pixels
@@ -26,6 +27,7 @@
         sidebarElement = document.getElementById('sidebar');
         contentElement = document.getElementById('page-content');
         toggleButton = document.getElementById('btn-sidebar-toggle');
+        openButton = document.getElementById('btn-sidebar-open');
         
         if (!sidebarElement) {
             // Retry after DOM loads
@@ -39,6 +41,18 @@
         
         // Start the auto-hide timer on page load
         resetHideTimer();
+    }
+    
+    function updateOpenButtonVisibility() {
+        if (!openButton) return;
+        
+        if (sidebarElement.classList.contains('hidden')) {
+            // Show the floating open button
+            openButton.style.display = 'flex';
+        } else {
+            // Hide the floating open button
+            openButton.style.display = 'none';
+        }
     }
     
     function resetHideTimer() {
@@ -58,6 +72,8 @@
             sidebarElement.classList.add('hidden');
             if (contentElement) contentElement.classList.add('expanded');
         }
+        
+        updateOpenButtonVisibility();
     }
     
     function showSidebar() {
@@ -66,6 +82,7 @@
         sidebarElement.classList.remove('hidden', 'collapsed');
         if (contentElement) contentElement.classList.remove('expanded', 'sidebar-collapsed');
         
+        updateOpenButtonVisibility();
         resetHideTimer();
     }
     
@@ -79,15 +96,17 @@
             }, { passive: true });
         });
         
-        // Also reset when toggle button is clicked (handled by Dash callback, but we track it)
+        // Close button inside sidebar header - hide sidebar
         if (toggleButton) {
             toggleButton.addEventListener('click', function() {
-                // If sidebar was hidden, show it and reset timer
-                if (sidebarElement.classList.contains('hidden') || 
-                    sidebarElement.classList.contains('collapsed')) {
-                    showSidebar();
-                }
-                resetHideTimer();
+                hideSidebar();
+            });
+        }
+        
+        // Open button (floating) - show sidebar
+        if (openButton) {
+            openButton.addEventListener('click', function() {
+                showSidebar();
             });
         }
     }

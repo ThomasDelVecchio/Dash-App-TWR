@@ -157,10 +157,18 @@ def _get_sync_status_badge():
 
 sidebar = html.Div(
     [
-        # Brand Header
+        # Brand Header with integrated toggle
         html.Div([
-            html.I(className="bi bi-graph-up-arrow sidebar-brand-icon"),
-            html.Span("DELVEX", className="display-6 sidebar-brand-text"),
+            html.Div([
+                html.I(className="bi bi-graph-up-arrow sidebar-brand-icon"),
+                html.Span("DELVEX", className="display-6 sidebar-brand-text"),
+            ], className="sidebar-brand-left"),
+            html.Button(
+                html.I(className="bi bi-x-lg"),
+                id="btn-sidebar-toggle",
+                className="btn btn-link sidebar-toggle-btn",
+                title="Close sidebar"
+            ),
         ], className="sidebar-brand"),
         html.P("Portfolio Analytics", className="lead sidebar-subtitle"),
         
@@ -292,25 +300,12 @@ app.layout = html.Div(
             style={"zIndex": 1050} # Ensure on top
         ),
         
-        # Toggle Button
+        # Floating Toggle Button (visible only when sidebar is hidden)
         html.Button(
-            "☰", 
-            id="btn-sidebar-toggle", 
-            className="btn btn-secondary", 
-            style={
-                "position": "fixed", 
-                "top": "10px", 
-                "left": "10px", 
-                "zIndex": 1100,
-                "borderRadius": "50%",
-                "width": "40px",
-                "height": "40px",
-                "display": "flex",
-                "alignItems": "center",
-                "justifyContent": "center",
-                "fontSize": "1.2rem",
-                "paddingBottom": "4px"
-            }
+            html.I(className="bi bi-list"),
+            id="btn-sidebar-open",
+            className="btn btn-secondary sidebar-open-btn",
+            title="Open sidebar"
         ),
         
         sidebar,
@@ -507,18 +502,47 @@ def update_filter_store(all_charts_click, clear_btn, current_filters):
 # 4. Sidebar Toggle Logic
 @app.callback(
     [Output("sidebar", "className"),
-     Output("page-content", "className")],
-    [Input("btn-sidebar-toggle", "n_clicks")],
+     Output("page-content", "className"),
+     Output("btn-sidebar-open", "style")],
+    [Input("btn-sidebar-toggle", "n_clicks"),
+     Input("btn-sidebar-open", "n_clicks")],
     [State("sidebar", "className"),
      State("page-content", "className")]
 )
-def toggle_sidebar(n, sidebar_class, content_class):
-    if n:
-        if "hidden" in sidebar_class:
-            return sidebar_class.replace(" hidden", ""), content_class.replace(" expanded", "")
-        else:
-            return sidebar_class + " hidden", content_class + " expanded"
-    return sidebar_class, content_class
+def toggle_sidebar(n_close, n_open, sidebar_class, content_class):
+    ctx = callback_context
+    
+    # Style for hidden floating button
+    hidden_style = {"display": "none"}
+    # Style for visible floating button
+    visible_style = {
+        "position": "fixed",
+        "top": "10px",
+        "left": "10px",
+        "zIndex": 1100,
+        "borderRadius": "50%",
+        "width": "40px",
+        "height": "40px",
+        "display": "flex",
+        "alignItems": "center",
+        "justifyContent": "center",
+        "fontSize": "1.2rem"
+    }
+    
+    if not ctx.triggered:
+        # Initial state: sidebar visible, floating button hidden
+        return sidebar_class, content_class, hidden_style
+    
+    triggered_id = ctx.triggered_id
+    
+    if triggered_id == "btn-sidebar-toggle":
+        # Close button clicked (inside sidebar)
+        return sidebar_class + " hidden", content_class + " expanded", visible_style
+    elif triggered_id == "btn-sidebar-open":
+        # Open button clicked (floating button)
+        return sidebar_class.replace(" hidden", ""), content_class.replace(" expanded", ""), hidden_style
+    
+    return sidebar_class, content_class, hidden_style
 
 # 5. E*TRADE Sync Badge Callback (Dynamic Update + Data Refresh)
 @app.callback(
