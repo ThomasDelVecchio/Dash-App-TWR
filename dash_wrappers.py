@@ -3555,7 +3555,10 @@ def fetch_audit_details(request_data):
         if not horizon: return request_data
         
         # Map Display Label to Engine Code
-        if horizon == "Since Inception": horizon = "SI"
+        if horizon == "Since Inception":
+            horizon = "SI"
+        elif horizon == "Last Close":
+            horizon = "1D"
         
         pv = data["pv"]
         cf_ext = data["cf_ext"]

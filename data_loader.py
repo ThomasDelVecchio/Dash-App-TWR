@@ -205,7 +205,7 @@ def get_equity_sector(ticker: str) -> str:
 # FMP Price History Helpers (Hybrid Mode)
 # ------------------------------------------------------------
 
-def fetch_fmp_price_history_single(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
+def fetch_fmp_price_history_single(ticker: str, start_date: str, end_date: str, use_adj_close: bool = False) -> pd.DataFrame:
     """
     Fetch daily price history for a single ticker from FMP API.
     
@@ -213,16 +213,25 @@ def fetch_fmp_price_history_single(ticker: str, start_date: str, end_date: str) 
         ticker: Stock ticker symbol
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
+        use_adj_close: If True, uses the dividend-adjusted endpoint
     
     Returns:
-        DataFrame with DatetimeIndex and 'Close' column, or empty DataFrame on failure
+        DataFrame with DatetimeIndex and 'Close' (or 'Adj Close') column
     """
     if not FMP_API_KEY or FMP_API_KEY == "demo":
         return pd.DataFrame()
     
     try:
         # UPDATED: Use /stable/ endpoint (Jan 2026) for non-legacy users
-        url = f"https://financialmodelingprep.com/stable/historical-price-eod/full?symbol={ticker}&from={start_date}&to={end_date}&apikey={FMP_API_KEY}"
+        # Select endpoint based on adjusted close requirement
+        if use_adj_close:
+            # Dividend Adjusted Endpoint: returns 'adjClose' which is split & dividend adjusted
+            endpoint = "historical-price-eod/dividend-adjusted"
+        else:
+            # Standard Endpoint: returns 'close' which is split-adjusted only
+            endpoint = "historical-price-eod/full"
+            
+        url = f"https://financialmodelingprep.com/stable/{endpoint}?symbol={ticker}&from={start_date}&to={end_date}&apikey={FMP_API_KEY}"
         resp = requests.get(url, timeout=15)
         
         if resp.status_code != 200:
@@ -246,11 +255,20 @@ def fetch_fmp_price_history_single(ticker: str, start_date: str, end_date: str) 
         df["date"] = pd.to_datetime(df["date"])
         df = df.set_index("date").sort_index()
         
-        # Rename 'close' to 'Close' for consistency, keep 'adjClose' for adj close mode
-        if "close" in df.columns:
-            df = df.rename(columns={"close": "Close", "adjClose": "Adj Close"})
-        
-        return df[["Close", "Adj Close"]] if "Adj Close" in df.columns else df[["Close"]]
+        if use_adj_close:
+            # The dividend-adjusted endpoint usually returns 'adjClose'
+            # We map this to 'Adj Close' for our internal logic
+            if "adjClose" in df.columns:
+                df = df.rename(columns={"adjClose": "Adj Close"})
+            elif "close" in df.columns:
+                # Fallback if adjClose not present (rare)
+                df = df.rename(columns={"close": "Adj Close"})
+            
+            return df[["Adj Close"]]
+        else:
+            # Standard endpoint returns 'close'
+            df = df.rename(columns={"close": "Close"})
+            return df[["Close"]]
         
     except Exception as e:
         print(f"[FMP] Error fetching {ticker}: {e}")
@@ -555,7 +573,7 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
         
         for ticker in unique_tickers:
             # 1. Fetch FMP (recent years)
-            fmp_df = fetch_fmp_price_history_single(ticker, fmp_start, end_date_display)
+            fmp_df = fetch_fmp_price_history_single(ticker, fmp_start, end_date_display, use_adj_close=use_adj_close)
             
             # 2. Fetch yfinance (full history as fallback/older data)
             try:
