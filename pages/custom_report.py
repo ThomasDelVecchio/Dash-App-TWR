@@ -17,6 +17,7 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import dash_wrappers as dw
 from dash_wrappers import send_to_drive
+from components.page_header import page_header
 from report_formatting import fmt_pct_clean, fmt_dollar_clean, generate_word_report
 from components.ai_brief import generate_ai_summary_period
 from datetime import datetime
@@ -245,15 +246,11 @@ def apply_print_theme(fig):
 # ============================================================
 layout = html.Div(className="custom-report-page", children=[
     # Page Header
-    dbc.Row([
-        dbc.Col([
-            html.H2([
-                html.I(className="bi bi-file-earmark-text page-title-icon me-2"),
-                "Custom Report Builder"
-            ], className="fw-bold text-body mb-2"),
-            html.P("Configure and generate institutional-quality PDF reports", className="subtitle mb-3")
-        ], width=12)
-    ], className="page-header mb-4"),
+    page_header(
+        title="Custom Report Builder",
+        icon="bi-file-earmark-text",
+        subtitle="Configure and generate institutional-quality PDF reports"
+    ),
     
     # Report Configuration Accordion
     dbc.Accordion([

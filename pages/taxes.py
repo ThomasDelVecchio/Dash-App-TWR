@@ -6,6 +6,7 @@ import pandas as pd
 import dash_wrappers as dw
 from report_formatting import fmt_dollar_clean, fmt_pct_clean, fmt_number_clean
 from tax_engine import build_tax_lots, simulate_sell, normalize_ticker
+from components.page_header import page_header
 from pages.overview import create_kpi_card
 
 # ============================================================
@@ -14,18 +15,11 @@ from pages.overview import create_kpi_card
 
 layout = html.Div([
     # --- HEADER ---
-    dbc.Row([
-        dbc.Col(
-            [
-                html.H2([
-                    html.I(className="bi bi-receipt page-title-icon me-2"),
-                    "Tax Authority"
-                ], className="fw-bold text-body"),
-                html.P("Tax lots, liabilities, and harvesting insights", className="subtitle")
-            ],
-            width=12
-        )
-    ], className="page-header mb-4"),
+    page_header(
+        title="Tax Authority",
+        icon="bi-receipt",
+        subtitle="Tax lots, liabilities, and harvesting insights"
+    ),
 
     # --- KPI CARDS ---
     dbc.Row([

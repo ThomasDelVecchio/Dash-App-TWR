@@ -4,19 +4,16 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import dash_wrappers as dw
 from report_formatting import fmt_dollar_clean
+from components.page_header import page_header
 import pandas as pd
 
 layout = html.Div([
     # --- HEADER ---
-    dbc.Row([
-        dbc.Col([
-            html.H2([
-                html.I(className="bi bi-arrow-left-right page-title-icon me-2"),
-                "Cash Flows"
-            ], className="fw-bold text-body"),
-            html.P("Track external flows and internal trading activity", className="subtitle")
-        ], width=12)
-    ], className="page-header mb-4"),
+    page_header(
+        title="Cash Flows",
+        icon="bi-arrow-left-right",
+        subtitle="Track external flows and internal trading activity"
+    ),
     # External Flows Table
     dbc.Row([
         dbc.Col(dbc.Card([

@@ -6,19 +6,16 @@ import dash_wrappers as dw
 import pandas as pd
 from data_loader import fetch_etf_sectors
 from report_formatting import fmt_pct_clean, fmt_dollar_clean, fmt_number_clean
+from components.page_header import page_header
 import config
 
 layout = html.Div([
     # --- HEADER ---
-    dbc.Row([
-        dbc.Col([
-            html.H2([
-                html.I(className="bi bi-wallet2 page-title-icon me-2"),
-                "Holdings"
-            ], className="fw-bold text-body"),
-            html.P("Security-level returns, weights, and classifications", className="subtitle")
-        ], width=12)
-    ], className="page-header mb-4"),
+    page_header(
+        title="Holdings",
+        icon="bi-wallet2",
+        subtitle="Security-level returns, weights, and classifications"
+    ),
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5("Current Holdings", className="card-title p-2"),

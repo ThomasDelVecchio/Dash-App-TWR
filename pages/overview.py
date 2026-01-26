@@ -7,6 +7,7 @@ from report_formatting import fmt_pct_clean, fmt_dollar_clean
 import pandas as pd
 from components.ai_brief import generate_ai_summary
 from components.data_source_badge import create_price_source_badge
+from components.page_header import page_header
 
 def create_kpi_card(title, value, subtext=None, is_positive=None):
     """
@@ -70,15 +71,11 @@ def create_kpi_card(title, value, subtext=None, is_positive=None):
 
 layout = html.Div([
     # --- HEADER ---
-    dbc.Row([
-        dbc.Col([
-            html.H2([
-                html.I(className="bi bi-house-door page-title-icon me-2"),
-                "Overview"
-            ], className="fw-bold text-body"),
-            html.P("Portfolio summary and daily highlights", className="subtitle")
-        ], width=12)
-    ], className="page-header mb-4"),
+    page_header(
+        title="Overview",
+        icon="bi-house-door",
+        subtitle="Portfolio summary and daily highlights"
+    ),
 
     # Data Status Note
     html.Div(id='data-status-container', style={'position': 'fixed', 'top': '15px', 'right': '20px', 'zIndex': 2000, 'maxWidth': '90vw'}),

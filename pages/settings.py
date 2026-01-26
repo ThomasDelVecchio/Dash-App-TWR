@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 import dash_wrappers as dw
 import base64
 from datetime import datetime
+from components.page_header import page_header
 from config import NAV_MODULES
 
 # Prepare options for the checklist
@@ -15,15 +16,11 @@ MODULE_OPTIONS = [
 
 layout = html.Div([
     # --- HEADER ---
-    dbc.Row([
-        dbc.Col([
-            html.H2([
-                html.I(className="bi bi-gear page-title-icon me-2"),
-                "Settings"
-            ], className="fw-bold text-body"),
-            html.P("Manage configuration, modules, and integrations", className="subtitle")
-        ], width=12)
-    ], className="page-header mb-4"),
+    page_header(
+        title="Settings",
+        icon="bi-gear",
+        subtitle="Manage configuration, modules, and integrations"
+    ),
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5("Data Management", className="card-title p-2"),

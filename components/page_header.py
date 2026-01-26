@@ -12,11 +12,12 @@ from dash import html
 import dash_bootstrap_components as dbc
 
 
-def create_page_header(
+def page_header(
     title: str,
     subtitle: str = None,
     breadcrumb: list = None,
-    actions: list = None
+    actions: list = None,
+    icon: str = None
 ):
     """
     Creates a standardized page header with optional subtitle, breadcrumb, and actions.
@@ -26,16 +27,18 @@ def create_page_header(
         subtitle: Optional descriptive subtitle
         breadcrumb: Optional list of tuples [(label, href), ...] for breadcrumb trail
         actions: Optional list of Dash components (buttons, etc.) for right side
+        icon: Optional Bootstrap icon class (e.g., "bi bi-house") to display inline with title
     
     Returns:
         html.Div with page-header class
     
     Example:
-        create_page_header(
+        page_header(
             title="Performance",
             subtitle="Portfolio returns and benchmark comparison",
             breadcrumb=[("Home", "/"), ("Performance", None)],
-            actions=[dbc.Button("Export", color="primary", size="sm")]
+            actions=[dbc.Button("Export", color="primary", size="sm")],
+            icon="bi bi-graph-up"
         )
     """
     header_content = []
@@ -60,8 +63,13 @@ def create_page_header(
             html.Div(crumb_items, className="breadcrumb mb-1")
         )
     
-    # Title
-    left_content.append(html.H2(title, className="mb-0"))
+    # Title with optional Icon
+    title_components = []
+    if icon:
+        title_components.append(html.I(className=f"{icon} page-title-icon me-3"))
+    title_components.append(html.Span(title))
+    
+    left_content.append(html.H2(title_components, className="mb-0 d-flex align-items-center"))
     
     # Subtitle
     if subtitle:

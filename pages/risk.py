@@ -4,21 +4,18 @@ import dash_bootstrap_components as dbc
 import dash_wrappers as dw
 import plotly.graph_objects as go
 from components.data_source_badge import create_data_source_badge
+from components.page_header import page_header
 from config import TARGET_MONTHLY_CONTRIBUTION, GLOBAL_PALETTE
 from components.monte_carlo import calculate_portfolio_sigma
 import pandas as pd
 
 layout = html.Div([
     # --- HEADER ---
-    dbc.Row([
-        dbc.Col([
-            html.H2([
-                html.I(className="bi bi-shield-exclamation page-title-icon me-2"),
-                "Risk Intelligence"
-            ], className="fw-bold text-body"),
-            html.P("Volatility, correlation, drawdown analysis, and projections", className="subtitle")
-        ], width=12)
-    ], className="page-header mb-4"),
+    page_header(
+        title="Risk Intelligence",
+        icon="bi-shield-exclamation",
+        subtitle="Volatility, correlation, drawdown analysis, and projections"
+    ),
     
     # 1. RISK & CORRELATION ROW
     dbc.Row([

@@ -4,18 +4,15 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import dash_wrappers as dw
 from components.data_source_badge import create_data_source_badge
+from components.page_header import page_header
 
 layout = html.Div([
     # --- HEADER ---
-    dbc.Row([
-        dbc.Col([
-            html.H2([
-                html.I(className="bi bi-pie-chart page-title-icon me-2"),
-                "Allocations"
-            ], className="fw-bold text-body"),
-            html.P("Asset class, ticker, and sector allocations", className="subtitle")
-        ], width=12)
-    ], className="page-header mb-4"),
+    page_header(
+        title="Allocations",
+        icon="bi-pie-chart",
+        subtitle="Asset class, ticker, and sector allocations"
+    ),
     # Top Row: Asset Class Pie & Bar
     dbc.Row([
         dbc.Col(dbc.Card([

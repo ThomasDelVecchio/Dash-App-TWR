@@ -6,20 +6,17 @@ import dash_wrappers as dw
 from report_formatting import fmt_pct_clean, fmt_dollar_clean
 from config import RISK_FREE_RATE
 from components.data_source_badge import create_price_source_badge
+from components.page_header import page_header
 import pandas as pd
 
 layout = html.Div([
     
     # --- HEADER ---
-    dbc.Row([
-        dbc.Col([
-            html.H2([
-                html.I(className="bi bi-graph-up-arrow page-title-icon me-2"),
-                "Performance"
-            ], className="fw-bold text-body"),
-            html.P("Cumulative returns, horizon analysis, and benchmark comparison", className="subtitle")
-        ], width=12)
-    ], className="page-header mb-4"),
+    page_header(
+        title="Performance",
+        icon="bi-graph-up-arrow",
+        subtitle="Cumulative returns, horizon analysis, and benchmark comparison"
+    ),
     
     # Price Source Badge (Fixed position)
     html.Div(id='perf-price-source-badge-container', style={'position': 'fixed', 'top': '15px', 'right': '20px', 'zIndex': 1999}),

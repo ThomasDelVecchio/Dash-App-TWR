@@ -22,6 +22,7 @@ from datetime import datetime
 
 # Local Imports
 import dash_wrappers as dw
+from components.page_header import page_header
 from config import ETRADE_SANDBOX, is_etrade_configured, TAX_RATE_ST, TAX_RATE_LT
 from tax_engine import build_tax_lots, simulate_sell
 from etrade_orders import (
@@ -140,26 +141,20 @@ def validate_ticker(symbol: str) -> dict:
 
 layout = dbc.Container([
     # Header Row
-    dbc.Row([
-        dbc.Col([
-            html.H2([
-                html.I(className="bi bi-cart-check page-title-icon me-2"),
-                "Trade Execution"
-            ], className="fw-bold text-body mb-0"),
-            html.P("Place and manage orders via E*TRADE", className="subtitle mb-0"),
-        ], width=8),
-        dbc.Col([
-            html.Div([
-                build_environment_badge(),
-                dbc.Button(
-                    [html.I(className="bi bi-arrow-clockwise me-1"), "Refresh"],
-                    id="btn-refresh-trade",
-                    color="secondary",
-                    size="sm"
-                )
-            ], className="d-flex justify-content-end align-items-center")
-        ], width=4),
-    ], className="page-header mb-4"),
+    page_header(
+        title="Trade Execution",
+        icon="bi-cart-check",
+        subtitle="Place and manage orders via E*TRADE",
+        actions=[
+            build_environment_badge(),
+            dbc.Button(
+                [html.I(className="bi bi-arrow-clockwise me-1"), "Refresh"],
+                id="btn-refresh-trade",
+                color="secondary",
+                size="sm"
+            )
+        ]
+    ),
     
     # Alert for staged order notification
     dbc.Alert(

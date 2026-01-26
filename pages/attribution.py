@@ -6,18 +6,15 @@ import plotly.graph_objects as go
 import dash_ag_grid as dag
 from report_formatting import fmt_dollar_clean
 from config import GLOBAL_PALETTE
+from components.page_header import page_header
 
 layout = html.Div([
     # --- HEADER ---
-    dbc.Row([
-        dbc.Col([
-            html.H2([
-                html.I(className="bi bi-bar-chart-line page-title-icon me-2"),
-                "Attribution"
-            ], className="fw-bold text-body"),
-            html.P("Performance attribution by asset class and time period", className="subtitle")
-        ], width=12)
-    ], className="page-header mb-4"),
+    page_header(
+        title="Attribution",
+        icon="bi-bar-chart-line",
+        subtitle="Performance attribution by asset class and time period"
+    ),
     
     # Active Strategy Section
     dbc.Row([
