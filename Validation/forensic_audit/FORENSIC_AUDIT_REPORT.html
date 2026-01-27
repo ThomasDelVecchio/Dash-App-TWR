@@ -112,7 +112,7 @@
                 <div style="opacity: 0.8;">Executive Integrity Dashboard</div>
             </div>
             <div class="meta">
-                <div>Date: 2026-01-23 11:22:04</div>
+                <div>Date: 2026-01-27 11:45:59</div>
                 <div>Version: 3.0 (Modular Opus Suite)</div>
             </div>
         </header>
@@ -288,12 +288,12 @@ Loading live data via Analytics Engine...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (5yr)
 [PRICE] FMP success: 16/17, yfinance fallback: 1
 Data loaded.
-[PASS] [1W] Match! Port: 66.05 | Sum: 64.93 | Gap: 1.12
-[PASS] [1M] Match! Port: 825.84 | Sum: 824.65 | Gap: 1.19
-[PASS] [MTD] Match! Port: 1,233.86 | Sum: 1,232.74 | Gap: 1.12
-[PASS] [YTD] Match! Port: 1,233.86 | Sum: 1,232.74 | Gap: 1.12
+[PASS] [1W] Match! Port: 1,114.51 | Sum: 1,114.51 | Gap: -0.00
+[PASS] [1M] Match! Port: 916.93 | Sum: 916.86 | Gap: 0.07
+[PASS] [MTD] Match! Port: 1,563.45 | Sum: 1,563.45 | Gap: 0.00
+[PASS] [YTD] Match! Port: 1,563.45 | Sum: 1,563.45 | Gap: 0.00
 [1Y] Insufficient data for Portfolio P/L.
-[PASS] [SI] Match! Port: 2,430.04 | Sum: 2,428.77 | Gap: 1.27
+[PASS] [SI] Match! Port: 2,759.64 | Sum: 2,759.49 | Gap: 0.15
 
 --- Dividend Integrity Check ---
 Checking Dividend: CASH on 2025-11-28 for $0.08
@@ -323,12 +323,12 @@ Checking Correlation Matrix...
 [PASS] Correlation Matrix Diagonal is all 1.0
 [PASS] Correlation Matrix is Symmetric
 [PASS] Correlation Values within [-1, 1]
-[PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1191
+[PASS] US Large Cap vs Fixed Income Correlation is non-zero: 0.1185
 Checking Active Metrics (Beta/TE)...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (5yr)
 [PRICE] FMP success: 1/1, yfinance fallback: 0
-[PASS] Beta vs SPY calculated: 0.6383
-[PASS] Tracking Error calculated: 5.7815%
+[PASS] Beta vs SPY calculated: 0.6324
+[PASS] Tracking Error calculated: 5.7878%
 Checking Drawdown Logic...
 [PASS] Max Drawdown (-2.83%) matches Minimum of Series
 [PASS] Drawdown Series is always <= 0.0
@@ -354,15 +354,15 @@ Loading live data...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (5yr)
 [PRICE] FMP success: 16/17, yfinance fallback: 1
 Checking Snapshot vs Chart...
-[PASS] Cumulative SI TWR (0.0515) matches Chart Final Value (0.0515)
+[PASS] Cumulative SI TWR (0.0585) matches Chart Final Value (0.0585)
 Checking Snapshot vs Horizon Table...
-[PASS] Snapshot SI P/L (2,428.92) matches Horizon Table (2,428.92)
+[PASS] Snapshot SI P/L (2,759.64) matches Horizon Table (2,759.64)
 Checking Growth Table vs P/L...
-[PASS] Growth Table Total (2,428.92) matches SI P/L (2,428.92)
+[PASS] Growth Table Total (2,759.64) matches SI P/L (2,759.64)
 Checking Attribution vs SI TWR...
-[PASS] Attribution Sum (5.15%) matches SI TWR (5.15%)
+[PASS] Attribution Sum (5.85%) matches SI TWR (5.85%)
 Checking Risk Chart vs Horizon Table...
-Risk Chart US Large Cap Return: 15.49%
+Risk Chart US Large Cap Return: 16.85%
 [PASS] Risk Data exists.
 
 [SUCCESS] audit_05_consistency_matrix.py passed.
@@ -627,10 +627,10 @@ Final GIPS Score: 5/5
   Passed:       199
   Failed:       0
   Pass Rate:    100.0%
-  Duration:     0.21s
+  Duration:     0.20s
 ======================================================================
 
-📝 Updated existing Frontend Stress section in report.
+📝 Appended new Frontend Stress section to report.
 
 [SUCCESS] All stress tests passed!
 </div>
@@ -650,11 +650,11 @@ Final GIPS Score: 5/5
 Running Live Engine...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (5yr)
 [PRICE] FMP success: 15/15, yfinance fallback: 0
-Time Machine Target: 2026-01-09
+Time Machine Target: 2026-01-13
 Running Historical Engine...
 
 Checking PV Consistency...
-[PASS] PV Matches: History=49264.21 vs Live=49264.21
+[PASS] PV Matches: History=49427.34 vs Live=49427.34
 
 Checking Future Leakage (Transactions)...
 [PASS] No future tickers detected in historical view.
@@ -680,11 +680,11 @@ Loading Live Data...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (5yr)
 [PRICE] FMP success: 16/17, yfinance fallback: 1
 
-Scanning Last 30 Days (2025-12-24 to 2026-01-23)...
-[PASS] Last 30 Days: Match! Slice=0.014348 vs Rigorous=0.014348
+Scanning Last 30 Days (2025-12-28 to 2026-01-27)...
+[PASS] Last 30 Days: Match! Slice=0.018710 vs Rigorous=0.018710
 
-Scanning Middle 20 Days (2025-12-13 to 2026-01-02)...
-[PASS] Middle 20 Days: Match! Slice=0.009776 vs Rigorous=0.009776
+Scanning Middle 20 Days (2025-12-15 to 2026-01-04)...
+[PASS] Middle 20 Days: Match! Slice=0.012499 vs Rigorous=0.012499
 
 [SUCCESS] audit_09_custom_report.py passed.
 </div>
@@ -923,7 +923,7 @@ Current Configuration:
 [PASS]: yfinance ticker list populated
         Count: 2
 [PASS]: Date coverage > 85%
-        730 days (100.0%) from 2024-01-24 to 2026-01-23
+        729 days (99.9%) from 2024-01-29 to 2026-01-27
 
 ======================================================================
  Test 3: Hybrid Mode Structure
@@ -934,9 +934,9 @@ Current Configuration:
 [PASS]: Source marked as 'hybrid'
         Got: 'hybrid'
 [PASS]: FMP range tracked
-        Range: (Timestamp('2021-01-24 00:00:00'), Timestamp('2026-01-23 00:00:00'))
+        Range: (Timestamp('2021-01-28 00:00:00'), Timestamp('2026-01-27 00:00:00'))
 [PASS]: yfinance range tracked
-        Range: (Timestamp('2016-01-26 00:00:00'), Timestamp('2021-01-24 00:00:00'))
+        Range: (Timestamp('2016-01-30 00:00:00'), Timestamp('2021-01-28 00:00:00'))
         FMP success count: 1
         yfinance fallback count: 0
 
@@ -946,9 +946,9 @@ Current Configuration:
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (5yr)
 [PRICE] FMP success: 1/1, yfinance fallback: 0
 [PASS]: SPY data available
-        2514 rows
+        2512 rows
 [PASS]: Stitch date identified
-        2021-01-24
+        2021-01-28
 [PASS]: Sufficient data around stitch
         14 days
 [PASS]: Price continuity (no >5% jump)
@@ -956,11 +956,11 @@ Current Configuration:
 [PASS]: No NaN gaps around stitch
 
         Prices around stitch boundary:
-          2021-01-21: $384.24
-          2021-01-22: $382.88
           2021-01-25: $384.39
           2021-01-26: $383.79
           2021-01-27: $374.41
+          2021-01-28: $377.63 <-- STITCH
+          2021-01-29: $370.07
 
 ======================================================================
  Test 5: FMP Single Ticker Fetch
@@ -998,11 +998,11 @@ Current Configuration:
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (-4yr)
 [PRICE] FMP success: 1/1, yfinance fallback: 0
 [PASS]: Both price sets available
-        Close: 1256 rows, Adj: 1256 rows
+        Close: 1255 rows, Adj: 1255 rows
 [PASS]: Close and Adj Close have data
-        Close: $690.54, Adj: $690.54, Diff: 0.00%
+        Close: $696.46, Adj: $696.46, Diff: 0.00%
 [PASS]: Difference is reasonable (<5%)
-        Historical divergence: Close $384.39, Adj $384.39, Diff: 0.00%
+        Historical divergence: Close $377.63, Adj $352.52, Diff: 6.65%
 
 ======================================================================
  Test 8: Multi-Ticker Fetch Consistency
@@ -1010,14 +1010,14 @@ Current Configuration:
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (-2yr)
 [PRICE] FMP success: 5/5, yfinance fallback: 0
 [PASS]: Multi-ticker fetch successful
-        1256 rows
+        1255 rows
 [PASS]: All tickers present
         All 5 tickers
-        SPY: 1256 valid prices, 2021-01-25 to 2026-01-23
-        QQQ: 1256 valid prices, 2021-01-25 to 2026-01-23
-        VTI: 1256 valid prices, 2021-01-25 to 2026-01-23
-        BND: 1256 valid prices, 2021-01-25 to 2026-01-23
-        GLD: 1256 valid prices, 2021-01-25 to 2026-01-23
+        SPY: 1255 valid prices, 2021-01-28 to 2026-01-27
+        QQQ: 1255 valid prices, 2021-01-28 to 2026-01-27
+        VTI: 1255 valid prices, 2021-01-28 to 2026-01-27
+        BND: 1255 valid prices, 2021-01-28 to 2026-01-27
+        GLD: 1255 valid prices, 2021-01-28 to 2026-01-27
 [PASS]: SPY (default benchmark) present
 
 ======================================================================
@@ -1026,19 +1026,19 @@ Current Configuration:
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (-4yr)
 [PRICE] FMP success: 1/1, yfinance fallback: 0
 [PASS]: 1Y coverage >= 85%
-        1824 days (499.7%), 2021-01-25 to 2026-01-23
+        1825 days (500.0%), 2021-01-28 to 2026-01-27
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (-2yr)
 [PRICE] FMP success: 1/1, yfinance fallback: 0
 [PASS]: 3Y coverage >= 85%
-        1824 days (166.6%), 2021-01-25 to 2026-01-23
+        1825 days (166.7%), 2021-01-28 to 2026-01-27
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (0yr)
 [PRICE] FMP success: 1/1, yfinance fallback: 0
 [PASS]: 5Y coverage >= 85%
-        1824 days (99.9%), 2021-01-25 to 2026-01-23
+        1825 days (100.0%), 2021-01-28 to 2026-01-27
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (5yr)
 [PRICE] FMP success: 1/1, yfinance fallback: 0
 [PASS]: 10Y coverage >= 80%
-        3650 days (100.0%), 2016-01-26 to 2026-01-23
+        3648 days (99.9%), 2016-02-01 to 2026-01-27
 
 ======================================================================
  Test 10: Error Tracking Attributes

@@ -81,7 +81,7 @@ layout = html.Div([
     html.Div(id='data-status-container', style={'position': 'fixed', 'top': '15px', 'right': '20px', 'zIndex': 2000, 'maxWidth': '90vw'}),
     
     # Price Source Badge (Fixed position below data status)
-    html.Div(id='price-source-badge-container', style={'position': 'fixed', 'top': '60px', 'right': '20px', 'zIndex': 1999}),
+    html.Div(id='price-source-badge-container', style={'position': 'fixed', 'top': '30px', 'right': '75px', 'zIndex': 1999}),
 
     # Morning Brief AI Card (NEW)
     dbc.Row([

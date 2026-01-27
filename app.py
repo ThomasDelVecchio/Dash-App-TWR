@@ -307,6 +307,14 @@ app.layout = html.Div(
             className="btn btn-secondary sidebar-open-btn",
             title="Open sidebar"
         ),
+
+        # Floating Next Page Button
+        html.Button(
+            html.I(className="bi bi-chevron-right"),
+            id="btn-next-page",
+            className="btn btn-primary next-page-btn",
+            title="Next Page"
+        ),
         
         sidebar,
         content,
@@ -440,7 +448,7 @@ def update_filter_store(all_charts_click, clear_btn, current_filters):
     # Clear Logic
     if triggered_id == "btn-clear-global":
         return {}
-        
+    
     # Helper to update with toggle logic
     def update_key(key, value):
         if filters.get(key) == value:
@@ -640,5 +648,57 @@ def update_sidebar_modules(active_modules_ids):
             
     return filtered_links
 
+# 8. Next Page Navigation Callback
+@app.callback(
+    Output("url", "pathname", allow_duplicate=True),
+    Input("btn-next-page", "n_clicks"),
+    [State("url", "pathname"),
+     State("active-modules-store", "data")],
+    prevent_initial_call=True
+)
+def navigate_to_next_page(n_clicks, current_path, active_modules_ids):
+    if not n_clicks:
+        return dash.no_update
+        
+    # Build list of active pages in order
+    active_pages = []
+    for m in NAV_MODULES:
+        # If can_toggle is False, it's always active (e.g. Overview)
+        if not m["can_toggle"]:
+            active_pages.append(m["href"])
+        # If can_toggle is True, check if it's enabled in active_modules_ids
+        # If active_modules_ids is None (default), ALL toggleable modules are active
+        elif active_modules_ids is None or m["id"] in active_modules_ids:
+            active_pages.append(m["href"])
+            
+    # Find current index
+    try:
+        # Handle trailing slashes or exact matches
+        clean_current = current_path.rstrip("/") if len(current_path) > 1 else current_path
+        
+        # Simple exact match first
+        if clean_current in active_pages:
+            idx = active_pages.index(clean_current)
+        else:
+            # Fallback: try matching with/without slash
+            idx = -1
+            for i, p in enumerate(active_pages):
+                if p == clean_current or p == current_path:
+                    idx = i
+                    break
+        
+        if idx != -1:
+            # Go to next page (loop back to start if at end)
+            next_idx = (idx + 1) % len(active_pages)
+            return active_pages[next_idx]
+        else:
+            # If current page not found in nav (e.g. 404), go to Home
+            return "/"
+            
+    except Exception as e:
+        print(f"Navigation error: {e}")
+        return dash.no_update
+
 if __name__ == "__main__":
     app.run(debug=True)
+

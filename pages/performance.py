@@ -19,7 +19,7 @@ layout = html.Div([
     ),
     
     # Price Source Badge (Fixed position)
-    html.Div(id='perf-price-source-badge-container', style={'position': 'fixed', 'top': '15px', 'right': '20px', 'zIndex': 1999}),
+    html.Div(id='perf-price-source-badge-container', style={'position': 'fixed', 'top': '30px', 'right': '75px', 'zIndex': 1999}),
 
     dbc.Row([
         dbc.Col(dbc.Card([
