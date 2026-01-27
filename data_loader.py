@@ -101,9 +101,26 @@ def fetch_etf_sectors(ticker: str) -> dict:
     if ticker in _METADATA_CACHE:
         # Compatibility check: if old format (direct dict), return it
         cached = _METADATA_CACHE[ticker]
-        if "weights" in cached:
-            return cached["weights"]
-        return cached
+        if isinstance(cached, dict) and "weights" in cached:
+            cached_weights = cached["weights"]
+            cached_source = cached.get("source", "Unknown")
+        else:
+            cached_weights = cached
+            cached_source = "Unknown"
+
+        # If FMP is enabled and cached source is not FMP, refresh from FMP
+        if FMP_PRICE_ENABLED and FMP_API_KEY and FMP_API_KEY != "demo" and cached_source != "FMP":
+            fmp_weights = fetch_fmp_sector_weights(ticker)
+            if fmp_weights:
+                _METADATA_CACHE[ticker] = {
+                    "weights": fmp_weights,
+                    "source": "FMP",
+                    "timestamp": datetime.now().isoformat()
+                }
+                save_metadata_cache()
+                return fmp_weights
+
+        return cached_weights
 
     weights = {}
     source = "Unknown"

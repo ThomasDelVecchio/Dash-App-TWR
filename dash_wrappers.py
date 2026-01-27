@@ -1933,6 +1933,28 @@ def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="lig
     y_max = max(bar_max * 1.5, 500) # Minimum $500 window for visibility
     y_min = min(bar_min * 1.2, -500)
 
+    # Determine intelligent x-axis config based on history duration
+    # REVISED: Tighter labeling logic to ensure bars are labeled
+    if history_days > 365 * 5:       # > 5 Years: Yearly ticks
+        xaxis_dtick = "M12"
+        xaxis_format = "%Y"
+    elif history_days > 365 * 2:     # 2-5 Years: Quarterly ticks
+        xaxis_dtick = "M3"
+        xaxis_format = "%b '%y"
+    elif history_days > 365:         # 1-2 Years: Bi-Monthly
+        xaxis_dtick = "M2"
+        xaxis_format = "%b '%y"
+    elif freq == 'ME':               # Monthly mode (3-12 months): Every month
+        xaxis_dtick = "M1"
+        xaxis_format = "%b '%y"
+    elif freq == 'W-FRI':            # Weekly mode (1-3 months): Every week (approx)
+        # 1 week in milliseconds
+        xaxis_dtick = 604800000 
+        xaxis_format = "%Y-%m-%d"
+    else:                            # Daily mode (< 1 month): Daily
+        xaxis_dtick = 86400000       # 1 day in milliseconds
+        xaxis_format = "%Y-%m-%d"
+
     fig.update_layout(
         yaxis_title="Change ($)",
         yaxis=dict(range=[y_min, y_max]), # Focus scale on Performance Gain/Loss
@@ -1944,10 +1966,12 @@ def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="lig
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         xaxis_title="Period",
         xaxis=dict(
-            # Switch to 'date' type explicitly to handle cramping
             type='date',
-            tickformat='%b %y' if freq == 'ME' else '%b %d',
-            # dtick="M1" if freq == 'ME' else None # Let Plotly decide
+            tickformat=xaxis_format,
+            dtick=xaxis_dtick,
+            tick0=mkt_agg.index[0] if not mkt_agg.empty else None, # Anchor ticks to data
+            tickmode='linear' if xaxis_dtick else 'auto', # Force alignment in weekly/monthly modes
+            tickangle=-45
         ),
         bargap=0.3
     )

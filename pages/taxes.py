@@ -366,7 +366,7 @@ def update_tax_dashboard(signal, chat_cmd, strategy, date_range):
             columnDefs=col_defs,
             defaultColDef=default_col_def,
             className=f"{grid_theme} audit-target",
-            dashGridOptions={"domLayout": "autoHeight", "pagination": True, "paginationPageSize": 20},
+            dashGridOptions={"domLayout": "normal", "pagination": True, "paginationPageSize": 20},
             style={"height": "600px", "width": "100%"},
         )
     else:
@@ -410,7 +410,7 @@ def update_tax_dashboard(signal, chat_cmd, strategy, date_range):
             columnDefs=col_defs,
             defaultColDef=default_col_def,
             className=f"{grid_theme} audit-target",
-            dashGridOptions={"domLayout": "autoHeight", "pagination": True, "paginationPageSize": 20},
+            dashGridOptions={"domLayout": "normal", "pagination": True, "paginationPageSize": 20},
             style={"height": "600px", "width": "100%"},
         )
     else:
@@ -419,7 +419,7 @@ def update_tax_dashboard(signal, chat_cmd, strategy, date_range):
     explorer_tabs = dbc.Tabs([
         dbc.Tab(grid_open, label="Open Lots", tab_id="tab-open"),
         dbc.Tab(grid_realized, label="Realized History", tab_id="tab-realized"),
-    ], active_tab="tab-open")
+    ], active_tab="tab-open", className="lot-explorer-tabs")
 
     # 5. Charts
     # Filter realized events for the Sunburst to match the reference year
@@ -431,7 +431,7 @@ def update_tax_dashboard(signal, chat_cmd, strategy, date_range):
     return (
         kpi_realized, kpi_unrealized, kpi_harvest, kpi_efficiency, 
         sunburst_fig, radar_fig,
-        cliff_grid, harvest_grid, explorer_tabs
+        cliff_grid, harvest_grid, html.Div(explorer_tabs, className="lot-explorer-container")
     )
 
 @callback(
