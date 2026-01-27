@@ -264,6 +264,24 @@ app.layout = html.Div(
         
         # Interval for E*TRADE sync status polling (every 30 seconds)
         dcc.Interval(id="sync-status-interval", interval=30*1000, n_intervals=0),
+
+        # Global Error Toast (dismissable)
+        dbc.Toast(
+            id="app-error-toast",
+            header="Data Quality Warning",
+            is_open=False,
+            dismissable=True,
+            icon="warning",
+            duration=None,
+            style={
+                "position": "fixed",
+                "top": "70px",
+                "right": "20px",
+                "width": "420px",
+                "maxWidth": "90vw",
+                "zIndex": 1200,
+            },
+        ),
         
         # Stores for Global State
         dcc.Store(id="data-signal", data=datetime.now().isoformat()),
@@ -425,6 +443,44 @@ def update_global_state(end_date, benchmarks, include_exited, tax_strategy):
             bm_map[label] = b
             
     return theme, theme, dates, bm_map, datetime.now().isoformat(), include_exited, tax_strategy
+
+# 3. Global Error Toast
+@app.callback(
+    [Output("app-error-toast", "children"),
+     Output("app-error-toast", "is_open")],
+    [Input("data-signal", "data")]
+)
+def update_error_toast(_signal):
+    data = dw.get_data()
+    if not data:
+        return "", False
+
+    errors = data.get("errors", [])
+    if not errors and "prices" in data and hasattr(data["prices"], "attrs"):
+        errors = data["prices"].attrs.get("errors", [])
+
+    if not errors:
+        return "", False
+
+    toast_body = html.Div(
+        [
+            html.Div(
+                [html.I(className="bi bi-exclamation-triangle-fill me-2"), "Data Quality Warning"],
+                className="d-flex align-items-center fw-bold mb-1",
+            ),
+            html.Hr(className="my-1"),
+        ]
+        + [
+            html.Div(
+                e,
+                className="small mb-2",
+                style={"whiteSpace": "pre-wrap", "wordBreak": "break-word"},
+            )
+            for e in errors
+        ]
+    )
+
+    return toast_body, True
 
 # 3. Global Filter Logic
 @app.callback(
@@ -700,5 +756,5 @@ def navigate_to_next_page(n_clicks, current_path, active_modules_ids):
         return dash.no_update
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, dev_tools_ui=False)
 
