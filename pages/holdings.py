@@ -18,18 +18,18 @@ layout = html.Div([
     ),
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Current Holdings", className="card-title p-2"),
+            html.H5("Current Holdings", className="card-title section-header p-2"),
             dcc.Loading(html.Div(id='holdings-table-container'))
         ]), width=12, className="mb-4"),
     ]),
     
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Ticker Allocation", className="card-title p-2"),
+            html.H5("Ticker Allocation", className="card-title section-header p-2"),
             dcc.Graph(id={'type': 'filter-chart', 'index': 'ticker-pie-chart'})
         ]), width=6, className="mb-4"),
         dbc.Col(dbc.Card([
-            html.H5("Ticker Allocation vs Target", className="card-title p-2"),
+            html.H5("Ticker Allocation vs Target", className="card-title section-header p-2"),
             dcc.Graph(id={'type': 'filter-chart', 'index': 'ticker-bar-chart'})
         ]), width=6, className="mb-4"),
     ])

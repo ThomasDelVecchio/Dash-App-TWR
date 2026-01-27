@@ -16,13 +16,13 @@ layout = html.Div([
     # Top Row: Asset Class Pie & Bar
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Asset Allocation", className="card-title p-2"),
+            html.H5("Asset Allocation", className="card-title section-header p-2"),
             dcc.Store(id='alloc-drilldown-store'),
             html.Button("← Back to Overview", id="alloc-back-btn", className="btn btn-sm btn-outline-secondary mb-2 mx-2", style={'display': 'none', 'width': 'fit-content'}),
             dcc.Graph(id={'type': 'filter-chart', 'index': 'asset-pie-chart'})
         ]), width=6),
         dbc.Col(dbc.Card([
-            html.H5("Allocation vs Target", className="card-title p-2"),
+            html.H5("Allocation vs Target", className="card-title section-header p-2"),
             dcc.Graph(id={'type': 'filter-chart', 'index': 'asset-bar-chart'})
         ]), width=6),
     ], className="mb-4"),
@@ -30,7 +30,7 @@ layout = html.Div([
     # Asset Class Allocation Table
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Asset Class Allocation", className="card-title p-2"),
+            html.H5("Asset Class Allocation", className="card-title section-header p-2"),
             dcc.Loading(html.Div(id='asset-class-table-container'))
         ]), width=12, className="mb-4"),
     ]),
@@ -39,7 +39,7 @@ layout = html.Div([
     dbc.Row([
         dbc.Col(dbc.Card([
             html.Div([
-                html.H5("Sector Allocation (Look-through)", className="card-title p-2", style={"display": "inline-block"}),
+                html.H5("Sector Allocation (Look-through)", className="card-title section-header p-2", style={"display": "inline-block"}),
                 html.Div(id="sector-data-source-container", style={"display": "inline-block"})
             ]),
             dcc.Graph(id={'type': 'filter-chart', 'index': 'sector-chart'})
@@ -49,7 +49,7 @@ layout = html.Div([
     # History Row
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Allocation History", className="card-title p-2"),
+            html.H5("Allocation History", className="card-title section-header p-2"),
             dcc.Loading(dcc.Graph(id='history-chart'))
         ]), width=12, className="mb-4"),
     ]),

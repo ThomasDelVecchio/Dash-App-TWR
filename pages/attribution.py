@@ -19,14 +19,14 @@ layout = html.Div([
     # Active Strategy Section
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Active Strategy vs Benchmarks", className="card-title p-2"),
+            html.H5("Active Strategy vs Benchmarks", className="card-title section-header p-2"),
             dcc.Loading(html.Div(id='active-strategy-table-container'))
         ]), width=12, className="mb-4"),
     ]),
 
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Attribution Since Inception", className="card-title p-2"),
+            html.H5("Attribution Since Inception", className="card-title section-header p-2"),
             html.Div("Click on a bar to see the asset class breakdown for that period.", className="text-muted small px-2 mb-2"),
             dcc.Graph(id='attribution-chart')
         ]), width=12, className="mb-4"),
@@ -35,7 +35,7 @@ layout = html.Div([
     # Drill-down Section
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5(id="attribution-detail-title", children="Breakdown", className="card-title p-2"),
+            html.H5(id="attribution-detail-title", children="Breakdown", className="card-title section-header p-2"),
             dcc.Loading(html.Div(id="attribution-detail-container")),
             html.Div(
                 html.Small([
@@ -53,7 +53,7 @@ layout = html.Div([
     # SI Attribution Summary Section
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Lifetime SI Attribution Summary", className="card-title p-2"),
+            html.H5("Lifetime SI Attribution Summary", className="card-title section-header p-2"),
             dcc.Loading(html.Div(id='si-attribution-container'))
         ]), width=12, className="mb-4"),
     ])

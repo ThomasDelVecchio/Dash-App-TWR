@@ -17,7 +17,7 @@ layout = html.Div([
     # External Flows Table
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("External Cash Flows (Since Inception)", className="card-title p-2"),
+            html.H5("External Cash Flows (Since Inception)", className="card-title section-header p-2"),
             html.Div(id='external-flows-table-container')
         ]), width=12, className="mb-4"),
     ]),
@@ -25,7 +25,7 @@ layout = html.Div([
     # Internal Flows Summary Table
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Internal Trading Summary", className="card-title p-2"),
+            html.H5("Internal Trading Summary", className="card-title section-header p-2"),
             dcc.Loading(html.Div(id='internal-flows-table-container'))
         ]), width=12, className="mb-4"),
     ]),
@@ -33,7 +33,7 @@ layout = html.Div([
     # Internal Flows Chart
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Internal Flows by Asset Class", className="card-title p-2"),
+            html.H5("Internal Flows by Asset Class", className="card-title section-header p-2"),
             dcc.Graph(id={'type': 'filter-chart', 'index': 'flows-chart'})
         ]), width=12, className="mb-4"),
     ]),

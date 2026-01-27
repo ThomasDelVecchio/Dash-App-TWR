@@ -23,7 +23,7 @@ layout = html.Div([
     ),
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Data Management", className="card-title p-2"),
+            html.H5("Data Management", className="card-title section-header p-2"),
             html.Div([
                 html.P("Upload your latest data files to update the dashboard."),
                 
@@ -56,7 +56,7 @@ layout = html.Div([
         ]), width=6),
         
         dbc.Col(dbc.Card([
-            html.H5("Active Modules", className="card-title p-2"),
+            html.H5("Active Modules", className="card-title section-header p-2"),
             html.Div([
                 html.P("Toggle features to customize your sidebar."),
                 dbc.Checklist(

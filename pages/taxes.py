@@ -33,7 +33,7 @@ layout = html.Div([
     dbc.Row([
         # Sunburst Chart
         dbc.Col(dbc.Card([
-            dbc.CardHeader("Liability Composition"),
+            dbc.CardHeader("Liability Composition", className="section-header"),
             dbc.CardBody([
                 dcc.Graph(id="tax-sunburst-chart", config={"displayModeBar": False})
             ])
@@ -41,7 +41,7 @@ layout = html.Div([
 
         # Tactical Radar
         dbc.Col(dbc.Card([
-            dbc.CardHeader("Tactical Decision Radar (Harvest vs Hold)"),
+            dbc.CardHeader("Tactical Decision Radar (Harvest vs Hold)", className="section-header"),
             dbc.CardBody([
                 dcc.Graph(id="tax-tactical-radar", config={"displayModeBar": False})
             ])
@@ -55,7 +55,7 @@ layout = html.Div([
             dbc.CardHeader([
                 html.I(className="bi bi-hourglass-split me-2"),
                 "The Cliff Watch (Turns LT in < 30 Days)"
-            ]),
+            ], className="section-header"),
             dbc.CardBody([
                 html.P("HOLD these lots! Waiting a few days drops tax rate from 35% to 15%.", className="text-muted small"),
                 dcc.Loading(html.Div(id="taxes-cliff-watch-container"))
@@ -67,7 +67,7 @@ layout = html.Div([
             dbc.CardHeader([
                 html.I(className="bi bi-bullseye me-2"),
                 "Harvesting Radar (Unrealized Losses)"
-            ]),
+            ], className="section-header"),
             dbc.CardBody([
                 html.P("Sell these to offset gains. Watch for Wash Sales!", className="text-muted small"),
                 dcc.Loading(html.Div(id="harvest-radar-container"))
@@ -78,7 +78,7 @@ layout = html.Div([
     # --- SIMULATOR ---
     dbc.Row([
         dbc.Col(dbc.Card([
-            dbc.CardHeader("Tax Simulator"),
+            dbc.CardHeader("Tax Simulator", className="section-header"),
             dbc.CardBody([
                 dbc.Row([
                     dbc.Col([
@@ -116,7 +116,7 @@ layout = html.Div([
     # --- LOT EXPLORER ---
     dbc.Row([
         dbc.Col(dbc.Card([
-            dbc.CardHeader("Tax Lot Explorer"),
+            dbc.CardHeader("Tax Lot Explorer", className="section-header"),
             dbc.CardBody([
                 dcc.Loading(html.Div(id="lot-explorer-container"))
             ])

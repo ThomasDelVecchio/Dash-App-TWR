@@ -23,14 +23,14 @@ layout = html.Div([
 
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Cumulative Return vs Benchmarks", className="card-title p-2"),
+            html.H5("Cumulative Return vs Benchmarks", className="card-title section-header p-2"),
             dcc.Graph(id='cum-ret-chart')
         ]), width=12, className="mb-4"),
     ]),
     
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Excess Return vs Benchmarks", className="card-title p-2"),
+            html.H5("Excess Return vs Benchmarks", className="card-title section-header p-2"),
             dcc.Graph(id='excess-ret-chart')
         ]), width=12, className="mb-4"),
     ]),
@@ -39,7 +39,7 @@ layout = html.Div([
         dbc.Col(dbc.Card([
             dbc.CardHeader([
                 dbc.Row([
-                    dbc.Col(html.H5("Horizon Returns (Modified Dietz)", className="card-title p-0 m-0"), width=True),
+                    dbc.Col(html.H5("Horizon Returns (Modified Dietz)", className="card-title section-header p-0 m-0"), width=True),
                     dbc.Col([
                         dbc.Button("Expand All", id="btn-ret-expand", size="sm", color="secondary", className="me-2 text-white", n_clicks=0),
                         dbc.Button("Collapse All", id="btn-ret-collapse", size="sm", color="secondary", className="text-white", n_clicks=0),
@@ -57,7 +57,7 @@ layout = html.Div([
         dbc.Col(dbc.Card([
             dbc.CardHeader([
                 dbc.Row([
-                    dbc.Col(html.H5("Horizon P/L (Economic)", className="card-title p-0 m-0"), width=True),
+                    dbc.Col(html.H5("Horizon P/L (Economic)", className="card-title section-header p-0 m-0"), width=True),
                     dbc.Col([
                         dbc.Button("Expand All", id="btn-pl-expand", size="sm", color="secondary", className="me-2 text-white", n_clicks=0),
                         dbc.Button("Collapse All", id="btn-pl-collapse", size="sm", color="secondary", className="text-white", n_clicks=0),
@@ -75,7 +75,7 @@ layout = html.Div([
     html.Hr(className="my-4"),
     dbc.Row([
         dbc.Col([
-            html.H4("Growth of Invested Capital", className="mb-3 text-light"),
+            html.H4("Growth of Invested Capital", className="section-header mb-3"),
             html.P("Compare portfolio value vs cumulative cash invested by asset class", className="text-muted")
         ])
     ]),
@@ -95,14 +95,14 @@ layout = html.Div([
     
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Portfolio Value vs Cash Invested", className="card-title p-2"),
+            html.H5("Portfolio Value vs Cash Invested", className="card-title section-header p-2"),
             dcc.Loading(dcc.Graph(id='growth-of-capital-chart'))
         ]), width=12, className="mb-4"),
     ]),
     
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Investment Summary by Asset Class", className="card-title p-2"),
+            html.H5("Investment Summary by Asset Class", className="card-title section-header p-2"),
             dcc.Loading(html.Div(id='growth-table-container'))
         ]), width=12, className="mb-4"),
     ]),

@@ -181,7 +181,7 @@ layout = dbc.Container([
                 dbc.CardHeader([
                     html.I(className="bi bi-pencil-square me-2"),
                     "Order Entry"
-                ]),
+                ], className="section-header"),
                 dbc.CardBody([
                     # Action (Buy/Sell)
                     dbc.Row([
@@ -352,7 +352,7 @@ layout = dbc.Container([
                 dbc.CardHeader([
                     html.I(className="bi bi-receipt me-2"),
                     "Order Preview"
-                ]),
+                ], className="section-header"),
                 dbc.CardBody([
                     # Preview Content (populated by callback)
                     html.Div(id="order-preview-content", children=[
@@ -375,7 +375,7 @@ layout = dbc.Container([
                 dbc.CardHeader([
                     html.I(className="bi bi-clock-history me-2"),
                     "Recent Orders"
-                ]),
+                ], className="section-header"),
                 dbc.CardBody([
                     html.Div(id="recent-orders-content")
                 ])
@@ -896,7 +896,7 @@ def build_tax_impact_card(tax_result, ticker, quantity):
         dbc.CardHeader([
             html.I(className="bi bi-bank me-2"),
             "Estimated Tax Impact"
-        ]),
+        ], className="section-header"),
         dbc.CardBody([
             dbc.Row([
                 dbc.Col([
@@ -974,7 +974,7 @@ def build_manual_lot_impact_card(lots, estimated_total):
         dbc.CardHeader([
             html.I(className="bi bi-bank me-2"),
             "Estimated Tax Impact (Manual Lots)"
-        ]),
+        ], className="section-header"),
         dbc.CardBody([
             dbc.Row([
                 dbc.Col([

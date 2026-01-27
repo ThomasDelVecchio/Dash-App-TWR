@@ -89,7 +89,7 @@ layout = html.Div([
             dbc.CardHeader([
                 html.I(className="bi bi-robot me-2"),
                 "Morning Brief (AI Summary)"
-            ]),
+            ], className="section-header"),
             dbc.CardBody([
                 dcc.Loading(dcc.Markdown(id='ai-brief-content', children="Generating summary..."))
             ])
@@ -132,11 +132,11 @@ layout = html.Div([
     # Chart & Snapshot Row
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Portfolio Value (Since Inception %)", className="card-title p-2"),
+            html.H5("Portfolio Value (Since Inception %)", className="card-title section-header p-2"),
             dcc.Graph(id='pv-chart', style={'height': '428px'})
         ]), width=7),
         dbc.Col(dbc.Card([
-            html.H5("Portfolio Snapshot", className="card-title p-2"),
+            html.H5("Portfolio Snapshot", className="card-title section-header p-2"),
             dcc.Loading(html.Div(id='snapshot-table-container', style={'height': '428px'}))
         ]), width=5)
     ], className="mb-4"),
@@ -144,11 +144,11 @@ layout = html.Div([
     # Highlights & Risk Row
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Performance Highlights", className="card-title p-2"),
+            html.H5("Performance Highlights", className="card-title section-header p-2"),
             dcc.Loading(html.Div(id='highlights-table-container'))
         ]), width=6),
         dbc.Col(dbc.Card([
-            html.H5("Risk & Diversification", className="card-title p-2"),
+            html.H5("Risk & Diversification", className="card-title section-header p-2"),
             dcc.Loading(html.Div(id='risk-table-container'))
         ]), width=6)
     ], className="mb-4"),
@@ -156,7 +156,7 @@ layout = html.Div([
     # Flows Row
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H5("Flows Summary (YTD)", className="card-title p-2"),
+            html.H5("Flows Summary (YTD)", className="card-title section-header p-2"),
             dcc.Loading(html.Div(id='flows-table-container'))
         ]), width=12)
     ], className="mb-4")

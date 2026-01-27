@@ -21,7 +21,7 @@ layout = html.Div([
         # Input Panel
         dbc.Col(dbc.Card([
             html.Div([
-                dbc.CardHeader("Trade Ticket", style={"display": "inline-block", "border": "none"}),
+                dbc.CardHeader("Trade Ticket", className="section-header", style={"display": "inline-block", "border": "none"}),
                 html.Div(id="trade-data-source-header", style={"display": "inline-block", "paddingTop": "10px"})
             ], className="d-flex justify-content-between align-items-center pe-3"),
             dbc.CardBody([
@@ -78,7 +78,7 @@ layout = html.Div([
         
         # Results Panel
         dbc.Col(dbc.Card([
-            dbc.CardHeader("Simulation Results (10-Year Horizon)"),
+            dbc.CardHeader("Simulation Results (10-Year Horizon)", className="section-header"),
             dbc.CardBody([
                 dcc.Loading([
                     dcc.Graph(id="sim-overlay-chart", style={"height": "400px"}),
@@ -348,7 +348,7 @@ def update_trade_lab(n_clicks, ticker, side, amount, swap_target):
     new_cvar = sim_new["metrics"].get("cvar_95", 0)
     
     stats = html.Div([
-        html.H5("Simulation Statistics", className="mb-3 text-primary"),
+        html.H5("Simulation Statistics", className="section-header mb-3"),
         
         get_stat_row("Median Outcome (50th Percentile)", curr_med, new_med),
         

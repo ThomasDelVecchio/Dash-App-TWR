@@ -282,6 +282,17 @@ body {
     transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+/* ============================================================
+   UNIFIED CHART/TABLE HEADER STYLE
+   ============================================================ */
+
+.section-header {
+    font-family: "Inter", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: #f8f9fa;
+}
+
 .card:hover {
     box-shadow: var(--shadow-md);
 }

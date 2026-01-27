@@ -31,7 +31,7 @@ layout = html.Div([
             dbc.CardHeader([
                 html.I(className="bi bi-cash-stack me-2"),
                 "Deployment Parameters"
-            ]),
+            ], className="section-header"),
             dbc.CardBody([
                 dbc.Row([
                     dbc.Col([
@@ -79,7 +79,7 @@ layout = html.Div([
             dbc.CardHeader([
                 html.I(className="bi bi-table me-2"),
                 "Rebalancing Schedule"
-            ]),
+            ], className="section-header"),
             dbc.CardBody([
                 dcc.Loading(html.Div(id="deployment-table-container"))
             ])
@@ -93,7 +93,7 @@ layout = html.Div([
             dbc.CardHeader([
                 html.I(className="bi bi-bar-chart me-2"),
                 "Weight Drift Analysis"
-            ]),
+            ], className="section-header"),
             dbc.CardBody([
                 dcc.Graph(id="drift-chart", config={"displayModeBar": False})
             ])
@@ -104,7 +104,7 @@ layout = html.Div([
             dbc.CardHeader([
                 html.I(className="bi bi-calculator me-2"),
                 "Tax Impact Summary"
-            ]),
+            ], className="section-header"),
             dbc.CardBody([
                 dcc.Loading(html.Div(id="tax-impact-container"))
             ])
@@ -117,7 +117,7 @@ layout = html.Div([
             dbc.CardHeader([
                 html.I(className="bi bi-hourglass-split me-2"),
                 "Cliff Watch (New Shares Long-Term Transition)"
-            ]),
+            ], className="section-header"),
             dbc.CardBody([
                 html.P(
                     "Newly purchased shares will be short-term until held for > 365 days. "

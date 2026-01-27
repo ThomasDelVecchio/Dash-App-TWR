@@ -21,7 +21,7 @@ layout = html.Div([
     dbc.Row([
         dbc.Col(dbc.Card([
             dbc.CardBody([
-                html.H5("Risk vs Expected Return", className="card-title"),
+                html.H5("Risk vs Expected Return", className="card-title section-header"),
                 dcc.Graph(id={'type': 'filter-chart', 'index': 'risk-chart'}),
                 html.Small(
                     "Plots annualized volatility (10Y) vs trailing 12-month return for each asset class. "
@@ -33,7 +33,7 @@ layout = html.Div([
         
         dbc.Col(dbc.Card([
             dbc.CardBody([
-                html.H5("Rolling Correlations (90-Day)", className="card-title"),
+                html.H5("Rolling Correlations (90-Day)", className="card-title section-header"),
                 dcc.Graph(id='correlation-heatmap'),
                 html.Small(
                     "90-day correlation heat map where values near 1.0 indicate assets moving together, and values near 0 or negative indicate diversification benefits.",
@@ -47,7 +47,7 @@ layout = html.Div([
     dbc.Row([
         dbc.Col(dbc.Card([
             dbc.CardBody([
-                html.H5("Drawdown Analysis (Underwater Chart)", className="card-title"),
+                html.H5("Drawdown Analysis (Underwater Chart)", className="card-title section-header"),
                 dcc.Graph(id='drawdown-chart'),
                 html.Small(
                     "Shows the percentage decline from the historical peak (High Water Mark). "
@@ -62,7 +62,7 @@ layout = html.Div([
     dbc.Row([
         dbc.Col(dbc.Card([
             dbc.CardBody([
-                html.H5("20-Year Projections (Interactive)", className="card-title"),
+                html.H5("20-Year Projections (Interactive)", className="card-title section-header"),
                 dbc.Row([
                     dbc.Col([
                         dbc.Label("Expected Annual Return (%)"),
@@ -101,7 +101,7 @@ layout = html.Div([
     html.Hr(className="my-4"),
     dbc.Row([
         dbc.Col([
-            html.H4("Asset Allocation Simulator", className="mb-3 text-light"),
+            html.H4("Asset Allocation Simulator", className="section-header mb-3"),
             html.P("Adjust target weights to see impact on Portfolio Risk/Return profile.", className="text-muted")
         ])
     ]),
