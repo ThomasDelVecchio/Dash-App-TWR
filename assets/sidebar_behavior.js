@@ -1,32 +1,28 @@
 /**
- * Sidebar Auto-Hide & Touch Gesture Controller
+ * Sidebar Manual Toggle Controller
  * 
  * Features:
- * - Auto-hide after 5 seconds of inactivity (desktop & mobile)
- * - Swipe-left to close on mobile
- * - Hover to expand on desktop (when in icon-only mode)
- * - Touch swipe-right from edge to open on mobile
+ * - Manual collapse/expand via icon button
+ * - Close (hide) via X button
+ * - Reopen via floating open button
  */
 
 (function() {
     'use strict';
     
-    let hideTimer = null;
-    let touchStartX = 0;
-    let touchStartY = 0;
     let sidebarElement = null;
     let contentElement = null;
     let toggleButton = null;
+    let collapseButton = null;
+    let collapseIcon = null;
     let openButton = null;
-    
-    const HIDE_DELAY = 5000; // 5 seconds
-    const SWIPE_THRESHOLD = 80; // pixels
-    const EDGE_ZONE = 30; // pixels from edge to trigger swipe-open
     
     function init() {
         sidebarElement = document.getElementById('sidebar');
         contentElement = document.getElementById('page-content');
         toggleButton = document.getElementById('btn-sidebar-toggle');
+        collapseButton = document.getElementById('btn-sidebar-collapse');
+        collapseIcon = document.getElementById('sidebar-collapse-icon');
         openButton = document.getElementById('btn-sidebar-open');
         
         if (!sidebarElement) {
@@ -35,12 +31,8 @@
             return;
         }
         
-        setupAutoHide();
-        setupTouchGestures();
-        setupHoverExpand();
-        
-        // Start the auto-hide timer on page load
-        resetHideTimer();
+        setupManualToggle();
+        syncCollapseIcon();
     }
     
     function updateOpenButtonVisibility() {
@@ -53,11 +45,6 @@
             // Hide the floating open button
             openButton.style.display = 'none';
         }
-    }
-    
-    function resetHideTimer() {
-        clearTimeout(hideTimer);
-        hideTimer = setTimeout(hideSidebar, HIDE_DELAY);
     }
     
     function hideSidebar() {
@@ -74,6 +61,7 @@
         }
         
         updateOpenButtonVisibility();
+        syncCollapseIcon();
     }
     
     function showSidebar() {
@@ -83,23 +71,62 @@
         if (contentElement) contentElement.classList.remove('expanded', 'sidebar-collapsed');
         
         updateOpenButtonVisibility();
-        resetHideTimer();
+        syncCollapseIcon();
     }
     
-    function setupAutoHide() {
-        // Reset timer on any interaction with sidebar
-        const interactionEvents = ['mouseenter', 'mousemove', 'click', 'touchstart', 'scroll'];
+    function toggleCollapsed() {
+        if (!sidebarElement) return;
         
-        interactionEvents.forEach(event => {
-            sidebarElement.addEventListener(event, function(e) {
-                resetHideTimer();
-            }, { passive: true });
-        });
+        if (window.innerWidth >= 992) {
+            // Desktop: icon-only collapse
+            if (sidebarElement.classList.contains('collapsed')) {
+                sidebarElement.classList.remove('collapsed');
+                if (contentElement) contentElement.classList.remove('sidebar-collapsed');
+            } else {
+                sidebarElement.classList.add('collapsed');
+                if (contentElement) contentElement.classList.add('sidebar-collapsed');
+            }
+        } else {
+            // Mobile/tablet: full hide/show
+            if (sidebarElement.classList.contains('hidden')) {
+                showSidebar();
+            } else {
+                hideSidebar();
+            }
+        }
         
+        updateOpenButtonVisibility();
+        syncCollapseIcon();
+    }
+
+    function syncCollapseIcon() {
+        if (!collapseIcon || !sidebarElement) return;
+
+        const isCollapsed = sidebarElement.classList.contains('collapsed');
+        if (collapseButton) {
+            collapseButton.title = isCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
+        }
+        if (isCollapsed) {
+            collapseIcon.classList.remove('bi-layout-sidebar-inset');
+            collapseIcon.classList.add('bi-layout-sidebar-inset-reverse');
+        } else {
+            collapseIcon.classList.remove('bi-layout-sidebar-inset-reverse');
+            collapseIcon.classList.add('bi-layout-sidebar-inset');
+        }
+    }
+    
+    function setupManualToggle() {
         // Close button inside sidebar header - hide sidebar
         if (toggleButton) {
             toggleButton.addEventListener('click', function() {
                 hideSidebar();
+            });
+        }
+        
+        // Collapse button inside sidebar header - toggle collapse
+        if (collapseButton) {
+            collapseButton.addEventListener('click', function() {
+                toggleCollapsed();
             });
         }
         
@@ -109,70 +136,6 @@
                 showSidebar();
             });
         }
-    }
-    
-    function setupTouchGestures() {
-        // Swipe on sidebar to close
-        sidebarElement.addEventListener('touchstart', function(e) {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        }, { passive: true });
-        
-        sidebarElement.addEventListener('touchend', function(e) {
-            const touchEndX = e.changedTouches[0].clientX;
-            const touchEndY = e.changedTouches[0].clientY;
-            
-            const deltaX = touchStartX - touchEndX;
-            const deltaY = Math.abs(touchStartY - touchEndY);
-            
-            // Swipe left to close (horizontal swipe, not vertical scroll)
-            if (deltaX > SWIPE_THRESHOLD && deltaY < 50) {
-                hideSidebar();
-            }
-        }, { passive: true });
-        
-        // Swipe from left edge to open (global listener)
-        document.addEventListener('touchstart', function(e) {
-            const startX = e.touches[0].clientX;
-            
-            // Only trigger if starting from edge zone
-            if (startX <= EDGE_ZONE) {
-                touchStartX = startX;
-                touchStartY = e.touches[0].clientY;
-            } else {
-                touchStartX = -1; // Invalid, ignore
-            }
-        }, { passive: true });
-        
-        document.addEventListener('touchend', function(e) {
-            if (touchStartX < 0) return; // Not an edge swipe
-            
-            const touchEndX = e.changedTouches[0].clientX;
-            const touchEndY = e.changedTouches[0].clientY;
-            
-            const deltaX = touchEndX - touchStartX;
-            const deltaY = Math.abs(touchStartY - touchEndY);
-            
-            // Swipe right from edge to open
-            if (deltaX > SWIPE_THRESHOLD && deltaY < 50 && 
-                (sidebarElement.classList.contains('hidden') || 
-                 sidebarElement.classList.contains('collapsed'))) {
-                showSidebar();
-            }
-            
-            touchStartX = -1; // Reset
-        }, { passive: true });
-    }
-    
-    function setupHoverExpand() {
-        // Desktop only: hover to expand from icon-only mode
-        sidebarElement.addEventListener('mouseenter', function() {
-            if (window.innerWidth >= 992 && sidebarElement.classList.contains('collapsed')) {
-                sidebarElement.classList.remove('collapsed');
-                if (contentElement) contentElement.classList.remove('sidebar-collapsed');
-                resetHideTimer();
-            }
-        });
     }
     
     // Initialize when DOM is ready

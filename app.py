@@ -163,11 +163,25 @@ sidebar = html.Div(
                 html.I(className="bi bi-graph-up-arrow sidebar-brand-icon"),
                 html.Span("DELVEX", className="display-6 sidebar-brand-text"),
             ], className="sidebar-brand-left"),
-            html.Button(
-                html.I(className="bi bi-x-lg"),
-                id="btn-sidebar-toggle",
-                className="btn btn-link sidebar-toggle-btn",
-                title="Close sidebar"
+            html.Div(
+                [
+                    html.Button(
+                        html.I(className="bi bi-x-lg"),
+                        id="btn-sidebar-toggle",
+                        className="btn btn-link sidebar-toggle-btn",
+                        title="Close sidebar"
+                    ),
+                    html.Button(
+                        html.I(
+                            className="bi bi-layout-sidebar-inset",
+                            id="sidebar-collapse-icon"
+                        ),
+                        id="btn-sidebar-collapse",
+                        className="btn btn-link sidebar-toggle-btn",
+                        title="Collapse sidebar"
+                    ),
+                ],
+                className="d-flex flex-column"
             ),
         ], className="sidebar-brand"),
         html.P("Portfolio Analytics", className="lead sidebar-subtitle"),
