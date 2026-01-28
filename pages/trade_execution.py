@@ -488,12 +488,29 @@ def load_staged_order(_page_ready, _page_refresh, staged_data, staged_index):
                 display_qty = 1
     except (TypeError, ValueError):
         display_qty = None
+
+    def format_alert_qty(order_action, order_quantity):
+        try:
+            qty = float(order_quantity)
+        except (TypeError, ValueError):
+            return 0
+
+        if qty <= 0:
+            return 0
+
+        qty = abs(qty)
+        if order_action == "BUY":
+            return max(1, int(np.ceil(qty)))
+        if order_action == "SELL":
+            return int(np.floor(qty))
+        return int(round(qty))
     
     # Build alert message showing all staged orders
     if len(orders) == 1:
+        alert_qty = format_alert_qty(action, quantity)
         alert_msg = [
             html.I(className="bi bi-info-circle me-2"),
-            f"Order staged from {source}: {action} {display_qty or 0} shares of {ticker}"
+            f"Order staged from {source}: {action} {alert_qty} shares of {ticker}"
         ]
     else:
         # Multiple orders - show summary
@@ -502,8 +519,9 @@ def load_staged_order(_page_ready, _page_refresh, staged_data, staged_index):
             f"{len(orders)} orders staged from {source}:"
         ])]
         for i, order in enumerate(orders, 1):
+            order_qty = format_alert_qty(order.get("action"), order.get("quantity", 0))
             order_lines.append(html.Div(
-                f"  {i}. {order.get('action')} {order.get('quantity', 0):.0f} shares of {order.get('ticker')}",
+                f"  {i}. {order.get('action')} {order_qty} shares of {order.get('ticker')}",
                 className="ms-4 small"
             ))
         order_lines.append(html.Div(
