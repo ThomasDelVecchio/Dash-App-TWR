@@ -80,7 +80,7 @@ def is_etrade_configured() -> bool:
 FMP_PRICE_ENABLED = True
 FMP_PRICE_LOOKBACK_YEARS = 5  # FMP covers last 5 years (Starter plan limit)
 
-TARGET_PORTFOLIO_VALUE = 50000.0
+TARGET_PORTFOLIO_VALUE = 75000.0
 
 TARGET_MONTHLY_CONTRIBUTION = 400  # or whatever value you want
 
