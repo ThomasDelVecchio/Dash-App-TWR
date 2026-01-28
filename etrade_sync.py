@@ -143,6 +143,8 @@ TRANSACTION_TYPE_MAP = {
     "Funds Received": "FLOW",
     "ACH Deposit": "FLOW",
     "Wire Transfer": "FLOW",
+    "Debit Card": "FLOW",
+    "Service Fee": "FLOW",
 }
 
 
