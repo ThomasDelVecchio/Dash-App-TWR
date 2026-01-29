@@ -133,7 +133,7 @@ layout = html.Div([
                         defaultColDef={"resizable": True, "sortable": True, "filter": True, "minWidth": 110},
                         dashGridOptions={"domLayout": "normal"},
                         className="ag-theme-alpine-dark audit-target strategy-weights-table",
-                        style={"width": "100%", "height": "350px"}
+                        style={"width": "100%", "height": "450px"}
                     )),
                     className="strategy-scorecard-flex"
                 )

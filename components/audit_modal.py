@@ -30,13 +30,19 @@ def get_audit_modal_content(request_data):
             return "N/A"
         try:
             if isinstance(val, str):
+                if pct and "%" in val:
+                    cleaned = val.replace('%', '').replace('$', '').replace(',', '').strip()
+                    return f"{float(cleaned):.2f}%"
                 cleaned = val.replace('%', '').replace('$', '').replace(',', '').strip()
                 val = float(cleaned)
             else:
                 val = float(val)
         except Exception:
             return str(val)
-        return f"{val * 100:.2f}%" if pct else f"{val:.2f}"
+        if pct:
+            val = val * 100.0 if abs(val) <= 1.0 else val
+            return f"{val:.2f}%"
+        return f"{val:.2f}"
     
     # Helper to extract date range for display
     start_date = request_data.get("meta_Return_start_date") or \
@@ -380,36 +386,21 @@ def get_audit_modal_content(request_data):
             content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '350px'}))
 
         elif "Sortino" in str(col_id):
-            ret = float(row_data.get("meta_Sortino_ret", row_data.get("meta_Sharpe_ret", 0.0)))
-            rf = float(row_data.get("meta_Sortino_rf", row_data.get("meta_Sharpe_rf", RISK_FREE_RATE * 100.0)))
-            down = float(row_data.get("meta_Sortino_down", 0.0))
-
             formula_tex = r"""
             $$
             \text{Sortino} = \frac{R_p - R_f}{\sigma_{down}}
             $$
             """
-            sub_tex = fr"""
-            $$
-            	ext{{Sortino}} = \frac{{{ret:.2f}\% - {rf:.1f}\%}}{{{down:.2f}\%}} = \mathbf{{{metric_val}}}
-            $$
-            """
             explanation = fr"""
             Similar to Sharpe, but divides excess return by **Downside Deviation** ($\sigma_{{down}}$) only. 
             This penalizes only harmful volatility (negative returns). 
-            Assumes a Risk-Free Rate ($R_f$) of **{rf/100:.1%}**.
+            Assumes a Risk-Free Rate ($R_f$) of **{RISK_FREE_RATE:.1%}**.
             """
             content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
-            content.append(html.Hr())
-            content.append(html.H6("Applied Calculation", className="text-muted"))
-            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
             content.append(dcc.Markdown(explanation, mathjax=True, className="text-muted small"))
             
             rows = [
-                html.Tr([html.Td("Annualized Return (Rp)"), html.Td(f"{ret:.2f}%", className="text-end")]),
-                html.Tr([html.Td("Risk-Free Rate (Rf)"), html.Td(f"{rf:.1f}%", className="text-end")]),
-                html.Tr([html.Td("Downside Deviation (σdown)"), html.Td(f"{down:.2f}%", className="text-end")]),
-                html.Tr([html.Td("Sortino Ratio", className="fw-bold"), html.Td(metric_val, className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
+                html.Tr([html.Td("Metric Value"), html.Td(metric_val, className="text-end fw-bold")]),
             ]
             content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
 
@@ -463,42 +454,15 @@ def get_audit_modal_content(request_data):
 
         dd_display = _fmt_value(raw_val, pct=True)
 
-        peak_val = row_data.get("meta_Drawdown_peak", None)
-        trough_val = row_data.get("meta_Drawdown_trough", None)
-        dd_pct = row_data.get("meta_Drawdown_pct", None)
-
-        try:
-            peak_val = float(peak_val)
-        except Exception:
-            peak_val = None
-        try:
-            trough_val = float(trough_val)
-        except Exception:
-            trough_val = None
-        try:
-            dd_pct = float(dd_pct)
-        except Exception:
-            dd_pct = None
-
         formula_tex = r"""
         $$
         	ext{Max Drawdown} = \min\left(\frac{V_t - \max(V_{0..t})}{\max(V_{0..t})}\right)
         $$
         """
 
-        sub_tex = None
-        if peak_val is not None and trough_val is not None:
-            sub_pct = ((trough_val - peak_val) / peak_val) * 100.0 if peak_val != 0 else 0.0
-            sub_tex = fr"""
-            $$
-            \frac{{{trough_val:,.2f} - {peak_val:,.2f}}}{{{peak_val:,.2f}}} = \mathbf{{{sub_pct:.2f}\%}}
-            $$
-            """
-
         content = [
             html.H4(f"Audit: {ticker} ({col_id})", className="mb-3"),
             dcc.Markdown(formula_tex, mathjax=True, className="text-body"),
-            dcc.Markdown(sub_tex, mathjax=True, className="text-body") if sub_tex else html.Div(),
             dbc.Table(
                 html.Tbody([
                     html.Tr([
