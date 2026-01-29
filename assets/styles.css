@@ -400,6 +400,68 @@ body {
     background-color: #3a3a3a !important;
 }
 
+/* ============================================================
+   STRATEGY BACKTESTING TABLE LAYOUT
+   ============================================================ */
+
+.strategy-backtesting-page .strategy-scorecard-full {
+    width: 100%;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+
+.strategy-backtesting-page .strategy-scorecard-card {
+    width: 100%;
+}
+
+.strategy-backtesting-page .strategy-scorecard-body {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+
+.strategy-backtesting-page .strategy-scorecard-flex {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.strategy-backtesting-page .strategy-scorecard-flex > * {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Ensure all AG Grid tables on this page can scroll horizontally */
+.strategy-backtesting-page .ag-root-wrapper,
+.strategy-backtesting-page .ag-body-viewport,
+.strategy-backtesting-page .ag-center-cols-viewport {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+
+.strategy-backtesting-page .ag-theme-alpine-dark,
+.strategy-backtesting-page .ag-theme-alpine {
+    width: 100%;
+}
+
+/* Backtest weights table: compact height with vertical scrolling */
+.strategy-backtesting-page .strategy-weights-table {
+    height: 260px;
+}
+
+.strategy-backtesting-page .strategy-weights-table .ag-body-viewport,
+.strategy-backtesting-page .strategy-weights-table .ag-center-cols-viewport {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+    .strategy-backtesting-page .strategy-scorecard-body {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+}
+
 /* Header styling */
 [data-theme="dark"] .ag-theme-alpine-dark .ag-header,
 [data-theme="dark"] .ag-theme-alpine .ag-header {

@@ -4048,6 +4048,9 @@ def _compute_backtest_metrics(returns: pd.Series, growth_of_one: pd.Series) -> d
             "sharpe": np.nan,
             "sortino": np.nan,
             "max_drawdown": np.nan,
+            "downside_dev": np.nan,
+            "dd_peak": np.nan,
+            "dd_trough": np.nan,
         }
 
     start_date = growth_of_one.index.min()
@@ -4069,8 +4072,18 @@ def _compute_backtest_metrics(returns: pd.Series, growth_of_one: pd.Series) -> d
         sortino = (mean_ret - rf) / downside_dev if downside_dev > 0 else np.nan
     else:
         sortino = np.nan
+        downside_dev = np.nan
 
     drawdown_series, max_dd, _ = compute_drawdown_series(growth_of_one)
+    if not drawdown_series.empty:
+        hwm = growth_of_one.cummax()
+        drawdown = (growth_of_one - hwm) / hwm
+        trough_date = drawdown.idxmin()
+        dd_peak = float(hwm.loc[trough_date])
+        dd_trough = float(growth_of_one.loc[trough_date])
+    else:
+        dd_peak = np.nan
+        dd_trough = np.nan
 
     return {
         "cagr": cagr,
@@ -4078,6 +4091,9 @@ def _compute_backtest_metrics(returns: pd.Series, growth_of_one: pd.Series) -> d
         "sharpe": sharpe,
         "sortino": sortino,
         "max_drawdown": max_dd / 100.0 if max_dd is not None else np.nan,
+        "downside_dev": downside_dev,
+        "dd_peak": dd_peak,
+        "dd_trough": dd_trough,
     }
 
 
@@ -4164,6 +4180,12 @@ def get_strategy_backtest_results(
 
         growth = (1.0 + port_returns).cumprod() * float(initial_value)
         growth_of_one = growth / float(initial_value)
+        end_value = float(growth.iloc[-1]) if not growth.empty else float(initial_value)
+
+        mean_ret = port_returns.mean() * 252
+        vol_annual = port_returns.std() * np.sqrt(252)
+        rf_pct = RISK_FREE_RATE * 100.0
+        days = (end_date - start_date).days if start_date is not None and end_date is not None else 0
 
         dd_series, max_dd, _ = compute_drawdown_series(growth_of_one)
 
@@ -4178,6 +4200,31 @@ def get_strategy_backtest_results(
             "Sharpe": metrics["sharpe"],
             "Sortino": metrics["sortino"],
             "Max Drawdown": metrics["max_drawdown"],
+            "Asset Class / Ticker": name,
+
+            "meta_Sharpe_ret": mean_ret * 100.0,
+            "meta_Sharpe_vol": vol_annual * 100.0,
+            "meta_Sharpe_rf": rf_pct,
+
+            "meta_Vol_vol": vol_annual * 100.0,
+
+            "meta_Sortino_ret": mean_ret * 100.0,
+            "meta_Sortino_rf": rf_pct,
+            "meta_Sortino_down": metrics.get("downside_dev", np.nan) * 100.0,
+
+            "meta_Drawdown_peak": metrics.get("dd_peak", np.nan),
+            "meta_Drawdown_trough": metrics.get("dd_trough", np.nan),
+            "meta_Drawdown_pct": metrics.get("max_drawdown", np.nan) * 100.0,
+
+            "meta_CAGR_start": float(initial_value),
+            "meta_CAGR_end": end_value,
+            "meta_CAGR_flow": 0.0,
+            "meta_CAGR_inc": 0.0,
+            "meta_CAGR_denom": float(initial_value),
+            "meta_CAGR_is_annualized": True,
+            "meta_CAGR_days": days,
+            "meta_CAGR_start_date": start_date,
+            "meta_CAGR_end_date": end_date,
         })
 
         risk_points.append({
@@ -4190,14 +4237,28 @@ def get_strategy_backtest_results(
     scorecard = pd.DataFrame(metrics_rows)
     risk_df = pd.DataFrame(risk_points)
 
+    used_names = set(curves.keys())
+    weights_rows = []
+    for strat in strategies:
+        name = strat.get("name", "")
+        if name not in used_names:
+            continue
+        weights = strat.get("weights", {})
+        for ticker, weight in weights.items():
+            weights_rows.append({
+                "Portfolio": name,
+                "Ticker": ticker,
+                "Weight": float(weight)
+            })
+
     return {
         "curves": curves,
         "drawdowns": drawdowns,
         "scorecard": scorecard,
         "risk": risk_df,
+        "weights_table": pd.DataFrame(weights_rows),
         "start_date": start_date,
         "end_date": end_date,
-        "strategies": strategies,
         "error": None
     }
 

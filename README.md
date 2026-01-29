@@ -9,6 +9,7 @@ This is a comprehensive portfolio analytics dashboard built with Plotly Dash. It
 *   **Trade Execution (E\*TRADE):** Preview and place equity orders from the Trade page, with sandbox/live environment safeguards.
 *   **Performance Analysis:** Track your portfolio's performance with metrics like Time-Weighted Return (TWR) and Modified Dietz (GIPS-compliant).
 *   **Risk Intelligence:** Analyze risk with volatility scatters, correlation heatmaps, and Monte Carlo simulations (historical bootstrapping).
+*   **Strategy Backtesting:** Compare quarterly rebalanced strategy benchmarks with growth, drawdowns, and risk/return scorecards.
 *   **Attribution Analysis:** Understand the sources of your portfolio's returns with Brinson-Fachler and Frongello linking models.
 *   **Tax Optimization:** Visualize tax lots, identify harvesting opportunities, and simulate trade tax impacts (FIFO/LIFO/HIFO).
 *   **Rebalancing:** Drill-down rebalancing tool with tax-aware trade generation and drift analysis.
@@ -193,6 +194,7 @@ The dashboard consists of the following pages:
 *   **/rebalancing:** Interactive rebalancing tool with tax-aware trade generation and drift analysis.
 *   **/trade:** E\*TRADE order preview and execution hub with sandbox/live badges and confirmation flow.
 *   **/risk:** Risk analysis, including volatility, drawdowns, and correlation matrices.
+*   **/strategy-backtesting:** Strategy Arena for quarterly rebalanced backtests, drawdowns, and risk/return scorecards.
 *   **/trade-lab:** A laboratory for simulating trades and analyzing their potential impact via Monte Carlo simulations.
 *   **/taxes:** Tax analysis, including tax-lot accounting, cliffs, and simulated tax-loss harvesting.
 *   **/custom-report:** A customizable report builder to select, reorder, and print specific portfolio modules (PDF-ready).

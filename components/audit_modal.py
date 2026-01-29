@@ -22,6 +22,21 @@ def get_audit_modal_content(request_data):
     grid_id = request_data.get("gridId", "")
     col_id = request_data.get("colId")
     row_data = request_data.get("rowData", {})
+
+    def _fmt_value(val, pct=False):
+        if val is None:
+            return "N/A"
+        if isinstance(val, str) and val.strip().upper() == "N/A":
+            return "N/A"
+        try:
+            if isinstance(val, str):
+                cleaned = val.replace('%', '').replace('$', '').replace(',', '').strip()
+                val = float(cleaned)
+            else:
+                val = float(val)
+        except Exception:
+            return str(val)
+        return f"{val * 100:.2f}%" if pct else f"{val:.2f}"
     
     # Helper to extract date range for display
     start_date = request_data.get("meta_Return_start_date") or \
@@ -318,7 +333,11 @@ def get_audit_modal_content(request_data):
     # ----------------------------------------------------
     if "Sharpe" in str(col_id) or "Vol" in str(col_id) or "Sortino" in str(col_id):
         ticker = row_data.get("Asset Class / Ticker", "Unknown")
-        metric_val = request_data.get('value', 'N/A')
+        if ticker == "Unknown":
+            ticker = row_data.get("Strategy", "Unknown")
+
+        metric_raw = request_data.get('value', 'N/A')
+        metric_val = _fmt_value(metric_raw, pct=False)
         
         content = []
         content.append(html.H4(f"Audit: {ticker} ({col_id}) (Annualized)", className="mb-3"))
@@ -361,27 +380,50 @@ def get_audit_modal_content(request_data):
             content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '350px'}))
 
         elif "Sortino" in str(col_id):
+            ret = float(row_data.get("meta_Sortino_ret", row_data.get("meta_Sharpe_ret", 0.0)))
+            rf = float(row_data.get("meta_Sortino_rf", row_data.get("meta_Sharpe_rf", RISK_FREE_RATE * 100.0)))
+            down = float(row_data.get("meta_Sortino_down", 0.0))
+
             formula_tex = r"""
             $$
             \text{Sortino} = \frac{R_p - R_f}{\sigma_{down}}
             $$
             """
+            sub_tex = fr"""
+            $$
+            	ext{{Sortino}} = \frac{{{ret:.2f}\% - {rf:.1f}\%}}{{{down:.2f}\%}} = \mathbf{{{metric_val}}}
+            $$
+            """
             explanation = fr"""
             Similar to Sharpe, but divides excess return by **Downside Deviation** ($\sigma_{{down}}$) only. 
             This penalizes only harmful volatility (negative returns). 
-            Assumes a Risk-Free Rate ($R_f$) of **{RISK_FREE_RATE:.1%}**.
+            Assumes a Risk-Free Rate ($R_f$) of **{rf/100:.1%}**.
             """
             content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
             content.append(dcc.Markdown(explanation, mathjax=True, className="text-muted small"))
             
             rows = [
-                html.Tr([html.Td("Metric Value"), html.Td(metric_val, className="text-end fw-bold")]),
+                html.Tr([html.Td("Annualized Return (Rp)"), html.Td(f"{ret:.2f}%", className="text-end")]),
+                html.Tr([html.Td("Risk-Free Rate (Rf)"), html.Td(f"{rf:.1f}%", className="text-end")]),
+                html.Tr([html.Td("Downside Deviation (σdown)"), html.Td(f"{down:.2f}%", className="text-end")]),
+                html.Tr([html.Td("Sortino Ratio", className="fw-bold"), html.Td(metric_val, className="text-end fw-bold", style={'borderTop': '1px solid white'})]),
             ]
             content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
 
         elif "Vol" in str(col_id):
             # Use generic backend keys
-            vol = float(row_data.get("meta_Vol_vol", 0.0))
+            raw_vol = row_data.get("meta_Vol_vol", None)
+            if raw_vol is None:
+                raw_vol = row_data.get("Volatility", 0.0)
+            try:
+                raw_vol = float(raw_vol)
+            except Exception:
+                raw_vol = 0.0
+
+            vol = raw_vol * 100.0 if abs(raw_vol) <= 1.0 else raw_vol
             
             formula_tex = r"""
             $$
@@ -391,7 +433,7 @@ def get_audit_modal_content(request_data):
             
             sub_tex = fr"""
             $$
-            \sigma_{{ann}} = \sigma_{{daily}} \times \sqrt{252} = \mathbf{{{vol:.2f}\%}}
+            \sigma_{{ann}} = \sigma_{{daily}} \times \sqrt{{252}} = \mathbf{{{vol:.2f}\%}}
             $$
             """
             
@@ -410,6 +452,66 @@ def get_audit_modal_content(request_data):
             ]
             content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '300px'}))
             
+        return dbc.ModalBody(content)
+
+    # ----------------------------------------------------
+    # TYPE 2.8: Max Drawdown Audit
+    # ----------------------------------------------------
+    if "Drawdown" in str(col_id):
+        ticker = row_data.get("Strategy") or row_data.get("Asset Class / Ticker") or "Unknown"
+        raw_val = request_data.get("value", "N/A")
+
+        dd_display = _fmt_value(raw_val, pct=True)
+
+        peak_val = row_data.get("meta_Drawdown_peak", None)
+        trough_val = row_data.get("meta_Drawdown_trough", None)
+        dd_pct = row_data.get("meta_Drawdown_pct", None)
+
+        try:
+            peak_val = float(peak_val)
+        except Exception:
+            peak_val = None
+        try:
+            trough_val = float(trough_val)
+        except Exception:
+            trough_val = None
+        try:
+            dd_pct = float(dd_pct)
+        except Exception:
+            dd_pct = None
+
+        formula_tex = r"""
+        $$
+        	ext{Max Drawdown} = \min\left(\frac{V_t - \max(V_{0..t})}{\max(V_{0..t})}\right)
+        $$
+        """
+
+        sub_tex = None
+        if peak_val is not None and trough_val is not None:
+            sub_pct = ((trough_val - peak_val) / peak_val) * 100.0 if peak_val != 0 else 0.0
+            sub_tex = fr"""
+            $$
+            \frac{{{trough_val:,.2f} - {peak_val:,.2f}}}{{{peak_val:,.2f}}} = \mathbf{{{sub_pct:.2f}\%}}
+            $$
+            """
+
+        content = [
+            html.H4(f"Audit: {ticker} ({col_id})", className="mb-3"),
+            dcc.Markdown(formula_tex, mathjax=True, className="text-body"),
+            dcc.Markdown(sub_tex, mathjax=True, className="text-body") if sub_tex else html.Div(),
+            dbc.Table(
+                html.Tbody([
+                    html.Tr([
+                        html.Td("Max Drawdown", className="fw-bold"),
+                        html.Td(dd_display, className="text-end fw-bold", style={'borderTop': '1px solid white'})
+                    ])
+                ]),
+                bordered=False,
+                size="sm",
+                className="mt-3",
+                style={'maxWidth': '320px'}
+            )
+        ]
         return dbc.ModalBody(content)
 
     # ----------------------------------------------------
@@ -945,13 +1047,13 @@ def get_audit_modal_content(request_data):
         ]
 
         if is_annualized:
-             # Show Cumulative first, then Annualized below
-             summary_rows.append(html.Tr([html.Td("Period Cumulative Return"), html.Td(f"{r_cum_val*100:,.2f}%", className="text-end")]))
-             summary_rows.append(html.Tr([html.Td("Annualized Return (CAGR)", className="fw-bold"), html.Td(str(request_data.get('value', 'N/A')), className="text-end fw-bold", style={'borderTop': '1px solid white'})]))
+                        # Show Cumulative first, then Annualized below
+                        summary_rows.append(html.Tr([html.Td("Period Cumulative Return"), html.Td(f"{r_cum_val*100:,.2f}%", className="text-end")]))
+                        summary_rows.append(html.Tr([html.Td("Annualized Return (CAGR)", className="fw-bold"), html.Td(_fmt_value(request_data.get('value', 'N/A'), pct=True), className="text-end fw-bold", style={'borderTop': '1px solid white'})]))
         else:
-             header_label = "Final Return"
-             if horizon == "SI": header_label = "Cumulative Return (SI)"
-             summary_rows.append(html.Tr([html.Td(header_label, className="fw-bold"), html.Td(str(request_data.get('value', 'N/A')), className="text-end fw-bold", style={'borderTop': '1px solid white'})]))
+                        header_label = "Final Return"
+                        if horizon == "SI": header_label = "Cumulative Return (SI)"
+                        summary_rows.append(html.Tr([html.Td(header_label, className="fw-bold"), html.Td(_fmt_value(request_data.get('value', 'N/A'), pct=True), className="text-end fw-bold", style={'borderTop': '1px solid white'})]))
 
         content.append(dbc.Table(html.Tbody(summary_rows), bordered=False, size="sm", className="mt-3 mb-4", style={'maxWidth': '400px'}))
         
@@ -960,7 +1062,7 @@ def get_audit_modal_content(request_data):
             days = request_data.get("meta_Return_days")
             if days is None: days = 0
             years = days / 365.25 if days > 0 else 0
-            final_res = request_data.get('value', 'N/A')
+            final_res = _fmt_value(request_data.get('value', 'N/A'), pct=True)
             
             ann_formula_tex = r"""
             $$
@@ -1024,6 +1126,7 @@ def get_audit_modal_content(request_data):
     ticker = row_data.get("ticker")
     if not ticker: ticker = row_data.get("Horizon")
     if not ticker: ticker = row_data.get("Asset Class / Ticker")
+    if not ticker: ticker = row_data.get("Strategy")
     if not ticker: ticker = row_data.get("Asset Class")
     if not ticker: ticker = "Unknown"
     
@@ -1093,7 +1196,7 @@ def get_audit_modal_content(request_data):
         if is_annualized:
             r_display = f"{r_cum_val * 100:,.2f}%"
         else:
-            r_display = request_data.get('value', 'N/A')
+            r_display = _fmt_value(request_data.get('value', 'N/A'), pct=True)
 
         result_tex = fr"""
         $$
@@ -1112,7 +1215,7 @@ def get_audit_modal_content(request_data):
             years = days / 365.25 if days > 0 else 0
             
             # Final result from grid (Annualized)
-            final_res = request_data.get('value', 'N/A')
+            final_res = _fmt_value(request_data.get('value', 'N/A'), pct=True)
             
             ann_formula_tex = r"""
             $$

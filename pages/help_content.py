@@ -238,6 +238,72 @@ $$P_t = P_{t-1} \cdot e^{\left(\mu - \frac{\sigma^2}{2}\right)\Delta t + \sigma\
         """
     },
 
+    "strategy_backtesting": {
+        "title": "Strategy Backtesting",
+        "content": r"""
+The **Strategy Backtesting** page compares quarterly rebalanced strategy mixes against each other and your portfolio.
+
+#### **Inputs**
+* **Lookback Period**: 1Y / 3Y / 5Y / MAX (aligned to a common start date across all strategy tickers)
+* **Benchmark Presets**: Prebuilt mixes normalized to 100%
+* **Custom Strategy**: Editable ticker/weight grid with validation and apply flow
+
+#### **Outputs**
+* **Growth of $ Investment**: Cumulative growth curves per strategy
+* **Drawdown (Underwater)**: Peak-to-trough loss visualization
+* **Risk vs Return**: Volatility vs CAGR scatter
+* **Scorecard**: CAGR, Volatility, Sharpe, Sortino, Max Drawdown
+
+#### **Rebalancing Assumption**
+Strategies are **rebalanced quarterly** using end-of-quarter snapshots.
+
+#### **Core Math**
+
+**Daily Strategy Return** (using target weights between rebalances):
+
+$$r_{p,t} = \sum_{i=1}^{n} w_i \cdot r_{i,t}$$
+
+**Growth of $1** (cumulative curve):
+
+$$G_t = G_{t-1} \times (1 + r_{p,t}), \quad G_0 = 1$$
+
+**CAGR** (annualized return over the backtest window):
+
+$$\text{CAGR} = \left(\frac{G_T}{G_0}\right)^{\frac{1}{Y}} - 1$$
+
+**Annualized Volatility**:
+
+$$\sigma_{\text{ann}} = \sigma_{\text{daily}} \times \sqrt{252}$$
+
+**Sharpe Ratio**:
+
+$$\text{Sharpe} = \frac{\bar{r}_{\text{ann}} - r_f}{\sigma_{\text{ann}}}$$
+
+**Sortino Ratio** (downside deviation only):
+
+$$\text{Sortino} = \frac{\bar{r}_{\text{ann}} - r_f}{\sigma_{\text{down}}}$$
+
+**Drawdown** (underwater curve):
+
+$$\text{DD}_t = \frac{G_t}{\max_{\tau \le t} G_{\tau}} - 1$$
+
+**Where:**
+* $w_i$: target weight for asset $i$ (normalized so $\sum_i w_i = 1$)
+* $r_{i,t}$: daily return of asset $i$ on day $t$
+* $r_{p,t}$: daily return of the strategy/portfolio on day $t$
+* $G_t$: growth of $1$ at day $t$
+* $G_0$: starting value (set to 1)
+* $G_T$: ending value at the final day $T$
+* $Y$: total years in the backtest window
+* $\sigma_{\text{daily}}$: standard deviation of daily strategy returns
+* $\sigma_{\text{ann}}$: annualized volatility
+* $\bar{r}_{\text{ann}}$: annualized arithmetic mean return
+* $r_f$: annual risk-free rate
+* $\sigma_{\text{down}}$: annualized downside deviation
+* $\max_{\tau \le t} G_{\tau}$: high-water mark through day $t$
+        """
+    },
+
     "projections": {
         "title": "Long-Term Projections",
         "content": r"""
