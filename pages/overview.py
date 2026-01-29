@@ -200,40 +200,8 @@ def update_overview(signal, chat_cmd, _filters):
     price_source_meta = dw.get_price_source_summary(data)
     price_badge = create_price_source_badge(price_source_meta, "overview-price-badge") if price_source_meta else None
     
-    # Data Status Note
+    # Data Status Note (handled globally in app.py)
     status_note = None
-    # Robust error check: Look for explicit key first, then fallback to attrs
-    errors = data.get('errors', [])
-    if not errors and 'prices' in data and hasattr(data['prices'], 'attrs'):
-        errors = data['prices'].attrs.get('errors', [])
-        
-    if errors:
-        print(f"DEBUG: pages/overview.py received {len(errors)} errors.")
-        # Show ALL errors to ensure the consolidated message is fully visible
-        # Responsive & visible on mobile/iPad
-        status_note = dbc.Alert(
-            [
-                html.Div([
-                    html.I(className="bi bi-exclamation-triangle-fill me-2"), 
-                    html.Span("Data Quality Warning", className="fw-bold")
-                ], className="d-flex align-items-center mb-1"),
-                html.Hr(className="my-1"),
-            ] + 
-            [html.Div(e, className="small mb-2", style={'whiteSpace': 'pre-wrap', 'wordBreak': 'break-word'}) for e in errors],
-            color="warning",
-            dismissable=True,
-            className="py-2 px-3 shadow-sm",
-            style={
-                'width': 'auto',
-                'minWidth': '300px',
-                'maxWidth': '100%',
-                'maxHeight': '80vh',
-                'overflowY': 'auto',
-                'border': '1px solid #ffc107', 
-                'fontSize': '0.85rem',
-                'opacity': '0.95'
-            }
-        )
 
     # --- CHATBOT PARAMS ---
     chat_target = ""

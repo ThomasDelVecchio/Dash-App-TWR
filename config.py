@@ -114,11 +114,24 @@ GLOBAL_PALETTE = [
 ]
 
 # ============================================================
+# STRATEGY BACKTESTING PRESETS
+# ============================================================
+BENCHMARK_PRESETS = [
+    {"name": "S&P 500 (SPY)", "weights": {"SPY": 100}},
+    {"name": "Classic 60/40", "weights": {"VTI": 60, "BND": 40}},
+    {"name": "Bogleheads 3-Fund", "weights": {"VTI": 60, "VXUS": 20, "BND": 20}},
+    {"name": "Ray Dalio All Weather", "weights": {"VTI": 30, "TLT": 40, "IEF": 15, "GLD": 7.5, "DBC": 7.5}},
+    {"name": "Golden Butterfly", "weights": {"VTI": 20, "VBR": 20, "TLT": 20, "SHY": 20, "GLD": 20}},
+    {"name": "Permanent Portfolio", "weights": {"VTI": 25, "TLT": 25, "GLD": 25, "SHY": 25}},
+]
+
+# ============================================================
 # MODULE CONFIGURATION
 # ============================================================
 NAV_MODULES = [
     {"label": "Overview", "href": "/", "id": "overview", "icon": "bi-house-door", "can_toggle": False},
     {"label": "Performance", "href": "/performance", "id": "performance", "icon": "bi-graph-up-arrow", "can_toggle": True},
+    {"label": "Strategy Arena", "href": "/strategy-backtesting", "id": "strategy_backtesting", "icon": "bi-activity", "can_toggle": True},
     {"label": "Allocation", "href": "/allocations", "id": "allocations", "icon": "bi-pie-chart", "can_toggle": True},
     {"label": "Attribution", "href": "/attribution", "id": "attribution", "icon": "bi-bar-chart-line", "can_toggle": True},
     {"label": "Flows", "href": "/flows", "id": "flows", "icon": "bi-arrow-left-right", "can_toggle": True},

@@ -16,7 +16,7 @@ from components import chatbot
 from components.audit_modal import get_audit_modal_content
 
 # Import Pages
-from pages import overview, performance, allocations, attribution, flows, holdings, risk, settings, trade_lab, help_index, taxes, rebalancing, custom_report, trade_execution
+from pages import overview, performance, allocations, attribution, flows, holdings, risk, settings, trade_lab, help_index, taxes, rebalancing, custom_report, trade_execution, strategy_backtesting
 
 # ============================================================
 # E*TRADE SYNC ON STARTUP
@@ -362,6 +362,7 @@ app.validation_layout = html.Div([
     chatbot.layout,
     overview.layout,
     performance.layout,
+    strategy_backtesting.layout,
     allocations.layout,
     attribution.layout,
     flows.layout,
@@ -387,6 +388,8 @@ def render_page_content(pathname):
         return overview.layout
     elif pathname == "/performance":
         return performance.layout
+    elif pathname == "/strategy-backtesting":
+        return strategy_backtesting.layout
     elif pathname == "/allocations":
         return allocations.layout
     elif pathname == "/attribution":
@@ -478,10 +481,6 @@ def update_error_toast(_signal):
 
     toast_body = html.Div(
         [
-            html.Div(
-                [html.I(className="bi bi-exclamation-triangle-fill me-2"), "Data Quality Warning"],
-                className="d-flex align-items-center fw-bold mb-1",
-            ),
             html.Hr(className="my-1"),
         ]
         + [
