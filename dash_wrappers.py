@@ -197,8 +197,14 @@ def run_analytics_engine(end_date=None):
     # Ensure all Proxies are available
     for proxy in ASSET_CLASS_PROXIES.values():
         if proxy not in all_tickers: all_tickers.append(proxy)
+
+    # Always include common benchmarks to avoid repeated fetches in callbacks
+    benchmark_universe = ["SPY", "VTI", "VUG", "AOA", "AOR", "AOK", "QQQ"]
+    for bm in benchmark_universe:
+        if bm not in all_tickers: all_tickers.append(bm)
         
     prices_cached = fetch_price_history(all_tickers) if all_tickers else pd.DataFrame()
+    benchmark_prices_adj = fetch_price_history(benchmark_universe, use_adj_close=True) if benchmark_universe else pd.DataFrame()
     
     # FIX: Align prices with end_date (Time Machine & Weekend Handling)
     # Matches portfolio_engine.py logic to ensure P/L calc sees the same end date as PV
@@ -212,6 +218,13 @@ def run_analytics_engine(end_date=None):
             last_row = prices_cached.iloc[[-1]].copy()
             last_row.index = [target_end_date]
             prices_cached = pd.concat([prices_cached, last_row])
+
+        if not benchmark_prices_adj.empty:
+            benchmark_prices_adj = benchmark_prices_adj[benchmark_prices_adj.index <= target_end_date]
+            if benchmark_prices_adj.index.max() < target_end_date:
+                last_row = benchmark_prices_adj.iloc[[-1]].copy()
+                last_row.index = [target_end_date]
+                benchmark_prices_adj = pd.concat([benchmark_prices_adj, last_row])
     
     # Robustly extract errors from dataframe metadata
     errors = getattr(prices_cached, "attrs", {}).get("errors", [])
@@ -227,7 +240,7 @@ def run_analytics_engine(end_date=None):
     as_of_pv = pv.index.max() if not pv.empty else pd.Timestamp.now()
     effective_as_of = get_effective_anchor_date(as_of_pv)
     
-    return {
+    base_data = {
         "twr_df": twr_df,
         "sec_table": sec_table,
         "sec_table_current": sec_table_current,
@@ -243,12 +256,38 @@ def run_analytics_engine(end_date=None):
         "inception_date": inception_date,
         "sector_df": sector_df,
         "prices": prices_cached,
+        "benchmark_prices_adj": benchmark_prices_adj,
         "errors": errors,
         "risk_return": dynamic_risk_return,
         "correlation_matrix": dynamic_corr_matrix,
         "effective_as_of": effective_as_of,
         "selected_end_date": end_date
     }
+
+    # Precompute heavy P/L tables once per refresh
+    horizons = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "SI"]
+    ticker_pl_cache = {h: get_ticker_pl_df(base_data, h) for h in horizons}
+
+    asset_class_pl_cache = {h: {} for h in horizons}
+    for ac in class_df["asset_class"].unique():
+        for h in horizons:
+            asset_class_pl_cache[h][ac] = calculate_asset_class_pl(
+                ac,
+                h,
+                base_data["prices"],
+                base_data["pv"],
+                base_data["inception_date"],
+                base_data["tx_raw"],
+                base_data["sec_table"],
+                base_data["dividends"],
+                return_components=True,
+                effective_as_of=base_data.get("effective_as_of")
+            )
+
+    base_data["ticker_pl_cache"] = ticker_pl_cache
+    base_data["asset_class_pl_cache"] = asset_class_pl_cache
+
+    return base_data
 
 def _prepare_sector_df(sec_table):
     """Internal helper to build sector allocation dataframe from Dynamic Fetcher."""
@@ -573,8 +612,11 @@ def calculate_active_metrics(data, benchmark_ticker="SPY"):
     twr_curve = _get_daily_twr_curve(data)
     if twr_curve.empty: return {"beta": "N/A", "te": "N/A"}
     
-    # Get Benchmark Prices
-    prices = fetch_price_history([benchmark_ticker], use_adj_close=True)
+    # Get Benchmark Prices (prefer cached adj-close)
+    prices = data.get("benchmark_prices_adj")
+    if prices is None or prices.empty or benchmark_ticker not in prices.columns:
+        prices = fetch_price_history([benchmark_ticker], use_adj_close=True)
+
     if benchmark_ticker not in prices.columns:
         return {"beta": "N/A", "te": "N/A"}
         
@@ -902,6 +944,12 @@ def get_ticker_pl_df(data, horizon="SI"):
     Used for 'Performance Highlights' and detailed tables.
     Now includes meta columns for Audit Trail.
     """
+    # Prefer precomputed cache (if available)
+    if data is not None:
+        cache = data.get("ticker_pl_cache")
+        if cache and horizon in cache:
+            return cache[horizon]
+
     pv = data["pv"]
     inception_date = data["inception_date"]
     sec_table = data["sec_table"]
@@ -964,6 +1012,17 @@ def get_asset_class_pl(data, asset_class, horizon, return_components=False):
     """
     Computes DIRECT asset class P/L using centralized engine logic.
     """
+    # Prefer precomputed cache (if available)
+    if data is not None:
+        cache = data.get("asset_class_pl_cache", {})
+        cached = cache.get(horizon, {}).get(asset_class)
+        if cached is not None:
+            if return_components:
+                return cached
+            if isinstance(cached, dict):
+                return cached.get("pl")
+            return cached
+
     return calculate_asset_class_pl(
         asset_class,
         horizon,
@@ -1327,11 +1386,15 @@ def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, t
     
     # 2. Benchmarks (unchanged logic, just context)
     colors = [GLOBAL_PALETTE[2], GLOBAL_PALETTE[4], GLOBAL_PALETTE[6], GLOBAL_PALETTE[10]]
+    bench_prices_adj = data.get("benchmark_prices_adj")
     if benchmark_tickers:
         for i, (name, ticker) in enumerate(benchmark_tickers.items()):
             try:
-                hist = fetch_price_history([ticker], use_adj_close=True)
-                ser = hist[ticker]
+                if bench_prices_adj is not None and not bench_prices_adj.empty and ticker in bench_prices_adj.columns:
+                    ser = bench_prices_adj[ticker]
+                else:
+                    hist = fetch_price_history([ticker], use_adj_close=True)
+                    ser = hist[ticker]
                 
                 # [NEW LOGIC START]
                 # Gateway Check: If benchmark history starts significantly after the chart start date,
@@ -2216,6 +2279,7 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
         
     fig = go.Figure()
     
+    bench_prices_adj = data.get("benchmark_prices_adj")
     for i, (bm_name, bm_ticker) in enumerate(benchmark_tickers.items()):
         excess_vals = []
         tooltip_data = [] # Stores [Port Ret, BM Ret, Excess]
@@ -2232,8 +2296,11 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
             
             if start is not None: 
                 try:
-                    hist = fetch_price_history([bm_ticker], use_adj_close=True)
-                    ser = hist[bm_ticker]
+                    if bench_prices_adj is not None and not bench_prices_adj.empty and bm_ticker in bench_prices_adj.columns:
+                        ser = bench_prices_adj[bm_ticker]
+                    else:
+                        hist = fetch_price_history([bm_ticker], use_adj_close=True)
+                        ser = hist[bm_ticker]
                     
                     # [NEW LOGIC START]
                     # Gateway Check: If benchmark history starts significantly after the horizon start,

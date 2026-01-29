@@ -1323,10 +1323,12 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             # Filter horizons based on reporting period duration
             horizons = get_valid_horizons_for_period(start_date, end_date, selected_period=period)
             
-            # Pre-fetch ticker P/L for all horizons
-            ticker_pl_cache = {}
-            for h in horizons:
-                ticker_pl_cache[h] = dw.get_ticker_pl_df(data, h)
+            # Pre-fetch ticker P/L for all horizons (use cache if available)
+            ticker_pl_cache = data.get("ticker_pl_cache")
+            if not ticker_pl_cache:
+                ticker_pl_cache = {}
+                for h in horizons:
+                    ticker_pl_cache[h] = dw.get_ticker_pl_df(data, h)
                 
             rows = []
             ac_rank_map = {ac: i for i, ac in enumerate(class_df['asset_class'].unique())}
@@ -1341,8 +1343,11 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
                     "Type": "Class", 
                     "_sort_rank": rank
                 }
+                asset_class_pl_cache = data.get("asset_class_pl_cache", {})
                 for h in horizons:
-                    res = dw.get_asset_class_pl(data, ac, h, return_components=False)
+                    res = asset_class_pl_cache.get(h, {}).get(ac)
+                    if res is None:
+                        res = dw.get_asset_class_pl(data, ac, h, return_components=False)
                     r_vals[h] = fmt_dollar_clean(res) if res is not None else "N/A"
                 rows.append(r_vals)
                 
@@ -1356,7 +1361,7 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
                         "_sort_rank": rank
                     }
                     for h in horizons:
-                        pl_df = ticker_pl_cache[h]
+                        pl_df = ticker_pl_cache.get(h, pd.DataFrame())
                         if not pl_df.empty and t in pl_df.index:
                             val = pl_df.loc[t, "pl"]
                             tr_vals[h] = fmt_dollar_clean(val)

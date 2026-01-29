@@ -390,10 +390,12 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
             }
         pl_column_defs.append(col_def)
 
-    # Pre-fetch ticker P/L
-    ticker_pl_cache = {}
-    for h in horizons:
-        ticker_pl_cache[h] = dw.get_ticker_pl_df(data, h)
+    # Pre-fetch ticker P/L (use cache if available)
+    ticker_pl_cache = data.get("ticker_pl_cache")
+    if not ticker_pl_cache:
+        ticker_pl_cache = {}
+        for h in horizons:
+            ticker_pl_cache[h] = dw.get_ticker_pl_df(data, h)
 
     pl_accordion_items = []
     
@@ -407,8 +409,11 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
         for k, v in crow.items():
             if str(k).startswith("meta_"): r_vals[k] = v
             
+        asset_class_pl_cache = data.get("asset_class_pl_cache", {})
         for h in horizons:
-            res = dw.get_asset_class_pl(data, ac, h, return_components=True)
+            res = asset_class_pl_cache.get(h, {}).get(ac)
+            if res is None:
+                res = dw.get_asset_class_pl(data, ac, h, return_components=True)
             if isinstance(res, dict):
                 r_vals[h] = fmt_dollar_clean(res["pl"])
                 r_vals[f"meta_{h}_start"] = res["start"]

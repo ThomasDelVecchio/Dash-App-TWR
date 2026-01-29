@@ -435,11 +435,16 @@ def render_page_content(pathname):
     [Input("date-picker-end", "date"),
      Input("benchmark-dropdown", "value"),
      Input("include-exited-radio", "value"),
-     Input("tax-strategy-select", "value")]
+     Input("tax-strategy-select", "value")],
+    [State("data-signal", "data")]
 )
-def update_global_state(end_date, benchmarks, include_exited, tax_strategy):
-    # Refresh data with new end date
-    dw.refresh_data(end_date=end_date)
+def update_global_state(end_date, benchmarks, include_exited, tax_strategy, current_signal):
+    ctx = callback_context
+    refresh_triggered = ctx.triggered_id == "date-picker-end"
+
+    # Refresh data ONLY when end date changes
+    if refresh_triggered:
+        dw.refresh_data(end_date=end_date)
     
     theme = "dark"
     
@@ -459,7 +464,9 @@ def update_global_state(end_date, benchmarks, include_exited, tax_strategy):
             elif b == "QQQ": label = "Nasdaq 100 (QQQ)"
             bm_map[label] = b
             
-    return theme, theme, dates, bm_map, datetime.now().isoformat(), include_exited, tax_strategy
+    signal = datetime.now().isoformat() if refresh_triggered else current_signal
+
+    return theme, theme, dates, bm_map, signal, include_exited, tax_strategy
 
 # 3. Global Error Toast
 @app.callback(
