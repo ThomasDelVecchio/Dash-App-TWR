@@ -162,6 +162,9 @@ def run_engine(end_date=None):
 
         pv, cash_trace = build_portfolio_value_series_from_flows(holdings, prices)
 
+    # Preserve any bridge metadata from flow-based PV build
+    bridge_info = getattr(pv, "attrs", {}).get("cash_settlement_bridge")
+
     # =============================================================
     # FIX: Clip PV to true inception date (institutionally correct)
     # =============================================================
@@ -186,6 +189,8 @@ def run_engine(end_date=None):
 
     # Clip PV to start no earlier than true inception
     pv = pv[pv.index >= true_inception]
+    if bridge_info:
+        pv.attrs["cash_settlement_bridge"] = bridge_info
 
     # Safety check — PV must exist after clipping
     if pv.empty:

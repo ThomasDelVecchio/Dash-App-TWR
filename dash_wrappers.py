@@ -228,6 +228,18 @@ def run_analytics_engine(end_date=None):
     
     # Robustly extract errors from dataframe metadata
     errors = getattr(prices_cached, "attrs", {}).get("errors", [])
+
+    # Surface cash settlement bridge notice in the UI (if applied)
+    bridge_info = getattr(pv, "attrs", {}).get("cash_settlement_bridge")
+    if bridge_info and isinstance(errors, list):
+        bridge_amount = bridge_info.get("amount")
+        if bridge_amount is not None:
+            bridge_msg = (
+                "Cash is settling from a recent external sale. "
+                f"Synthetic CASH adjustment of ${bridge_amount:,.2f} is applied until settlement posts."
+            )
+            if bridge_msg not in errors:
+                errors.append(bridge_msg)
     if errors: print(f"DEBUG: dash_wrappers found errors: {errors}")
 
     # Dynamic Risk Profile (Vol, Return, Correlation)
