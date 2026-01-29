@@ -442,7 +442,7 @@ def simulate_sell(ticker, shares_to_sell, strategy="FIFO"):
             "est_tax": 0,
             "breakdown": []
         }
-    summary_parts = []
+    summary_items = []
     
     for _, lot in lots_df.iterrows():
         if remaining_to_sell <= 1e-6:
@@ -466,9 +466,19 @@ def simulate_sell(ticker, shares_to_sell, strategy="FIFO"):
         })
         
         if sold == available:
-            summary_parts.append(f"deplete your oldest lot from {date_str} ({term})")
+            summary_items.append({
+                "action": "deplete",
+                "date_str": date_str,
+                "term": term,
+                "shares": sold
+            })
         else:
-            summary_parts.append(f"partially tap into your {date_str} lot ({term})")
+            summary_items.append({
+                "action": "partial",
+                "date_str": date_str,
+                "term": term,
+                "shares": sold
+            })
 
         if term == "Short-Term": total_st_gain += gain
         else: total_lt_gain += gain
@@ -495,6 +505,28 @@ def simulate_sell(ticker, shares_to_sell, strategy="FIFO"):
                 total_tax = net_total * TAX_RATE_LT
     
     # Narrative
+    # Build a cleaner, de-duplicated summary
+    grouped = {}
+    for item in summary_items:
+        key = (item["action"], item["date_str"], item["term"])
+        if key not in grouped:
+            grouped[key] = {"count": 0, "shares": 0.0}
+        grouped[key]["count"] += 1
+        grouped[key]["shares"] += float(item["shares"])
+
+    summary_parts = []
+    for (action, date_str, term), agg in grouped.items():
+        count = agg["count"]
+        shares = agg["shares"]
+        if action == "deplete":
+            lot_text = "lot" if count == 1 else "lots"
+            count_text = "a" if count == 1 else str(count)
+            summary_parts.append(f"deplete {count_text} {lot_text} from {date_str} ({term})")
+        else:
+            lot_text = "lot" if count == 1 else "lots"
+            across = "" if count == 1 else f" across {count} {lot_text}"
+            summary_parts.append(f"partially sell {shares:,.2f} shares{across} from {date_str} ({term})")
+
     action_text = f"Selling {shares_to_sell} shares will " + " and ".join(summary_parts) + "."
     result_text = f"Result: ${total_lt_gain:,.2f} LT Gain, ${total_st_gain:,.2f} ST Gain."
     tax_text = f"Est Tax: ${total_tax:,.2f}."
