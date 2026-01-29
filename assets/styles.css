@@ -446,7 +446,7 @@ body {
 
 /* Backtest weights table: compact height with vertical scrolling */
 .strategy-backtesting-page .strategy-weights-table {
-    height: 260px;
+    height: 350px;
 }
 
 .strategy-backtesting-page .strategy-weights-table .ag-body-viewport,
