@@ -11,7 +11,10 @@ ASSET_CLASS_BENCHMARKS = {
     "Fixed Income": "BND",
     "US Bonds": "BND",
     "Gold / Precious Metals": "GLD",
+    "Commodities": "DBC",
     "Digital Assets": "BTC-USD", # Use BTC if available, otherwise fallback logic handles it
+    "Other": "SPY",
+    "Unknown": "SPY",
     "CASH": "CASH"
 }
 
