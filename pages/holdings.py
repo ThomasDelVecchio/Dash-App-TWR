@@ -48,6 +48,10 @@ layout = html.Div([
 def update_holdings(signal, filters, chat_cmd, include_exited, dates):
     data = dw.get_data()
     if not data: return "Loading...", {}, {}
+
+    ctx = dash.callback_context
+    if ctx.triggered_id == "filter-store" and not filters:
+        include_exited = False
     
     # Dynamic 1D Label
     report_end_date = dates.get("end") if dates else None

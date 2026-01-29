@@ -138,6 +138,10 @@ def update_perf_price_badge(signal):
 def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_exited):
     data = dw.get_data()
     if not data: return {}, {}, [], "", [], ""
+
+    ctx = dash.callback_context
+    if ctx.triggered_id == "filter-store" and not _filters:
+        include_exited = False
     
     # --- CHATBOT PARAMS ---
     chat_target = ""
@@ -565,6 +569,15 @@ def update_growth_dropdown_options(signal):
         options.append({"label": ac, "value": ac})
     
     return options
+
+@callback(
+    Output('growth-asset-class-filter', 'value'),
+    [Input('filter-store', 'data')]
+)
+def reset_growth_filter_on_clear(filters):
+    if not filters:
+        return "Total"
+    return dash.no_update
 
 @callback(
     [Output('growth-of-capital-chart', 'figure'),

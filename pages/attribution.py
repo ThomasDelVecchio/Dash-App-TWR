@@ -74,11 +74,16 @@ def update_attribution_main(signal):
     [Output('attribution-detail-container', 'children'),
      Output('attribution-detail-title', 'children')],
     [Input('attribution-chart', 'clickData'),
-     Input('attribution-chart', 'figure')]
+     Input('attribution-chart', 'figure'),
+     Input('filter-store', 'data')]
 )
-def update_attribution_detail(click_data, figure):
+def update_attribution_detail(click_data, figure, filters):
     data = dw.get_data()
     if not data: return "", "Breakdown"
+
+    ctx = dash.callback_context
+    if ctx.triggered_id == "filter-store" and not filters:
+        return html.Div("Click a bar above to view details.", className="text-muted p-3"), "Breakdown"
     
     if not click_data or 'points' not in click_data or not click_data['points']:
         return html.Div("Click a bar above to view details.", className="text-muted p-3"), "Breakdown"

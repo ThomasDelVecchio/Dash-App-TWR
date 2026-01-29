@@ -151,18 +151,23 @@ def update_allocations(signal, chat_cmd, _filters):
     [Output('alloc-drilldown-store', 'data'),
      Output('alloc-back-btn', 'style')],
     [Input({'type': 'filter-chart', 'index': 'asset-pie-chart'}, 'clickData'),
-     Input('alloc-back-btn', 'n_clicks')],
+     Input('alloc-back-btn', 'n_clicks'),
+     Input('filter-store', 'data')],
     [State('alloc-drilldown-store', 'data')]
 )
-def handle_drilldown_interaction(clickData, back_clicks, current_state):
+def handle_drilldown_interaction(clickData, back_clicks, filters, current_state):
     ctx = dash.callback_context
     if not ctx.triggered:
         return no_update, no_update
     
-    trigger_id = ctx.triggered[0]['prop_id']
+    trigger_id = ctx.triggered_id
+
+    # Global Clear: reset drilldown state
+    if trigger_id == "filter-store" and not filters:
+        return None, {'display': 'none', 'width': 'fit-content'}
     
     # Check if "Back" was clicked
-    if 'alloc-back-btn' in trigger_id:
+    if trigger_id == "alloc-back-btn":
         return None, {'display': 'none', 'width': 'fit-content'}
         
     # Check if Pie Slice was clicked

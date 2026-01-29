@@ -51,6 +51,10 @@ layout = html.Div([
 def update_flows(signal, chat_cmd, _filters, include_exited):
     data = dw.get_data()
     if not data: return "Loading...", "Loading...", {}
+
+    ctx = dash.callback_context
+    if ctx.triggered_id == "filter-store" and not _filters:
+        include_exited = False
     
     # --- CHATBOT PARAMS ---
     chat_target = ""
