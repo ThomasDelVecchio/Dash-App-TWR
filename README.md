@@ -150,8 +150,8 @@ The application supports a **hybrid price data system** that can combine multipl
 
 | Mode | Configuration | Description |
 |------|---------------|-------------|
-| **yfinance-only** (Default) | `FMP_PRICE_ENABLED=false` | Free 10-year history from Yahoo Finance. Suitable for personal use. |
-| **Hybrid FMP+yfinance** | `FMP_PRICE_ENABLED=true` | FMP for recent 5 years + yfinance for extended history. More reliable recent data. |
+| **yfinance-only** (Default) | `FMP_PRICE_ENABLED=false` | Free 20-year history from Yahoo Finance. Suitable for personal use. |
+| **Hybrid FMP+yfinance** | `FMP_PRICE_ENABLED=true` | FMP for recent 5 years + yfinance for extended history (up to 20 years). More reliable recent data. |
 
 **To enable Hybrid Mode:**
 ```ini
