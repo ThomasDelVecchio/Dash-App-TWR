@@ -62,6 +62,31 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
          df = data['sec_table'].copy()
     else:
          df = data['sec_table_current'].copy()
+    
+    # Add Price column from prices data (place before processing)
+    prices = data.get('prices')
+    if prices is not None and not prices.empty:
+        # Get latest price for each ticker
+        latest_prices = prices.iloc[-1] if len(prices) > 0 else pd.Series()
+        df['price'] = df['ticker'].map(latest_prices)
+        # Set CASH price to 1.0
+        df.loc[df['ticker'] == 'CASH', 'price'] = 1.0
+    else:
+        df['price'] = 0.0
+    
+    # Reorder columns to place price before shares
+    if 'price' in df.columns and 'shares' in df.columns:
+        cols = df.columns.tolist()
+        # Remove price from its current position
+        cols.remove('price')
+        # Insert price before shares
+        shares_idx = cols.index('shares')
+        cols.insert(shares_idx, 'price')
+        df = df[cols]
+    
+    # Remove days_held column if it exists
+    if 'days_held' in df.columns:
+        df = df.drop(columns=['days_held'])
 
     # --- CHATBOT PARAMS ---
     chat_target = ""
@@ -141,11 +166,13 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
         if col == "asset_class":
              col_def["minWidth"] = 190
         elif col == "market_value":
-             col_def["minWidth"] = 150
+             col_def["minWidth"] = 185
         elif col == "1D":
              col_def["minWidth"] = 130
-        elif col in ["first_date", "last_date", "days_held"]:
+        elif col in ["first_date", "last_date"]:
              col_def["minWidth"] = 140
+        elif col == "price":
+             col_def["minWidth"] = 120
         
         # Freeze First Column and ensure mobile readability
         if col == "ticker":
@@ -193,11 +220,13 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
     
     # Format data
     df_display = df.copy()
-    cols_to_format = ["market_value", "weight", "1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "SI", "shares"]
+    cols_to_format = ["market_value", "weight", "1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "SI", "shares", "price"]
     for c in cols_to_format:
         if c in df_display.columns:
             if "value" in c:
                 df_display[c] = df_display[c].apply(fmt_dollar_clean)
+            elif c == "price":
+                df_display[c] = df_display[c].apply(lambda x: fmt_dollar_clean(x) if pd.notna(x) else "N/A")
             elif c == "shares":
                 df_display[c] = df_display[c].apply(fmt_number_clean)
             else:
