@@ -3419,7 +3419,7 @@ def _get_daily_asset_class_series(data):
     # 5. Calculate Daily MV per Asset Class
     common_tickers = list(set(shares_daily.columns) & set(px_daily.columns))
     
-    unique_ac = list(set(ac_map.values()) | {"CASH"})
+    unique_ac = list(set(ac_map.values()) | {"CASH", "Other"})
     mv_daily_ac = pd.DataFrame(0.0, index=full_idx, columns=unique_ac)
     
     if common_tickers:

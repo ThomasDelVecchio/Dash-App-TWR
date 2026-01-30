@@ -112,6 +112,7 @@ CASHFLOWS_FILE = "cashflows.csv"
 HOLDINGS_FILE = "sample holdings.csv"
 HOLDINGS_EXTERNAL_FILE = "holdings_external.csv"  # For positions not in E*TRADE (stock plans, other brokers)
 SYNC_STATUS_FILE = "etrade_sync_status.json"
+ASSET_CLASS_CACHE_FILE = "asset_class_cache.json"
 
 # Sync lookback periods
 # First sync needs extended history to capture older positions (E*TRADE allows ~2 years)
@@ -190,6 +191,26 @@ def get_sync_status() -> Dict:
             - transactions_added: Count of new transactions
     """
     return load_sync_status()
+
+
+def load_asset_class_cache() -> Dict[str, Dict]:
+    """Load historical asset_class/target_pct cache from disk."""
+    if not os.path.exists(ASSET_CLASS_CACHE_FILE):
+        return {}
+    try:
+        with open(ASSET_CLASS_CACHE_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_asset_class_cache(cache: Dict[str, Dict]):
+    """Persist asset_class/target_pct cache to disk."""
+    try:
+        with open(ASSET_CLASS_CACHE_FILE, "w") as f:
+            json.dump(cache, f, indent=2)
+    except Exception:
+        pass
 
 
 # ============================================================
@@ -680,6 +701,7 @@ def sync_holdings() -> Tuple[bool, str]:
         
         # Load existing metadata from both sample holdings AND external holdings
         metadata = {}
+        asset_class_cache = load_asset_class_cache()
         if os.path.exists(HOLDINGS_FILE):
             existing = pd.read_csv(HOLDINGS_FILE)
             existing["ticker"] = existing["ticker"].str.upper()
@@ -690,6 +712,14 @@ def sync_holdings() -> Tuple[bool, str]:
                 metadata[ticker] = {
                     "asset_class": row.get("asset_class", "Unknown"),
                     "target_pct": row.get("target_pct", 0)
+                }
+
+        # Merge cached asset_class metadata (persists exited tickers)
+        for t, meta in asset_class_cache.items():
+            if t not in metadata:
+                metadata[t] = {
+                    "asset_class": meta.get("asset_class", "Unknown"),
+                    "target_pct": meta.get("target_pct", 0)
                 }
         
         # ALSO load metadata from external holdings (for new tickers check)
@@ -795,6 +825,40 @@ def sync_holdings() -> Tuple[bool, str]:
                         print(f"   📜 Preserved {len(exited_rows)} exited ticker(s)")
             except Exception as e:
                 print(f"   ⚠️  Could not preserve exited tickers: {e}")
+
+        # ============================================================
+        # PRESERVE HISTORICAL TICKERS FROM CASHFLOWS
+        # ============================================================
+        # If a ticker was fully exited today, it may no longer appear
+        # in E*TRADE holdings and might not exist in the previous holdings
+        # file yet. Ensure any ticker present in cashflows.csv is retained
+        # as a 0-share row for attribution and audit consistency.
+        if os.path.exists(CASHFLOWS_FILE):
+            try:
+                flows_df = pd.read_csv(CASHFLOWS_FILE)
+                flows_df.columns = [c.lower() for c in flows_df.columns]
+                if "ticker" in flows_df.columns:
+                    flow_tickers = set(
+                        flows_df["ticker"].astype(str).str.upper().unique()
+                    )
+                    flow_tickers.discard("CASH")
+
+                    current_tickers = set(new_holdings["ticker"].unique())
+                    missing = sorted(flow_tickers - current_tickers)
+
+                    if missing:
+                        add_rows = []
+                        for t in missing:
+                            add_rows.append({
+                                "ticker": t,
+                                "shares": 0.0,
+                                "asset_class": metadata.get(t, {}).get("asset_class", "Unknown"),
+                                "target_pct": metadata.get(t, {}).get("target_pct", 0),
+                            })
+                        new_holdings = pd.concat([new_holdings, pd.DataFrame(add_rows)], ignore_index=True)
+                        print(f"   📜 Preserved {len(add_rows)} historical ticker(s) from cashflows")
+            except Exception as e:
+                print(f"   ⚠️  Could not preserve historical tickers: {e}")
         
         # Save combined holdings
         new_holdings.to_csv(HOLDINGS_FILE, index=False)
@@ -805,6 +869,18 @@ def sync_holdings() -> Tuple[bool, str]:
         new_tickers = [t for t in new_holdings["ticker"] if t not in metadata and t != "CASH"]
         if new_tickers:
             print(f"   ⚠️  New tickers need asset_class: {new_tickers}")
+
+        # Update asset class cache with any known classifications
+        updated_cache = asset_class_cache.copy()
+        for _, row in new_holdings.iterrows():
+            t = row.get("ticker")
+            ac = row.get("asset_class")
+            if t and ac and ac != "Unknown":
+                updated_cache[str(t).upper()] = {
+                    "asset_class": ac,
+                    "target_pct": row.get("target_pct", 0)
+                }
+        save_asset_class_cache(updated_cache)
         
         return True, f"Updated {len(new_holdings)} positions"
         
