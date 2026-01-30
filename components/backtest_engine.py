@@ -11,8 +11,8 @@ from components.monte_carlo import ASSET_CLASS_BENCHMARKS
 # STRATEGY BACKTESTING ENGINE (SSOT for Backtesting Logic)
 # ============================================================
 
-LOOKBACK_YEARS = {"1Y": 1, "3Y": 3, "5Y": 5}
-MAX_BACKTEST_YEARS = 10
+LOOKBACK_YEARS = {"1Y": 1, "3Y": 3, "5Y": 5, "10Y": 10, "15Y": 15}
+MAX_BACKTEST_YEARS = 20
 GAP_BUFFER_DAYS = 30
 
 # Known benchmark classifications (fallback when ticker not in holdings)

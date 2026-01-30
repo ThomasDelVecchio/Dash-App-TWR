@@ -15,7 +15,7 @@ from config import FMP_API_KEY, FMP_PRICE_ENABLED, FMP_PRICE_LOOKBACK_YEARS
 HOLDINGS_FILE = "sample holdings.csv"
 CASHFLOWS_FILE = "cashflows.csv"
 COMPOSITE_MAPPING_FILE = "composite_mapping.csv"
-PRICE_LOOKBACK_YEARS = 10
+PRICE_LOOKBACK_YEARS = 20
 METADATA_CACHE_FILE = "metadata_cache.json"
 PRICE_CACHE_FILE = "price_cache.pkl"
 PRICE_CACHE_EXPIRY_HOURS = 12

@@ -92,6 +92,8 @@ layout = html.Div([
                             {"label": "1Y", "value": "1Y"},
                             {"label": "3Y", "value": "3Y"},
                             {"label": "5Y", "value": "5Y"},
+                            {"label": "10Y", "value": "10Y"},
+                            {"label": "15Y", "value": "15Y"},
                             {"label": "Max", "value": "MAX"},
                         ],
                         value="MAX",

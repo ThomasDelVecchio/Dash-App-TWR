@@ -21,7 +21,7 @@ ASSET_CLASS_BENCHMARKS = {
 def run_monte_carlo_simulation(
     current_value, 
     weights, 
-    horizon_years=10, 
+    horizon_years=20, 
     n_simulations=1000, 
     monthly_contribution=0,
     correlation_matrix=None,
@@ -52,7 +52,7 @@ def run_monte_carlo_simulation(
         monthly_contribution (float): Monthly cash added to portfolio.
         correlation_matrix (dict): Optional {Asset: {Asset: Corr}} matrix (for GBM).
         risk_return (dict): Optional {Asset: {return: %, vol: %}} (for GBM).
-        prices_df (pd.DataFrame): Optional 10-year daily price history.
+        prices_df (pd.DataFrame): Optional 20-year daily price history.
         random_seed (int): Optional seed for reproducible results (CRN).
         ticker_weights (dict): Optional {Ticker: Weight}. Enables precise ticker-level history.
         holdings_map (dict): Optional {Ticker: AssetClass}. Used for proxying short-history tickers.

@@ -412,7 +412,7 @@ def _prepare_sector_df(sec_table):
 def _calculate_dynamic_risk_profile(prices, sec_table, holdings, end_date=None):
     """
     Calculates Realized Volatility, TTM Return, and Asset Class Correlation Matrix
-    based on the portfolio's actual 10-year history (Pro-Forma).
+    based on the portfolio's actual 20-year history (Pro-Forma).
     """
     if prices.empty or sec_table.empty:
         return {}, {}
