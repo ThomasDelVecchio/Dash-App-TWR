@@ -560,6 +560,7 @@ def update_price_asof_toast(_signal):
     benchmark_fetched_at = data.get("benchmark_fetched_at")
     price_cache_source = data.get("price_cache_source")
     benchmark_cache_source = data.get("benchmark_cache_source")
+    price_cache_expiry_hours = data.get("price_cache_expiry_hours", 12)
 
     if price_fetched_at is None and benchmark_fetched_at is None:
         return "", False
@@ -592,10 +593,25 @@ def update_price_asof_toast(_signal):
     price_source = price_cache_source or "unknown"
     bench_source = benchmark_cache_source or "unknown"
 
+    def _status_label(cache_source, fetch_ts):
+        if fetch_ts is None:
+            return "UNKNOWN"
+        if cache_source == "live":
+            return "LIVE"
+        # Treat any memory source as cached
+        if cache_source in {"memory", "memory-fallback"}:
+            age_mins = (now_ts - fetch_ts).total_seconds() / 60.0
+            expiry_mins = float(price_cache_expiry_hours) * 60.0
+            return "STALE CACHED" if age_mins > expiry_mins else "CACHED"
+        return "CACHED"
+
+    price_status = _status_label(price_source, price_fetch_ts)
+    bench_status = _status_label(bench_source, bench_fetch_ts)
+
     body = html.Div(
         [
-            html.Div(f"Prices pulled at: {price_fetch_str} ({price_age}, {price_source})"),
-            html.Div(f"Benchmarks pulled at: {bench_fetch_str} ({bench_age}, {bench_source})")
+            html.Div(f"Prices pulled at: {price_fetch_str} ({price_age}) — {price_status}"),
+            html.Div(f"Benchmarks pulled at: {bench_fetch_str} ({bench_age}) — {bench_status}")
         ],
         className="small"
     )

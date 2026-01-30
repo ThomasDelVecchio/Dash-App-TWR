@@ -26,7 +26,8 @@ from data_loader import (
     fetch_price_history,
     load_dividends,
     fetch_etf_sectors,
-    _METADATA_CACHE
+    _METADATA_CACHE,
+    PRICE_CACHE_EXPIRY_HOURS
 )
 from financial_math import (
     get_portfolio_horizon_start,
@@ -304,7 +305,8 @@ def run_analytics_engine(end_date=None):
         "price_fetched_at": price_fetched_at,
         "benchmark_fetched_at": benchmark_fetched_at,
         "price_cache_source": price_cache_source,
-        "benchmark_cache_source": benchmark_cache_source
+        "benchmark_cache_source": benchmark_cache_source,
+        "price_cache_expiry_hours": PRICE_CACHE_EXPIRY_HOURS
     }
 
     # Precompute heavy P/L tables once per refresh

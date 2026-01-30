@@ -615,10 +615,20 @@ def get_strategy_backtest_results(
 
         mean_ret = port_returns.mean() * 252
         vol_annual = port_returns.std() * np.sqrt(252)
+        vol_daily = port_returns.std()
         rf_pct = RISK_FREE_RATE * 100.0
         days = (end_date - start_date).days if start_date is not None and end_date is not None else 0
 
         dd_series, max_dd, _ = compute_drawdown_series(growth_of_one)
+
+        dd_peak_value = np.nan
+        dd_trough_value = np.nan
+        if not growth.empty:
+            hwm_val = growth.cummax()
+            drawdown_val = (growth - hwm_val) / hwm_val
+            trough_date_val = drawdown_val.idxmin()
+            dd_peak_value = float(hwm_val.loc[trough_date_val])
+            dd_trough_value = float(growth.loc[trough_date_val])
 
         curves[name] = growth
         drawdowns[name] = dd_series
@@ -638,6 +648,7 @@ def get_strategy_backtest_results(
             "meta_Sharpe_rf": rf_pct,
 
             "meta_Vol_vol": vol_annual * 100.0,
+            "meta_Vol_daily": vol_daily * 100.0,
 
             "meta_Sortino_ret": mean_ret * 100.0,
             "meta_Sortino_rf": rf_pct,
@@ -645,6 +656,8 @@ def get_strategy_backtest_results(
 
             "meta_Drawdown_peak": metrics.get("dd_peak", np.nan),
             "meta_Drawdown_trough": metrics.get("dd_trough", np.nan),
+            "meta_Drawdown_peak_value": dd_peak_value,
+            "meta_Drawdown_trough_value": dd_trough_value,
             "meta_Drawdown_pct": metrics.get("max_drawdown", np.nan) * 100.0,
 
             "meta_CAGR_start": float(initial_value),
