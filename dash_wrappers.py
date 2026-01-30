@@ -260,8 +260,10 @@ def run_analytics_engine(end_date=None):
         except Exception:
             price_as_of = None
     price_fetched_at = None
+    price_cache_source = None
     if prices_cached is not None and hasattr(prices_cached, "attrs"):
         price_fetched_at = prices_cached.attrs.get("fetched_at")
+        price_cache_source = prices_cached.attrs.get("cache_source")
 
     benchmark_as_of = None
     if benchmark_prices_adj is not None and not benchmark_prices_adj.empty:
@@ -270,8 +272,10 @@ def run_analytics_engine(end_date=None):
         except Exception:
             benchmark_as_of = None
     benchmark_fetched_at = None
+    benchmark_cache_source = None
     if benchmark_prices_adj is not None and hasattr(benchmark_prices_adj, "attrs"):
         benchmark_fetched_at = benchmark_prices_adj.attrs.get("fetched_at")
+        benchmark_cache_source = benchmark_prices_adj.attrs.get("cache_source")
     
     base_data = {
         "twr_df": twr_df,
@@ -298,7 +302,9 @@ def run_analytics_engine(end_date=None):
         "price_as_of": price_as_of,
         "benchmark_as_of": benchmark_as_of,
         "price_fetched_at": price_fetched_at,
-        "benchmark_fetched_at": benchmark_fetched_at
+        "benchmark_fetched_at": benchmark_fetched_at,
+        "price_cache_source": price_cache_source,
+        "benchmark_cache_source": benchmark_cache_source
     }
 
     # Precompute heavy P/L tables once per refresh

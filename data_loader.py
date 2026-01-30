@@ -557,7 +557,8 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
         # Return a copy so callers can't mutate the cached DataFrame in-place
         cached = _PRICE_CACHE[key]
         res = cached.copy()
-        res.attrs = cached.attrs
+        res.attrs = dict(cached.attrs)
+        res.attrs["cache_source"] = "memory"
         return res
 
     # Calculate date boundaries
@@ -659,7 +660,8 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
             print(f"[CACHE] Hybrid fetch failed. Using cached data (last successful fetch).")
             cached = _PRICE_CACHE[key]
             res = cached.copy()
-            res.attrs = cached.attrs
+            res.attrs = dict(cached.attrs)
+            res.attrs["cache_source"] = "memory-fallback"
             return res
         else:
             raise RuntimeError("Hybrid fetch returned no data. Check API keys and network.")
@@ -713,7 +715,8 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
                 print(f"[CACHE] yfinance fetch failed. Using cached data (last successful fetch).")
                 cached = _PRICE_CACHE[key]
                 res = cached.copy()
-                res.attrs = cached.attrs
+                res.attrs = dict(cached.attrs)
+                res.attrs["cache_source"] = "memory-fallback"
                 return res
             # This raises error if ALL failed. 
             # If partial failed, we continue and check active_holdings logic below.
@@ -930,6 +933,7 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
 
     # Attach fetch timestamp for diagnostics
     prices.attrs['fetched_at'] = datetime.now().isoformat()
+    prices.attrs['cache_source'] = "live"
 
     # Store in cache and return a copy
     _PRICE_CACHE[key] = prices

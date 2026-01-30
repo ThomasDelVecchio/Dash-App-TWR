@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-from config import BENCHMARK_PRESETS, GLOBAL_PALETTE, RISK_FREE_RATE
+from config import BENCHMARK_PRESETS, GLOBAL_PALETTE, RISK_FREE_RATE, TARGET_WEIGHT_PRESET_NAME
 from data_loader import fetch_price_history, load_holdings
 from portfolio_engine import compute_drawdown_series
 from components.monte_carlo import ASSET_CLASS_BENCHMARKS
@@ -194,6 +194,48 @@ def _get_preset_map() -> dict:
         if name and weights:
             preset_map[name] = _normalize_weights(weights)
     return preset_map
+
+
+def _get_target_weight_column(holdings: pd.DataFrame) -> str | None:
+    if holdings.empty:
+        return None
+
+    cols = [str(c).strip().lower() for c in holdings.columns]
+    if "target_pct" in cols:
+        return holdings.columns[cols.index("target_pct")]
+
+    for key in cols:
+        if "target" in key and "pct" in key:
+            return holdings.columns[cols.index(key)]
+
+    for key in cols:
+        if "target" in key:
+            return holdings.columns[cols.index(key)]
+
+    return None
+
+
+def _get_target_weights(data) -> dict:
+    holdings = data.get("holdings", pd.DataFrame()) if data else pd.DataFrame()
+    if holdings.empty:
+        holdings = load_holdings()
+
+    if holdings.empty or "ticker" not in [c.lower() for c in holdings.columns]:
+        return {}
+
+    holdings = holdings.copy()
+    holdings.columns = [str(c).strip().lower() for c in holdings.columns]
+
+    target_col = _get_target_weight_column(holdings)
+    if not target_col:
+        return {}
+
+    subset = holdings[holdings["ticker"].astype(str).str.upper() != "CASH"].copy()
+    if subset.empty:
+        return {}
+
+    raw_weights = subset.set_index("ticker")[target_col].to_dict()
+    return _normalize_weights(raw_weights)
 
 
 def _get_common_start_date(prices: pd.DataFrame, tickers: list[str]) -> pd.Timestamp | None:
@@ -484,6 +526,10 @@ def get_strategy_backtest_results(
         strategies.append({"name": "My Portfolio", "weights": portfolio_weights, "primary": True})
 
     preset_map = _get_preset_map()
+    target_weights = _get_target_weights(data)
+    if target_weights:
+        preset_map[TARGET_WEIGHT_PRESET_NAME] = target_weights
+
     if selected_presets is None:
         selected_presets = list(preset_map.keys())
 
@@ -620,6 +666,30 @@ def get_strategy_backtest_results(
         })
 
     scorecard = pd.DataFrame(metrics_rows)
+    if not scorecard.empty:
+        scorecard["_rank_cagr"] = scorecard["CAGR"].rank(pct=True)
+        scorecard["_rank_sharpe"] = scorecard["Sharpe"].rank(pct=True)
+        scorecard["_rank_sortino"] = scorecard["Sortino"].rank(pct=True)
+        scorecard["_rank_vol"] = (1.0 - scorecard["Volatility"].rank(pct=True))
+        scorecard["_rank_dd"] = (1.0 - scorecard["Max Drawdown"].rank(pct=True))
+
+        scorecard["Overall Score"] = scorecard[[
+            "_rank_cagr",
+            "_rank_sharpe",
+            "_rank_sortino",
+            "_rank_vol",
+            "_rank_dd",
+        ]].mean(axis=1)
+
+        scorecard = scorecard.sort_values("Overall Score", ascending=False).reset_index(drop=True)
+
+        scorecard = scorecard.drop(columns=[
+            "_rank_cagr",
+            "_rank_sharpe",
+            "_rank_sortino",
+            "_rank_vol",
+            "_rank_dd",
+        ])
     risk_df = pd.DataFrame(risk_points)
 
     used_names = set(curves.keys())

@@ -4,12 +4,74 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import dash_wrappers as dw
 from components.page_header import page_header
-from config import BENCHMARK_PRESETS
+from config import BENCHMARK_PRESETS, TARGET_WEIGHT_PRESET_NAME
+from data_loader import load_holdings
 import pandas as pd
 
 
 def _preset_options():
-    return [{"label": p["name"], "value": p["name"]} for p in BENCHMARK_PRESETS]
+    options = [{"label": TARGET_WEIGHT_PRESET_NAME, "value": TARGET_WEIGHT_PRESET_NAME}]
+    options.extend([{"label": p["name"], "value": p["name"]} for p in BENCHMARK_PRESETS])
+    return options
+
+
+def _default_custom_benchmark_rows():
+    try:
+        holdings = load_holdings()
+    except Exception:
+        holdings = pd.DataFrame()
+
+    if holdings.empty:
+        return [
+            {"Ticker": "QQQ", "Weight": 50},
+            {"Ticker": "GLD", "Weight": 50},
+        ]
+
+    cols = [str(c).strip().lower() for c in holdings.columns]
+    if "target_pct" in cols:
+        target_col = holdings.columns[cols.index("target_pct")]
+    else:
+        target_col = None
+        for key in cols:
+            if "target" in key and "pct" in key:
+                target_col = holdings.columns[cols.index(key)]
+                break
+        if target_col is None:
+            for key in cols:
+                if "target" in key:
+                    target_col = holdings.columns[cols.index(key)]
+                    break
+
+    if target_col is None:
+        return [
+            {"Ticker": "QQQ", "Weight": 50},
+            {"Ticker": "GLD", "Weight": 50},
+        ]
+
+    subset = holdings.copy()
+    subset.columns = cols
+    subset = subset[subset["ticker"].astype(str).str.upper() != "CASH"]
+
+    rows = []
+    for _, row in subset.iterrows():
+        ticker = str(row.get("ticker", "")).strip().upper()
+        if not ticker:
+            continue
+        try:
+            weight = float(row.get(target_col, 0) or 0)
+        except Exception:
+            weight = 0.0
+        if weight <= 0:
+            continue
+        rows.append({"Ticker": ticker, "Weight": weight})
+
+    if rows:
+        return rows
+
+    return [
+        {"Ticker": "QQQ", "Weight": 50},
+        {"Ticker": "GLD", "Weight": 50},
+    ]
 
 
 layout = html.Div([
@@ -53,7 +115,7 @@ layout = html.Div([
                     dcc.Dropdown(
                         id="strategy-preset-checklist",
                         options=_preset_options(),
-                        value=[p["name"] for p in BENCHMARK_PRESETS],
+                        value=[TARGET_WEIGHT_PRESET_NAME] + [p["name"] for p in BENCHMARK_PRESETS],
                         multi=True,
                         className="mb-2"
                     )
@@ -92,10 +154,7 @@ layout = html.Div([
                         {"headerName": "Ticker", "field": "Ticker", "editable": True, "flex": 1},
                         {"headerName": "Weight %", "field": "Weight", "editable": True, "type": "numericColumn", "flex": 1},
                     ],
-                    rowData=[
-                        {"Ticker": "QQQ", "Weight": 50},
-                        {"Ticker": "GLD", "Weight": 50},
-                    ],
+                    rowData=_default_custom_benchmark_rows(),
                     defaultColDef={"resizable": True, "sortable": True},
                     dashGridOptions={
                         "rowSelection": "multiple",
@@ -189,6 +248,7 @@ layout = html.Div([
                         id="strategy-scorecard",
                         columnDefs=[
                             {"headerName": "Strategy", "field": "Strategy", "pinned": "left", "minWidth": 220, "flex": 2, "lockPinned": True, "cellClass": "lock-pinned"},
+                            {"headerName": "Overall Score", "field": "Overall Score", "type": "numericColumn", "flex": 1, "valueFormatter": {"function": "d3.format('.2f')(params.value)"}},
                             {"headerName": "CAGR", "field": "CAGR", "type": "numericColumn", "flex": 1, "valueFormatter": {"function": "d3.format('.2%')(params.value)"}},
                             {"headerName": "Volatility", "field": "Volatility", "type": "numericColumn", "flex": 1, "valueFormatter": {"function": "d3.format('.2%')(params.value)"}},
                             {"headerName": "Sharpe", "field": "Sharpe", "type": "numericColumn", "flex": 1, "valueFormatter": {"function": "d3.format('.2f')(params.value)"}},

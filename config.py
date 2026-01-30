@@ -116,6 +116,8 @@ GLOBAL_PALETTE = [
 # ============================================================
 # STRATEGY BACKTESTING PRESETS
 # ============================================================
+TARGET_WEIGHT_PRESET_NAME = "Target Weights (Holdings)"
+
 BENCHMARK_PRESETS = [
     {"name": "S&P 500 (SPY)", "weights": {"SPY": 100}},
     {"name": "Classic 60/40", "weights": {"VTI": 60, "BND": 40}},

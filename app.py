@@ -558,24 +558,44 @@ def update_price_asof_toast(_signal):
 
     price_fetched_at = data.get("price_fetched_at")
     benchmark_fetched_at = data.get("benchmark_fetched_at")
+    price_cache_source = data.get("price_cache_source")
+    benchmark_cache_source = data.get("benchmark_cache_source")
 
     if price_fetched_at is None and benchmark_fetched_at is None:
         return "", False
 
     try:
-        price_fetch_str = pd.Timestamp(price_fetched_at).strftime("%Y-%m-%d %I:%M %p") if price_fetched_at else "N/A"
+        price_fetch_ts = pd.Timestamp(price_fetched_at) if price_fetched_at else None
+        price_fetch_str = price_fetch_ts.strftime("%Y-%m-%d %I:%M %p") if price_fetch_ts else "N/A"
     except Exception:
+        price_fetch_ts = None
         price_fetch_str = "N/A"
 
     try:
-        bench_fetch_str = pd.Timestamp(benchmark_fetched_at).strftime("%Y-%m-%d %I:%M %p") if benchmark_fetched_at else "N/A"
+        bench_fetch_ts = pd.Timestamp(benchmark_fetched_at) if benchmark_fetched_at else None
+        bench_fetch_str = bench_fetch_ts.strftime("%Y-%m-%d %I:%M %p") if bench_fetch_ts else "N/A"
     except Exception:
+        bench_fetch_ts = None
         bench_fetch_str = "N/A"
+
+    now_ts = pd.Timestamp.now()
+    price_age = "N/A"
+    if price_fetch_ts is not None:
+        age_minutes = (now_ts - price_fetch_ts).total_seconds() / 60.0
+        price_age = f"{age_minutes:.1f} min ago"
+
+    bench_age = "N/A"
+    if bench_fetch_ts is not None:
+        age_minutes = (now_ts - bench_fetch_ts).total_seconds() / 60.0
+        bench_age = f"{age_minutes:.1f} min ago"
+
+    price_source = price_cache_source or "unknown"
+    bench_source = benchmark_cache_source or "unknown"
 
     body = html.Div(
         [
-            html.Div(f"Prices pulled at: {price_fetch_str}"),
-            html.Div(f"Benchmarks pulled at: {bench_fetch_str}")
+            html.Div(f"Prices pulled at: {price_fetch_str} ({price_age}, {price_source})"),
+            html.Div(f"Benchmarks pulled at: {bench_fetch_str} ({bench_age}, {bench_source})")
         ],
         className="small"
     )
