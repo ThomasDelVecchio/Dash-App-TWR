@@ -1161,7 +1161,13 @@ def execute_order_callback(n_clicks, preview_data):
                         if os.path.exists(f):
                             with open(f, "r") as fp:
                                 content = fp.read()
-                            result = send_to_drive(content, f, mimetype="text/csv")
+                            result = send_to_drive(
+                                content,
+                                f,
+                                mimetype="text/csv",
+                                parent_folder_name="Dash-App-TWR",
+                                create_folder=True
+                            )
                             print(f"[POST-TRADE] {f}: {result}")
                     print("[POST-TRADE] Drive API upload complete.")
                 except Exception as e:

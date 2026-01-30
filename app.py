@@ -326,6 +326,7 @@ app.layout = html.Div(
         dcc.Store(id="tax-strategy-store", data="FIFO", storage_type="local"),
         dcc.Store(id="active-modules-store", storage_type="local"),
         dcc.Store(id="error-toast-store", data={"dismissed": False, "hash": None}, storage_type="session"),
+        dcc.Store(id="price-toast-store", data={"dismissed": False, "hash": None}, storage_type="session"),
         
         # Global Audit Store
         dcc.Store(id="audit-request-store"),
@@ -548,13 +549,15 @@ def update_error_toast(_signal, toast_state):
 # 3b. Price As-Of Toast (Non-persistent)
 @app.callback(
     [Output("price-asof-toast", "children"),
-     Output("price-asof-toast", "is_open")],
-    [Input("data-signal", "data")]
+     Output("price-asof-toast", "is_open"),
+     Output("price-toast-store", "data")],
+    [Input("data-signal", "data")],
+    [State("price-toast-store", "data")]
 )
-def update_price_asof_toast(_signal):
+def update_price_asof_toast(_signal, toast_state):
     data = dw.get_data()
     if not data:
-        return "", False
+        return "", False, {"dismissed": False, "hash": None}
 
     price_fetched_at = data.get("price_fetched_at")
     benchmark_fetched_at = data.get("benchmark_fetched_at")
@@ -563,7 +566,7 @@ def update_price_asof_toast(_signal):
     price_cache_expiry_hours = data.get("price_cache_expiry_hours", 12)
 
     if price_fetched_at is None and benchmark_fetched_at is None:
-        return "", False
+        return "", False, {"dismissed": False, "hash": None}
 
     try:
         price_fetch_ts = pd.Timestamp(price_fetched_at) if price_fetched_at else None
@@ -616,7 +619,39 @@ def update_price_asof_toast(_signal):
         className="small"
     )
 
-    return body, True
+    toast_state = toast_state or {"dismissed": False, "hash": None}
+    last_hash = toast_state.get("hash")
+    dismissed = toast_state.get("dismissed", False)
+
+    toast_hash = hashlib.md5(
+        f"{price_fetched_at}|{benchmark_fetched_at}|{price_cache_source}|{benchmark_cache_source}".encode("utf-8")
+    ).hexdigest()
+
+    if toast_hash != last_hash:
+        return body, True, {"dismissed": False, "hash": toast_hash}
+
+    if dismissed:
+        return body, False, {"dismissed": True, "hash": toast_hash}
+
+    return body, True, {"dismissed": False, "hash": toast_hash}
+
+
+@app.callback(
+    Output("price-toast-store", "data", allow_duplicate=True),
+    [Input("price-asof-toast", "is_open")],
+    [State("price-toast-store", "data")],
+    prevent_initial_call=True
+)
+def track_price_toast_dismiss(is_open, toast_state):
+    if is_open:
+        return dash.no_update
+
+    toast_state = toast_state or {"dismissed": False, "hash": None}
+    if not toast_state.get("hash"):
+        return dash.no_update
+
+    toast_state["dismissed"] = True
+    return toast_state
 
 
 @app.callback(

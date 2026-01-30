@@ -92,7 +92,32 @@ def get_display_label_for_1d(report_date=None):
     return "1D"
 
 # --- UPDATE FUNCTION ---
-def send_to_drive(content, filename, mimetype='text/csv'):
+def _get_drive_folder_id(service, folder_name, parent_id="root", create_if_missing=False):
+    """Resolve (or create) a Google Drive folder by name under a parent."""
+    query = (
+        "mimeType='application/vnd.google-apps.folder' "
+        f"and name='{folder_name}' "
+        f"and '{parent_id}' in parents "
+        "and trashed=false"
+    )
+    results = service.files().list(q=query, fields="files(id, name)").execute()
+    files = results.get("files", [])
+    if files:
+        return files[0]["id"]
+
+    if not create_if_missing:
+        return None
+
+    folder_metadata = {
+        "name": folder_name,
+        "mimeType": "application/vnd.google-apps.folder",
+        "parents": [parent_id],
+    }
+    folder = service.files().create(body=folder_metadata, fields="id").execute()
+    return folder.get("id")
+
+
+def send_to_drive(content, filename, mimetype='text/csv', parent_folder_id=None, parent_folder_name=None, create_folder=False):
     """
     Uploads using the User's credentials (OAuth) to bypass Service Account limits.
     Supports both string content (auto-encoded) and binary/bytes content.
@@ -106,9 +131,20 @@ def send_to_drive(content, filename, mimetype='text/csv'):
         creds = Credentials.from_authorized_user_file(TOKEN_FILE, ['https://www.googleapis.com/auth/drive.file'])
         service = build('drive', 'v3', credentials=creds)
 
+        target_parent_id = parent_folder_id or PARENT_FOLDER_ID
+        if parent_folder_name:
+            resolved_id = _get_drive_folder_id(
+                service,
+                parent_folder_name,
+                parent_id="root",
+                create_if_missing=create_folder,
+            )
+            if resolved_id:
+                target_parent_id = resolved_id
+
         file_metadata = {
-            'name': filename,
-            'parents': [PARENT_FOLDER_ID]
+            'name': os.path.basename(filename),
+            'parents': [target_parent_id]
         }
         
         # dynamic buffer handling
