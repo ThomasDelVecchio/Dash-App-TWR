@@ -119,7 +119,7 @@ def update_attribution_detail(click_data, figure, filters):
             orientation="v",
             measure=["relative"] * len(breakdown_df) + ["total"],
             x=breakdown_df["Asset Class"].tolist() + ["Total"],
-            y=breakdown_df["Contribution (%)"].tolist() + [0],
+            y=breakdown_df["Contribution (%)"].tolist() + [total_contrib],
             text=[f"{x:+.2f}%" for x in breakdown_df["Contribution (%)"]] + [f"{total_contrib:+.2f}%"],
             textposition="auto",
             connector={"line": {"color": "rgb(63, 63, 63)"}},
@@ -132,9 +132,11 @@ def update_attribution_detail(click_data, figure, filters):
         # Fix clipping: Add vertical buffer and allow labels to bleed past axis
         fig.update_traces(textfont_size=12, cliponaxis=False)
         
-        max_y = max(breakdown_df["Contribution (%)"].max(), total_contrib)
-        min_y = breakdown_df["Contribution (%)"].min()
-        y_range = [min_y * 1.2 if min_y < 0 else -0.05, max_y * 1.4] 
+        contrib_vals = breakdown_df["Contribution (%)"].fillna(0.0)
+        cumulative = contrib_vals.cumsum()
+        min_y = min(contrib_vals.min(), cumulative.min(), total_contrib, 0.0)
+        max_y = max(contrib_vals.max(), cumulative.max(), total_contrib, 0.0)
+        y_range = [min_y * 1.2 if min_y < 0 else -0.05, max_y * 1.2 if max_y > 0 else 0.05]
 
         fig.update_layout(
             title=f"Contribution to Return",
@@ -212,7 +214,7 @@ def update_si_attribution(signal):
         orientation="v",
         measure=["relative"] * len(df) + ["total"],
         x=df["Asset Class"].tolist() + ["Total"],
-        y=df["Contribution (%)"].tolist() + [0],
+        y=df["Contribution (%)"].tolist() + [total_contrib],
         text=[f"{x:+.2f}%" for x in df["Contribution (%)"]] + [f"{total_contrib:+.2f}%"],
         textposition="auto",
         connector={"line": {"color": "rgb(63, 63, 63)"}},
@@ -225,9 +227,11 @@ def update_si_attribution(signal):
     # Fix clipping: Add vertical buffer and allow labels to bleed past axis
     fig.update_traces(textfont_size=12, cliponaxis=False)
     
-    max_y = max(df["Contribution (%)"].max(), total_contrib)
-    min_y = df["Contribution (%)"].min()
-    y_range = [min_y * 1.2 if min_y < 0 else -0.5, max_y * 1.4]
+    contrib_vals = df["Contribution (%)"].fillna(0.0)
+    cumulative = contrib_vals.cumsum()
+    min_y = min(contrib_vals.min(), cumulative.min(), total_contrib, 0.0)
+    max_y = max(contrib_vals.max(), cumulative.max(), total_contrib, 0.0)
+    y_range = [min_y * 1.2 if min_y < 0 else -0.5, max_y * 1.2 if max_y > 0 else 0.5]
 
     fig.update_layout(
         title="Lifetime Contribution to Return",

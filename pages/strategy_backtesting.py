@@ -184,12 +184,12 @@ layout = html.Div([
                     dcc.Loading(dag.AgGrid(
                         id="strategy-weights-table",
                         columnDefs=[
-                            {"headerName": "Portfolio", "field": "Portfolio", "pinned": "left", "minWidth": 160, "flex": 1, "lockPinned": True, "cellClass": "lock-pinned"},
-                            {"headerName": "Ticker", "field": "Ticker", "flex": 1, "minWidth": 160},
-                            {"headerName": "Weight", "field": "Weight", "type": "numericColumn", "flex": 1, "minWidth": 160, "valueFormatter": {"function": "d3.format('.2%')(params.value)"}},
+                            {"headerName": "Portfolio", "field": "Portfolio", "flex": 1},
+                            {"headerName": "Ticker", "field": "Ticker", "flex": 1},
+                            {"headerName": "Weight", "field": "Weight", "type": "numericColumn", "flex": 1, "valueFormatter": {"function": "d3.format('.2%')(params.value)"}},
                         ],
                         rowData=[],
-                        defaultColDef={"resizable": True, "sortable": True, "filter": True, "minWidth": 110},
+                        defaultColDef={"resizable": True, "sortable": True, "filter": True, "minWidth": 0},
                         dashGridOptions={"domLayout": "normal"},
                         className="ag-theme-alpine-dark audit-target strategy-weights-table",
                         style={"width": "100%", "height": "450px"}
