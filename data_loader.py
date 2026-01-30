@@ -928,6 +928,9 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
     if errors:
         print(f"DEBUG: data_loader returning {len(errors)} errors attached to prices.")
 
+    # Attach fetch timestamp for diagnostics
+    prices.attrs['fetched_at'] = datetime.now().isoformat()
+
     # Store in cache and return a copy
     _PRICE_CACHE[key] = prices
     save_price_cache_to_disk()

@@ -251,6 +251,27 @@ def run_analytics_engine(end_date=None):
     # This ensures P/L calculations in helpers match the TWR calculation end date
     as_of_pv = pv.index.max() if not pv.empty else pd.Timestamp.now()
     effective_as_of = get_effective_anchor_date(as_of_pv)
+
+    # Price data timestamps (for diagnostics)
+    price_as_of = None
+    if prices_cached is not None and not prices_cached.empty:
+        try:
+            price_as_of = prices_cached.index.max()
+        except Exception:
+            price_as_of = None
+    price_fetched_at = None
+    if prices_cached is not None and hasattr(prices_cached, "attrs"):
+        price_fetched_at = prices_cached.attrs.get("fetched_at")
+
+    benchmark_as_of = None
+    if benchmark_prices_adj is not None and not benchmark_prices_adj.empty:
+        try:
+            benchmark_as_of = benchmark_prices_adj.index.max()
+        except Exception:
+            benchmark_as_of = None
+    benchmark_fetched_at = None
+    if benchmark_prices_adj is not None and hasattr(benchmark_prices_adj, "attrs"):
+        benchmark_fetched_at = benchmark_prices_adj.attrs.get("fetched_at")
     
     base_data = {
         "twr_df": twr_df,
@@ -273,7 +294,11 @@ def run_analytics_engine(end_date=None):
         "risk_return": dynamic_risk_return,
         "correlation_matrix": dynamic_corr_matrix,
         "effective_as_of": effective_as_of,
-        "selected_end_date": end_date
+        "selected_end_date": end_date,
+        "price_as_of": price_as_of,
+        "benchmark_as_of": benchmark_as_of,
+        "price_fetched_at": price_fetched_at,
+        "benchmark_fetched_at": benchmark_fetched_at
     }
 
     # Precompute heavy P/L tables once per refresh

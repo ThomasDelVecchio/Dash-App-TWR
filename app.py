@@ -297,6 +297,24 @@ app.layout = html.Div(
                 "zIndex": 1200,
             },
         ),
+
+        # Price As-Of Toast (dismissable, non-persistent)
+        dbc.Toast(
+            id="price-asof-toast",
+            header="Price Data Timestamp",
+            is_open=False,
+            dismissable=True,
+            icon="info",
+            duration=None,
+            style={
+                "position": "fixed",
+                "top": "140px",
+                "right": "20px",
+                "width": "420px",
+                "maxWidth": "90vw",
+                "zIndex": 1200,
+            },
+        ),
         
         # Stores for Global State
         dcc.Store(id="data-signal", data=datetime.now().isoformat()),
@@ -525,6 +543,44 @@ def update_error_toast(_signal, toast_state):
         return toast_body, False, {"dismissed": True, "hash": error_hash}
 
     return toast_body, True, {"dismissed": False, "hash": error_hash}
+
+
+# 3b. Price As-Of Toast (Non-persistent)
+@app.callback(
+    [Output("price-asof-toast", "children"),
+     Output("price-asof-toast", "is_open")],
+    [Input("data-signal", "data")]
+)
+def update_price_asof_toast(_signal):
+    data = dw.get_data()
+    if not data:
+        return "", False
+
+    price_fetched_at = data.get("price_fetched_at")
+    benchmark_fetched_at = data.get("benchmark_fetched_at")
+
+    if price_fetched_at is None and benchmark_fetched_at is None:
+        return "", False
+
+    try:
+        price_fetch_str = pd.Timestamp(price_fetched_at).strftime("%Y-%m-%d %I:%M %p") if price_fetched_at else "N/A"
+    except Exception:
+        price_fetch_str = "N/A"
+
+    try:
+        bench_fetch_str = pd.Timestamp(benchmark_fetched_at).strftime("%Y-%m-%d %I:%M %p") if benchmark_fetched_at else "N/A"
+    except Exception:
+        bench_fetch_str = "N/A"
+
+    body = html.Div(
+        [
+            html.Div(f"Prices pulled at: {price_fetch_str}"),
+            html.Div(f"Benchmarks pulled at: {bench_fetch_str}")
+        ],
+        className="small"
+    )
+
+    return body, True
 
 
 @app.callback(
