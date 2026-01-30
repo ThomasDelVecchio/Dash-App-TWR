@@ -204,6 +204,28 @@ body {
     box-shadow: 0 6px 12px rgba(0,0,0,0.4);
 }
 
+/* Previous Page Button (Below Next) */
+.prev-page-btn {
+    position: fixed;
+    top: 80px;
+    right: 25px;
+    z-index: 1100;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.prev-page-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+}
+
 .sidebar-subtitle {
     transition: opacity var(--transition-medium);
 }

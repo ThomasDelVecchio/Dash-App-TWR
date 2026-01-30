@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 from datetime import datetime
 import pandas as pd
 import os
+import hashlib
 
 # Import wrappers
 import dash_wrappers as dw
@@ -306,6 +307,7 @@ app.layout = html.Div(
         dcc.Store(id="include-exited-store", data=False),
         dcc.Store(id="tax-strategy-store", data="FIFO", storage_type="local"),
         dcc.Store(id="active-modules-store", storage_type="local"),
+        dcc.Store(id="error-toast-store", data={"dismissed": False, "hash": None}, storage_type="session"),
         
         # Global Audit Store
         dcc.Store(id="audit-request-store"),
@@ -346,6 +348,14 @@ app.layout = html.Div(
             id="btn-next-page",
             className="btn btn-primary next-page-btn",
             title="Next Page"
+        ),
+
+        # Floating Previous Page Button (hidden on first page)
+        html.Button(
+            html.I(className="bi bi-chevron-left"),
+            id="btn-prev-page",
+            className="btn btn-secondary prev-page-btn",
+            title="Previous Page"
         ),
         
         sidebar,
@@ -471,20 +481,28 @@ def update_global_state(end_date, benchmarks, include_exited, tax_strategy, curr
 # 3. Global Error Toast
 @app.callback(
     [Output("app-error-toast", "children"),
-     Output("app-error-toast", "is_open")],
-    [Input("data-signal", "data")]
+     Output("app-error-toast", "is_open"),
+     Output("error-toast-store", "data")],
+    [Input("data-signal", "data")],
+    [State("error-toast-store", "data")]
 )
-def update_error_toast(_signal):
+def update_error_toast(_signal, toast_state):
     data = dw.get_data()
     if not data:
-        return "", False
+        return "", False, {"dismissed": False, "hash": None}
 
     errors = data.get("errors", [])
     if not errors and "prices" in data and hasattr(data["prices"], "attrs"):
         errors = data["prices"].attrs.get("errors", [])
 
     if not errors:
-        return "", False
+        return "", False, {"dismissed": False, "hash": None}
+
+    toast_state = toast_state or {"dismissed": False, "hash": None}
+    last_hash = toast_state.get("hash")
+    dismissed = toast_state.get("dismissed", False)
+
+    error_hash = hashlib.md5("\n".join(errors).encode("utf-8")).hexdigest()
 
     toast_body = html.Div(
         [
@@ -500,7 +518,31 @@ def update_error_toast(_signal):
         ]
     )
 
-    return toast_body, True
+    if error_hash != last_hash:
+        return toast_body, True, {"dismissed": False, "hash": error_hash}
+
+    if dismissed:
+        return toast_body, False, {"dismissed": True, "hash": error_hash}
+
+    return toast_body, True, {"dismissed": False, "hash": error_hash}
+
+
+@app.callback(
+    Output("error-toast-store", "data", allow_duplicate=True),
+    [Input("app-error-toast", "is_open")],
+    [State("error-toast-store", "data")],
+    prevent_initial_call=True
+)
+def track_toast_dismiss(is_open, toast_state):
+    if is_open:
+        return dash.no_update
+
+    toast_state = toast_state or {"dismissed": False, "hash": None}
+    if not toast_state.get("hash"):
+        return dash.no_update
+
+    toast_state["dismissed"] = True
+    return toast_state
 
 # 3. Global Filter Logic
 @app.callback(
@@ -774,6 +816,88 @@ def navigate_to_next_page(n_clicks, current_path, active_modules_ids):
     except Exception as e:
         print(f"Navigation error: {e}")
         return dash.no_update
+
+# 9. Previous Page Navigation Callback
+@app.callback(
+    Output("url", "pathname", allow_duplicate=True),
+    Input("btn-prev-page", "n_clicks"),
+    [State("url", "pathname"),
+     State("active-modules-store", "data")],
+    prevent_initial_call=True
+)
+def navigate_to_prev_page(n_clicks, current_path, active_modules_ids):
+    if not n_clicks:
+        return dash.no_update
+
+    # Build list of active pages in order
+    active_pages = []
+    for m in NAV_MODULES:
+        if not m["can_toggle"]:
+            active_pages.append(m["href"])
+        elif active_modules_ids is None or m["id"] in active_modules_ids:
+            active_pages.append(m["href"])
+
+    try:
+        clean_current = current_path.rstrip("/") if len(current_path) > 1 else current_path
+
+        if clean_current in active_pages:
+            idx = active_pages.index(clean_current)
+        else:
+            idx = -1
+            for i, p in enumerate(active_pages):
+                if p == clean_current or p == current_path:
+                    idx = i
+                    break
+
+        if idx > 0:
+            return active_pages[idx - 1]
+        return dash.no_update
+
+    except Exception as e:
+        print(f"Navigation error: {e}")
+        return dash.no_update
+
+# 10. Back Button Visibility (hide on first page)
+@app.callback(
+    Output("btn-prev-page", "style"),
+    [Input("url", "pathname"),
+     Input("active-modules-store", "data")]
+)
+def toggle_prev_button_visibility(current_path, active_modules_ids):
+    active_pages = []
+    for m in NAV_MODULES:
+        if not m["can_toggle"]:
+            active_pages.append(m["href"])
+        elif active_modules_ids is None or m["id"] in active_modules_ids:
+            active_pages.append(m["href"])
+
+    clean_current = current_path.rstrip("/") if current_path and len(current_path) > 1 else current_path
+
+    if not active_pages or clean_current not in active_pages:
+        return {"display": "none"}
+
+    return {"display": "none"} if active_pages.index(clean_current) == 0 else {}
+
+# 11. Next Button Visibility (hide on last page)
+@app.callback(
+    Output("btn-next-page", "style"),
+    [Input("url", "pathname"),
+     Input("active-modules-store", "data")]
+)
+def toggle_next_button_visibility(current_path, active_modules_ids):
+    active_pages = []
+    for m in NAV_MODULES:
+        if not m["can_toggle"]:
+            active_pages.append(m["href"])
+        elif active_modules_ids is None or m["id"] in active_modules_ids:
+            active_pages.append(m["href"])
+
+    clean_current = current_path.rstrip("/") if current_path and len(current_path) > 1 else current_path
+
+    if not active_pages or clean_current not in active_pages:
+        return {"display": "none"}
+
+    return {"display": "none"} if active_pages.index(clean_current) == (len(active_pages) - 1) else {}
 
 if __name__ == "__main__":
     app.run(debug=True, dev_tools_ui=False)

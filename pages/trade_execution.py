@@ -146,12 +146,18 @@ layout = dbc.Container([
         icon="bi-cart-check",
         subtitle="Place and manage orders via E*TRADE",
         actions=[
-            build_environment_badge(),
-            dbc.Button(
-                [html.I(className="bi bi-arrow-clockwise me-1"), "Refresh"],
-                id="btn-refresh-trade",
-                color="secondary",
-                size="sm"
+            html.Div(
+                [
+                    build_environment_badge(),
+                    dbc.Button(
+                        [html.I(className="bi bi-arrow-clockwise me-1"), "Refresh"],
+                        id="btn-refresh-trade",
+                        color="secondary",
+                        size="sm"
+                    )
+                ],
+                className="d-flex align-items-center gap-2",
+                style={"marginRight": "48px"}
             )
         ]
     ),

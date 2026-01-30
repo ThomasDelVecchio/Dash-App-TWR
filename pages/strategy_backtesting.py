@@ -145,7 +145,11 @@ layout = html.Div([
         dbc.Col(dbc.Card([
             dbc.CardBody([
                 html.H5("Growth of $ Investment", className="card-title section-header"),
-                dcc.Loading(dcc.Graph(id="strategy-growth-chart"))
+                dcc.Loading(dcc.Graph(id="strategy-growth-chart")),
+                html.P(
+                    "* Growth curves assume quarterly rebalancing and show hypothetical value from the initial investment.",
+                    className="footnote small text-muted px-3"
+                )
             ])
         ]), width=12, className="mb-4"),
     ]),
@@ -154,7 +158,11 @@ layout = html.Div([
         dbc.Col(dbc.Card([
             dbc.CardBody([
                 html.H5("Underwater Chart (Drawdown)", className="card-title section-header"),
-                dcc.Loading(dcc.Graph(id="strategy-drawdown-chart"))
+                dcc.Loading(dcc.Graph(id="strategy-drawdown-chart")),
+                html.P(
+                    "* Drawdown shows peak-to-trough decline from each strategy’s prior high-water mark.",
+                    className="footnote small text-muted px-3"
+                )
             ])
         ]), width=12, className="mb-4"),
     ]),
@@ -163,7 +171,11 @@ layout = html.Div([
         dbc.Col(dbc.Card([
             dbc.CardBody([
                 html.H5("Risk vs Return", className="card-title section-header"),
-                dcc.Loading(dcc.Graph(id="strategy-risk-chart"))
+                dcc.Loading(dcc.Graph(id="strategy-risk-chart")),
+                html.P(
+                    "* Return is CAGR; volatility is annualized standard deviation over the selected lookback.",
+                    className="footnote small text-muted px-3"
+                )
             ])
         ]), width=12, className="mb-4"),
     ]),
