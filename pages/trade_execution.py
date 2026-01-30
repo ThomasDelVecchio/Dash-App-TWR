@@ -505,11 +505,10 @@ def load_staged_order(_page_ready, _page_refresh, staged_data, staged_index):
             return 0
 
         qty = abs(qty)
-        if order_action == "BUY":
-            return max(1, int(np.ceil(qty)))
-        if order_action == "SELL":
-            return int(np.floor(qty))
-        return int(round(qty))
+        rounded_qty = int(round(qty))
+        if rounded_qty <= 0:
+            return 1
+        return rounded_qty
     
     # Build alert message showing all staged orders
     if len(orders) == 1:
