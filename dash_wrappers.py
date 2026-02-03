@@ -27,7 +27,8 @@ from data_loader import (
     load_dividends,
     fetch_etf_sectors,
     _METADATA_CACHE,
-    PRICE_CACHE_EXPIRY_HOURS
+    PRICE_CACHE_EXPIRY_HOURS,
+    clear_price_cache
 )
 from financial_math import (
     get_portfolio_horizon_start,
@@ -180,9 +181,11 @@ def get_data():
         _DATA_CACHE = run_analytics_engine()
     return _DATA_CACHE
 
-def refresh_data(end_date=None):
+def refresh_data(end_date=None, force_price_refresh: bool = False):
     """Force refresh of the data cache."""
     global _DATA_CACHE
+    if force_price_refresh:
+        clear_price_cache()
     _DATA_CACHE = run_analytics_engine(end_date=end_date)
     return _DATA_CACHE
 

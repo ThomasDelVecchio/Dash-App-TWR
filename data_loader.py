@@ -58,6 +58,11 @@ def save_price_cache_to_disk():
     except Exception as e:
         print(f"[CACHE] Error saving price cache: {e}")
 
+def clear_price_cache():
+    """Clear in-memory price cache to force live refetch on next call."""
+    global _PRICE_CACHE
+    _PRICE_CACHE = {}
+
 # ------------------------------------------------------------
 # Metadata Cache Management
 # ------------------------------------------------------------

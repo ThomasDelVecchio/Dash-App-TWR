@@ -1039,16 +1039,12 @@ def compute_security_modified_dietz(
                 prev_dates = price_idx[price_idx <= target_date]
 
                 if len(prev_dates) == 0:
-                    # YTD Exception: Ticker started this year
-                    if h == "YTD" and first_tx_date > target_date:
-                        start = first_tx_date - pd.Timedelta(days=1)
-                    else:
-                        row[h] = np.nan
-                        continue
+                    row[h] = np.nan
+                    continue
                 else:
                     start = prev_dates.max()
                     # GIPS GATE: Security must have existed STRICTLY BEFORE horizon start
-                    if h != "YTD" and first_tx_date >= start:
+                    if first_tx_date >= start:
                         row[h] = np.nan
                         continue
 

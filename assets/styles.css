@@ -162,6 +162,16 @@ body {
     outline: none;
 }
 
+/* Refresh button accent */
+.sidebar-refresh-btn {
+    color: var(--accent-color);
+}
+
+.sidebar-refresh-btn:hover {
+    color: #ffffff;
+    background-color: rgba(0, 212, 255, 0.15);
+}
+
 /* Floating open button (visible only when sidebar is hidden) */
 .sidebar-open-btn {
     position: fixed;

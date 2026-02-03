@@ -779,6 +779,10 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
     
     if raw_start is None or raw_start >= as_of:
         return None
+
+    # GIPS GATE (Non-SI): Security must have existed strictly before horizon start
+    if h != "SI" and first_trade >= raw_start:
+        return None
         
     series_dates = series.index.sort_values()
     
@@ -955,6 +959,7 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
     mv_end_total = 0.0
     net_flows_total = 0.0
     divs_total = 0.0
+    any_component = False
     
     # Logic to track earliest actual activity for Asset Class SI start date
     earliest_activity_date = None
@@ -985,6 +990,7 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
             mv_end_total += components.get("end", 0.0)
             net_flows_total += components.get("flow", 0.0)
             divs_total += components.get("inc", 0.0)
+            any_component = True
 
             # Track earliest start date returned by tickers (which now respect first trade for SI)
             c_start = components.get("start_date")
@@ -995,6 +1001,9 @@ def calculate_asset_class_pl(asset_class, h, prices, pv, inception_date, tx_raw,
                     earliest_activity_date = min(earliest_activity_date, c_start)
             
     # 3. Final Calculation
+    if not any_component:
+        return None
+
     pl = mv_end_total - mv_start_total - net_flows_total + divs_total
     
     # Decide which start date to report
