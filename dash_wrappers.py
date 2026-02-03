@@ -1994,50 +1994,41 @@ def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="lig
         return go.Figure()
 
     # Decide on aggregation
+    # Weekly until portfolio age reaches 6 months, then monthly
     history_days = (mkt.index.max() - mkt.index.min()).days
+    six_months_days = 183
     
-    if history_days > 90:
-        # Long history: Monthly
-        freq = 'ME' 
-        p_label = 'monthly'
-        fmt = '%Y-%m'
-    elif history_days > 30:
-        # Medium history: Weekly (Fixes jaggedness)
+    if history_days < six_months_days:
+        # Weekly until 6 months of history
         freq = 'W-FRI'
         p_label = 'weekly'
         fmt = '%Y-%m-%d'
     else:
-        # Short history: Daily
-        freq = None
-        p_label = 'daily'
-        fmt = '%Y-%m-%d'
+        # Monthly once portfolio is 6 months+ old
+        freq = 'ME'
+        p_label = 'monthly'
+        fmt = '%Y-%m'
 
     # Apply Resampling
-    if freq:
-        mkt_agg = mkt.resample(freq).sum()
-        ext_agg = ext.resample(freq).sum()
-        
-        # FIX: Clamp last date to actual end date (prevent future labels)
-        true_end = pv.index.max()
-        if not mkt_agg.empty and mkt_agg.index[-1] > true_end:
-            new_idx = mkt_agg.index.tolist()
-            new_idx[-1] = true_end
-            mkt_agg.index = pd.Index(new_idx)
-            ext_agg.index = pd.Index(new_idx)
-    else:
-        mkt_agg = mkt
-        ext_agg = ext
+    mkt_agg = mkt.resample(freq).sum()
+    ext_agg = ext.resample(freq).sum()
+    
+    # FIX: Clamp last date to actual end date (prevent future labels)
+    true_end = pv.index.max()
+    if not mkt_agg.empty and mkt_agg.index[-1] > true_end:
+        new_idx = mkt_agg.index.tolist()
+        new_idx[-1] = true_end
+        mkt_agg.index = pd.Index(new_idx)
+        ext_agg.index = pd.Index(new_idx)
 
     # GIPS COMPLIANCE: Include all periods including inception for correct Cumulative ΔPV reconciliation
     # (Previously dropped the first period to hide initial deposit, but this distorted the total P/L)
 
     # Set vars for plotting
     period = 'M' if freq == 'ME' else 'D'
-    # Use actual datetimes for X to allow intelligent sampling (no cramming)
-    # Plotly will default to Date axis which handles auto-spacing/hiding
-    x_values = mkt_agg.index
-    # Keep string representation for customdata/tooltip 
+    # Use categorical labels to avoid excessive spacing when few periods exist
     x_labels_fmt = mkt_agg.index.strftime(fmt)
+    x_values = x_labels_fmt
     custom_data = [{'period': p_label, 'date': label} for label in x_labels_fmt]
 
 
@@ -2119,11 +2110,7 @@ def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="lig
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         xaxis_title="Period",
         xaxis=dict(
-            type='date',
-            tickformat=xaxis_format,
-            dtick=xaxis_dtick,
-            tick0=mkt_agg.index[0] if not mkt_agg.empty else None, # Anchor ticks to data
-            tickmode='linear' if xaxis_dtick else 'auto', # Force alignment in weekly/monthly modes
+            type='category',
             tickangle=-45
         ),
         bargap=0.3
