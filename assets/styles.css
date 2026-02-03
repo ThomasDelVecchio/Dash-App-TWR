@@ -594,6 +594,25 @@ mjx-container[display="true"] {
     fill: #212529 !important;
 }
 
+/* ============================================================
+   GLOBAL TOAST STACK (Prevent Overlap)
+   ============================================================ */
+
+.toast-stack {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 1200;
+    max-width: 90vw;
+}
+
+.toast-stack .toast-stack-item {
+    position: relative;
+}
+
 /* Remove scroll bars from formulas */
 .text-body mjx-container {
     overflow: visible !important;

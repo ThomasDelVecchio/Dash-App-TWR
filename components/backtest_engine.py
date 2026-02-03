@@ -15,6 +15,15 @@ LOOKBACK_YEARS = {"1Y": 1, "3Y": 3, "5Y": 5, "10Y": 10, "15Y": 15}
 MAX_BACKTEST_YEARS = 20
 GAP_BUFFER_DAYS = 30
 
+# Per-ticker proxy overrides for splicing short histories in backtests
+# These are only used when a ticker lacks sufficient history for the
+# requested lookback window.
+TICKER_PROXY_OVERRIDES = {
+    "SPMO": "MTUM",  # Momentum proxy with longer history than SPMO
+    "VXUS": "VEU",   # Ex-US proxy with longer history
+    "BND": "AGG",    # Core bond proxy with longer history
+}
+
 # Known benchmark classifications (fallback when ticker not in holdings)
 KNOWN_BENCHMARK_CLASSES = {
     # US Equity
@@ -413,6 +422,9 @@ def _resolve_proxy_ticker(asset_class: str) -> str:
 def _collect_proxy_tickers(tickers: list[str], holdings_map: dict) -> set[str]:
     proxies = set()
     for t in tickers:
+        override = TICKER_PROXY_OVERRIDES.get(t)
+        if override and override != "CASH":
+            proxies.add(override)
         ac = _resolve_asset_class(t, holdings_map)
         proxy = _resolve_proxy_ticker(ac)
         if proxy and proxy != "CASH":
@@ -454,7 +466,7 @@ def _splice_proxy_returns(
 
         if needs_splice:
             asset_class = _resolve_asset_class(ticker, holdings_map)
-            proxy_ticker = _resolve_proxy_ticker(asset_class)
+            proxy_ticker = TICKER_PROXY_OVERRIDES.get(ticker) or _resolve_proxy_ticker(asset_class)
             if proxy_ticker == ticker:
                 proxy_ticker = _resolve_proxy_ticker("US Large Cap")
 

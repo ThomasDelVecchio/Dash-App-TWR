@@ -280,40 +280,40 @@ app.layout = html.Div(
         # Interval for E*TRADE sync status polling (every 30 seconds)
         dcc.Interval(id="sync-status-interval", interval=30*1000, n_intervals=0),
 
-        # Global Error Toast (dismissable)
-        dbc.Toast(
-            id="app-error-toast",
-            header="Data Quality Warning",
-            is_open=False,
-            dismissable=True,
-            icon="warning",
-            duration=None,
-            style={
-                "position": "fixed",
-                "top": "70px",
-                "right": "20px",
-                "width": "420px",
-                "maxWidth": "90vw",
-                "zIndex": 1200,
-            },
-        ),
+        # Global Toast Stack (prevents overlap)
+        html.Div(
+            [
+                # Global Error Toast (dismissable)
+                dbc.Toast(
+                    id="app-error-toast",
+                    header="Data Quality Warning",
+                    is_open=False,
+                    dismissable=True,
+                    icon="warning",
+                    duration=None,
+                    className="toast-stack-item",
+                    style={
+                        "width": "420px",
+                        "maxWidth": "90vw",
+                    },
+                ),
 
-        # Price As-Of Toast (dismissable, non-persistent)
-        dbc.Toast(
-            id="price-asof-toast",
-            header="Price Data Timestamp",
-            is_open=False,
-            dismissable=True,
-            icon="info",
-            duration=None,
-            style={
-                "position": "fixed",
-                "top": "140px",
-                "right": "20px",
-                "width": "420px",
-                "maxWidth": "90vw",
-                "zIndex": 1200,
-            },
+                # Price As-Of Toast (dismissable, non-persistent)
+                dbc.Toast(
+                    id="price-asof-toast",
+                    header="Price Data Timestamp",
+                    is_open=False,
+                    dismissable=True,
+                    icon="info",
+                    duration=None,
+                    className="toast-stack-item",
+                    style={
+                        "width": "420px",
+                        "maxWidth": "90vw",
+                    },
+                ),
+            ],
+            className="toast-stack",
         ),
         
         # Stores for Global State
