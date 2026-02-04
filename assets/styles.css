@@ -172,6 +172,25 @@ body {
     background-color: rgba(0, 212, 255, 0.15);
 }
 
+.refresh-status {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    margin-top: 0.25rem;
+    min-height: 0.9rem;
+}
+
+.refresh-status[data-dash-is-loading="true"] {
+    visibility: hidden;
+}
+
+.refresh-status[data-dash-is-loading="true"]::after {
+    content: "Refreshing...";
+    visibility: visible;
+    display: block;
+    color: var(--accent-color);
+}
+
 /* Floating open button (visible only when sidebar is hidden) */
 .sidebar-open-btn {
     position: fixed;

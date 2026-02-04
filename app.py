@@ -187,6 +187,11 @@ sidebar = html.Div(
                         className="btn btn-link sidebar-toggle-btn sidebar-refresh-btn",
                         title="Refresh data"
                     ),
+                    html.Div(
+                        "",
+                        id="refresh-status",
+                        className="refresh-status"
+                    ),
                 ],
                 className="d-flex flex-column"
             ),
@@ -505,17 +510,18 @@ def update_global_state(end_date, benchmarks, include_exited, tax_strategy, curr
 
 # 2b. Manual Refresh Button (Force Price Re-fetch)
 @app.callback(
-    Output("data-signal", "data", allow_duplicate=True),
+    [Output("data-signal", "data", allow_duplicate=True),
+     Output("refresh-status", "children")],
     [Input("btn-refresh-data", "n_clicks")],
     [State("date-picker-end", "date")],
     prevent_initial_call=True
 )
 def refresh_data_button(n_clicks, end_date):
     if not n_clicks:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
     dw.refresh_data(end_date=end_date, force_price_refresh=True)
-    return datetime.now().isoformat()
+    return datetime.now().isoformat(), "Refresh complete"
 
 # 3. Global Error Toast
 @app.callback(
