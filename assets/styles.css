@@ -949,6 +949,38 @@ mjx-container > svg {
 }
 
 /* ============================================================
+   SIDEBAR INPUTS - Match Benchmark Selector Styling
+   ============================================================ */
+
+[data-theme="dark"] .sidebar-controls .form-select,
+[data-theme="dark"] .sidebar-controls select,
+[data-theme="dark"] .sidebar-controls .sidebar-date-input {
+    background-color: #333 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    box-shadow: none !important;
+}
+
+[data-theme="dark"] .sidebar-controls .form-select:focus,
+[data-theme="dark"] .sidebar-controls select:focus,
+[data-theme="dark"] .sidebar-controls .sidebar-date-input:focus {
+    border-color: #0d6efd !important;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+}
+
+[data-theme="dark"] .sidebar-controls .sidebar-date-input::placeholder {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+[data-theme="dark"] .sidebar-controls .form-select,
+[data-theme="dark"] .sidebar-controls select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23d6d6d6' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 5.5l6.5 6.5 6.5-6.5' stroke='%23d6d6d6' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.75rem center !important;
+    background-size: 14px 14px !important;
+}
+
+/* ============================================================
    LOT PICKER MODAL - MOBILE RESPONSIVE
    ============================================================ */
 

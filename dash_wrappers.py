@@ -1570,12 +1570,16 @@ def get_asset_allocation_charts(data, theme="light"):
     merged = merged.sort_values("value", ascending=False)
     
     total_val = merged["value"].sum()
-    merged["actual_pct"] = merged["value"] / total_val * 100
+    if total_val > 0:
+        merged["actual_pct"] = merged["value"] / total_val * 100
+    else:
+        merged["actual_pct"] = 0.0
     merged["delta"] = merged["actual_pct"] - merged["target_pct"]
     
     # Generate Custom Text Labels (Hide < 5%)
     display_text = []
-    for _, row in merged.iterrows():
+    merged_actual = merged[merged["value"] > 0].copy()
+    for _, row in merged_actual.iterrows():
         if row["actual_pct"] < 5.0:
             display_text.append("")
         else:
@@ -1583,8 +1587,8 @@ def get_asset_allocation_charts(data, theme="light"):
             
     # Pie Chart
     pie_fig = go.Figure(go.Pie(
-        labels=merged["short_name"],
-        values=merged["value"],
+        labels=merged_actual["short_name"],
+        values=merged_actual["value"],
         text=display_text,
         hole=0.4,
         textinfo='text',
@@ -1613,18 +1617,20 @@ def get_asset_allocation_charts(data, theme="light"):
     )
     
     # Bar Chart (Actual vs Target)
+    # Include classes with current value OR target weight
+    merged_bar = merged[(merged["value"] > 0) | (merged["target_pct"] > 0)].copy()
     bar_fig = go.Figure()
     bar_fig.add_trace(go.Bar(
-        x=merged["short_name"],
-        y=merged["actual_pct"],
+        x=merged_bar["short_name"],
+        y=merged_bar["actual_pct"],
         name="Actual %",
         marker_color=GLOBAL_PALETTE[0],
-        customdata=merged["value"],
+        customdata=merged_bar["value"],
         hovertemplate="<b>Actual</b>: %{y:.2f}%<br>Value: %{customdata:$,.2f}<extra></extra>"
     ))
     bar_fig.add_trace(go.Bar(
-        x=merged["short_name"],
-        y=merged["target_pct"],
+        x=merged_bar["short_name"],
+        y=merged_bar["target_pct"],
         name="Target %",
         marker_color=GLOBAL_PALETTE[1],
         hovertemplate="<b>Target</b>: %{y:.2f}%<extra></extra>"
@@ -2130,8 +2136,17 @@ def get_risk_return_chart(data, theme="light"):
     risk_return = data.get("risk_return", {})
     if not risk_return: return go.Figure()
     
+    # Only include asset classes with current value > 0
+    sec_table = data.get("sec_table_current", pd.DataFrame())
+    if sec_table.empty:
+        return go.Figure()
+    ac_values = sec_table.groupby("asset_class")["market_value"].sum()
+    included_classes = set(ac_values[ac_values > 0].index)
+    
     plot_data = []
     for cls, metrics in risk_return.items():
+        if cls not in included_classes:
+            continue
         plot_data.append({
             "Asset Class": cls,
             "Return": metrics["return"],

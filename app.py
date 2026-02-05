@@ -225,16 +225,16 @@ sidebar = html.Div(
                 value="FIFO",
                 persistence=True,
                 persistence_type="local",
-                className="mb-2 text-dark"
+                className="mb-2"
             ),
             
             dbc.Label("Analysis End Date"),
-            dcc.DatePickerSingle(
+            dcc.Input(
                 id="date-picker-end",
-                date=datetime.now().date(),
-                display_format="YYYY-MM-DD",
-                className="mb-2 d-block",
-                style={'zIndex': 100},
+                type="text",
+                value=datetime.now().date().isoformat(),
+                placeholder="YYYY-MM-DD",
+                className="mb-2 d-block sidebar-date-input",
                 persistence=True,
                 persistence_type="local"
             ),
@@ -482,13 +482,21 @@ def update_global_state(end_date, benchmarks, include_exited, tax_strategy, curr
     ctx = callback_context
     refresh_triggered = ctx.triggered_id == "date-picker-end"
 
+    # Normalize end_date from text input (YYYY-MM-DD). Fall back to previous signal if invalid.
+    parsed_end_date = None
+    if end_date:
+        try:
+            parsed_end_date = pd.Timestamp(str(end_date)).date()
+        except Exception:
+            parsed_end_date = None
+
     # Refresh data ONLY when end date changes
     if refresh_triggered:
-        dw.refresh_data(end_date=end_date)
+        dw.refresh_data(end_date=parsed_end_date)
     
     theme = "dark"
     
-    dates = {"end": end_date} if end_date else None
+    dates = {"end": parsed_end_date} if parsed_end_date else None
     
     bm_map = {}
     if benchmarks:
