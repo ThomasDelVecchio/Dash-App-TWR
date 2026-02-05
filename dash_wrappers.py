@@ -134,10 +134,12 @@ def send_to_drive(content, filename, mimetype='text/csv', parent_folder_id=None,
 
         target_parent_id = parent_folder_id or PARENT_FOLDER_ID
         if parent_folder_name:
+            # IMPORTANT: resolve under the intended parent (not root),
+            # so we find the existing folder instead of creating a duplicate.
             resolved_id = _get_drive_folder_id(
                 service,
                 parent_folder_name,
-                parent_id="root",
+                parent_id=target_parent_id,
                 create_if_missing=create_folder,
             )
             if resolved_id:
