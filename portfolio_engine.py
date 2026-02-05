@@ -783,8 +783,10 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
         return None
 
     # GIPS GATE (Non-SI): Security must have existed strictly before horizon start
-    if h != "SI" and first_trade >= raw_start:
-        return None
+    # Exception for 1D: allow first trade ON the horizon start date
+    if h != "SI":
+        if (h == "1D" and first_trade > raw_start) or (h != "1D" and first_trade >= raw_start):
+            return None
         
     series_dates = series.index.sort_values()
     
