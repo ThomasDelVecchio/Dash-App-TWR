@@ -1043,8 +1043,9 @@ def compute_security_modified_dietz(
                     continue
                 else:
                     start = prev_dates.max()
-                    # GIPS GATE: Security must have existed STRICTLY BEFORE horizon start
-                    if first_tx_date >= start:
+                    # GIPS GATE: Security must have existed before horizon start
+                    # Exception for 1D: allow first trade ON the horizon start date
+                    if (h != "1D" and first_tx_date >= start) or (h == "1D" and first_tx_date > start):
                         row[h] = np.nan
                         continue
 

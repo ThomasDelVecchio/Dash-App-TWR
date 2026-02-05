@@ -513,6 +513,7 @@ def run_engine(end_date=None):
                     # =========================================================
                     # A ticker is eligible for horizon h ONLY if its first trade
                     # was STRICTLY BEFORE the horizon start date.
+                    # Exception for 1D: allow first trade ON the horizon start date.
                     # This prevents new positions from inflating AC returns.
                     eligible_tickers = []
                     for t in class_tickers:
@@ -521,7 +522,8 @@ def run_engine(end_date=None):
                         if not tx_t.empty:
                             first_trade_t = tx_t["date"].min()
                             # GIPS: Security must have existed STRICTLY BEFORE horizon start
-                            if first_trade_t < start_date:
+                            # Exception for 1D: allow first trade ON the horizon start date
+                            if (h == "1D" and first_trade_t <= start_date) or (h != "1D" and first_trade_t < start_date):
                                 eligible_tickers.append(t)
                     
                     # If no tickers are eligible, return N/A for this horizon

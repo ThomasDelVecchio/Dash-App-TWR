@@ -127,7 +127,7 @@ def save_modules_settings(selected_modules, current_store):
      Input('upload-cashflows', 'contents')],
     [State('upload-holdings', 'filename'),
      State('upload-cashflows', 'filename'),
-     State('date-picker-end', 'date')],
+    State('date-picker-end', 'date')],
     prevent_initial_call=True
 )
 def update_data_files(h_content, c_content, h_name, c_name, end_date):
