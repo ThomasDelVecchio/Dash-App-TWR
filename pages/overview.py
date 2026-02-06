@@ -135,11 +135,11 @@ layout = html.Div([
         # P/L
         dbc.Col(html.Div(id='kpi-pl-card', style={'height': '100%'}), width=2),
         
-        # MTD
-        dbc.Col(html.Div(id='kpi-mtd-card', style={'height': '100%'}), width=2),
-
         # Alpha vs S&P 500 (Since Inception)
         dbc.Col(html.Div(id='kpi-alpha-card', style={'height': '100%'}), width=2),
+
+        # MTD
+        dbc.Col(html.Div(id='kpi-mtd-card', style={'height': '100%'}), width=2),
 
         # Cash Drag
         dbc.Col(html.Div(id='kpi-cashdrag-card', style={'height': '100%'}), width=2),
@@ -195,13 +195,13 @@ def update_ai_brief(signal):
      Output('kpi-val-card', 'children'),
      Output('kpi-twr-card', 'children'),
      Output('kpi-pl-card', 'children'),
+     Output('kpi-alpha-card', 'children'),
      Output('kpi-mtd-card', 'children'),
      Output('pv-chart', 'figure'),
      Output('snapshot-table-container', 'children'),
      Output('highlights-table-container', 'children'),
      Output('risk-table-container', 'children'),
      Output('flows-table-container', 'children'),
-     Output('kpi-alpha-card', 'children'),
      Output('kpi-cashdrag-card', 'children')],
     [Input('data-signal', 'data'),
      Input('chatbot-command', 'data'),
@@ -210,7 +210,7 @@ def update_ai_brief(signal):
 def update_overview(signal, chat_cmd, _filters):
     data = dw.get_data()
     if not data:
-        return None, None, "...", "...", "...", "...", {}, "Loading...", "Loading...", "Loading...", "Loading...", None, None
+        return None, None, "...", "...", "...", None, "...", {}, "Loading...", "Loading...", "Loading...", "Loading...", None
     
     # Price Source Badge
     price_source_meta = dw.get_price_source_summary(data)
@@ -404,4 +404,4 @@ def update_overview(signal, chat_cmd, _filters):
         cash_pos = False  # red glow — high cash drag
     alpha_card_cash = create_kpi_card("Cash Drag", cash_str, subtext="% of portfolio in cash", is_positive=cash_pos)
 
-    return status_note, price_badge, val_card, twr_card, pl_card, mtd_card, fig, snap_table, high_table, risk_table, flows_table, alpha_card, alpha_card_cash
+    return status_note, price_badge, val_card, twr_card, pl_card, alpha_card, mtd_card, fig, snap_table, high_table, risk_table, flows_table, alpha_card_cash
