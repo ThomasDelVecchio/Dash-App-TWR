@@ -211,8 +211,8 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
         if col in return_cols:
             col_def["cellStyle"] = {
                 "styleConditions": [
-                    {"condition": "params.value && params.value.includes('-')", "style": {"color": "#dc3545"}},
-                    {"condition": "params.value && !params.value.includes('-') && params.value !== 'N/A'", "style": {"color": "#28a745"}}
+                    {"condition": "params.value && params.value.includes('-')", "style": {"color": "#ef4444", "backgroundColor": "rgba(239,68,68,0.08)"}},
+                    {"condition": "params.value && !params.value.includes('-') && params.value !== 'N/A'", "style": {"color": "#22c55e", "backgroundColor": "rgba(34,197,94,0.08)"}}
                 ]
             }
         

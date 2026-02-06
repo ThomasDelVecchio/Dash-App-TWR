@@ -1067,7 +1067,7 @@ def get_audit_modal_content(request_data):
             m_fac = item.get("factor", 1.0)
             
             # Styling for negative returns
-            style = {"color": "#dc3545"} if m_ret < 0 else {"color": "#28a745"}
+            style = {"color": "#ef4444"} if m_ret < 0 else {"color": "#22c55e"}
             
             tbl_body_rows.append(html.Tr([
                 html.Td(item.get("display_date")),

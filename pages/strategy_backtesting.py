@@ -293,7 +293,7 @@ layout = html.Div([
                                     "flex": 1,
                                     "minWidth": 140,
                                     "cellStyle": {
-                                        "function": "params.value === 'Failed' ? {'color':'#dc3545','fontWeight':600} : params.value === 'Partial History' ? {'color':'#ffc107','fontWeight':600} : params.value === 'Spliced' ? {'color':'#f0ad4e','fontWeight':600} : {}"
+                                        "function": "params.value === 'Failed' ? {'color':'#ef4444','fontWeight':600} : params.value === 'Partial History' ? {'color':'#ffc107','fontWeight':600} : params.value === 'Spliced' ? {'color':'#f0ad4e','fontWeight':600} : {}"
                                     },
                                 },
                                 {"headerName": "Asset Class", "field": "Asset Class", "flex": 1, "minWidth": 180},

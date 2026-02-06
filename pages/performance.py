@@ -222,8 +222,8 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
         if col in horizons:
             col_def["cellStyle"] = {
                 "styleConditions": [
-                    {"condition": "params.value && params.value.includes('-')", "style": {"color": "#dc3545"}},
-                    {"condition": "params.value && !params.value.includes('-') && params.value !== 'N/A'", "style": {"color": "#28a745"}}
+                    {"condition": "params.value && params.value.includes('-')", "style": {"color": "#ef4444", "backgroundColor": "rgba(239,68,68,0.08)"}},
+                    {"condition": "params.value && !params.value.includes('-') && params.value !== 'N/A'", "style": {"color": "#22c55e", "backgroundColor": "rgba(34,197,94,0.08)"}}
                 ]
             }
         
@@ -388,8 +388,8 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
         if col in horizons:
             col_def["cellStyle"] = {
                 "styleConditions": [
-                    {"condition": "params.value && params.value.includes('-')", "style": {"color": "#dc3545"}},
-                    {"condition": "params.value && !params.value.includes('-') && params.value !== 'N/A' && params.value !== '$0'", "style": {"color": "#28a745"}}
+                    {"condition": "params.value && params.value.includes('-')", "style": {"color": "#ef4444", "backgroundColor": "rgba(239,68,68,0.08)"}},
+                    {"condition": "params.value && !params.value.includes('-') && params.value !== 'N/A' && params.value !== '$0'", "style": {"color": "#22c55e", "backgroundColor": "rgba(34,197,94,0.08)"}}
                 ]
             }
         pl_column_defs.append(col_def)
@@ -655,8 +655,8 @@ def update_growth_analysis(signal, dates, selected_ac, chat_cmd, _filters):
                 if col in ["Growth", "Growth %"]:
                     col_def["cellStyle"] = {
                         "styleConditions": [
-                            {"condition": "params.value && params.value.includes('-')", "style": {"color": "#dc3545"}},
-                            {"condition": "params.value && !params.value.includes('-') && params.value !== 'N/A'", "style": {"color": "#28a745"}}
+                            {"condition": "params.value && params.value.includes('-')", "style": {"color": "#ef4444", "backgroundColor": "rgba(239,68,68,0.08)"}},
+                            {"condition": "params.value && !params.value.includes('-') && params.value !== 'N/A'", "style": {"color": "#22c55e", "backgroundColor": "rgba(34,197,94,0.08)"}}
                         ]
                     }
                 # Right align numeric columns

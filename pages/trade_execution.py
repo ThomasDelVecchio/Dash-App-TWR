@@ -1366,7 +1366,7 @@ def toggle_lot_picker(open_click, cancel_click, confirm_click, ticker, is_open):
                 {
                     "field": "Gain/Loss", "minWidth": 110, "flex": 1,
                     "valueFormatter": {"function": "(value > 0 ? '+' : '') + '$' + (value ? value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00')"},
-                    "cellStyle": {"function": "params.value >= 0 ? {'color': '#28a745'} : {'color': '#dc3545'}"}
+                    "cellStyle": {"function": "params.value >= 0 ? {'color': '#22c55e', 'backgroundColor': 'rgba(34,197,94,0.08)'} : {'color': '#ef4444', 'backgroundColor': 'rgba(239,68,68,0.08)'}"}
                 },
                 {"field": "Term", "minWidth": 90, "flex": 1},
                 # HIDDEN ID COLUMN

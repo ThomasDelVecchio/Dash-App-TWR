@@ -397,18 +397,18 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
         {"field": "Target_Pct", "headerName": "Target %", "minWidth": 120, "comparator": {"function": "MoneyComparator"}},
         {"field": "Drift", "headerName": "Drift", "minWidth": 120, "comparator": {"function": "MoneyComparator"},
          "cellStyle": {"styleConditions": [
-             {"condition": "params.value.includes('-')", "style": {"color": "#dc3545"}}, # Negative drift
+             {"condition": "params.value.includes('-')", "style": {"color": "#ef4444", "backgroundColor": "rgba(239,68,68,0.08)"}}, # Negative drift
              {"condition": "!params.value.includes('-')", "style": {"color": "#ffc107"}}
          ]}},
         {"field": "Action", "headerName": "Action", "minWidth": 120,
          "cellStyle": {"styleConditions": [
-             {"condition": "params.value == 'Buy'", "style": {"color": "#28a745", "fontWeight": "bold"}},
-             {"condition": "params.value == 'Sell'", "style": {"color": "#dc3545", "fontWeight": "bold"}}
+             {"condition": "params.value == 'Buy'", "style": {"color": "#22c55e", "fontWeight": "bold"}},
+             {"condition": "params.value == 'Sell'", "style": {"color": "#ef4444", "fontWeight": "bold"}}
          ]}},
         {"field": "Amount", "headerName": "Amount", "minWidth": 150, "comparator": {"function": "MoneyComparator"},
          "cellStyle": {"styleConditions": [
-             {"condition": "params.data.meta_amount > 0", "style": {"color": "#28a745"}},
-             {"condition": "params.data.meta_amount < 0", "style": {"color": "#dc3545"}}
+             {"condition": "params.data.meta_amount > 0", "style": {"color": "#22c55e", "backgroundColor": "rgba(34,197,94,0.08)"}},
+             {"condition": "params.data.meta_amount < 0", "style": {"color": "#ef4444", "backgroundColor": "rgba(239,68,68,0.08)"}}
          ]}},
         {"field": "Shares", "headerName": "Shares", "minWidth": 120, "comparator": {"function": "MoneyComparator"}},
         {"field": "Tax_Impact", "headerName": "Est. Tax", "minWidth": 140, "comparator": {"function": "MoneyComparator"}},

@@ -161,8 +161,8 @@ def update_attribution_detail(click_data, figure, filters):
                 {"field": "Effect Fmt", "headerName": "Effect ($)", "type": "rightAligned", "sort": "desc", "comparator": {"function": "MoneyComparator"}},
                 {"field": "Contrib Fmt", "headerName": "Contribution (%)", "type": "rightAligned", "comparator": {"function": "MoneyComparator"},
                  "cellStyle": {"styleConditions": [
-                    {"condition": "params.value.includes('+')", "style": {"color": "#9BBB59"}},
-                    {"condition": "params.value.includes('-')", "style": {"color": "#C0504D"}}
+                    {"condition": "params.value.includes('+')", "style": {"color": "#22c55e", "backgroundColor": "rgba(34,197,94,0.08)"}},
+                    {"condition": "params.value.includes('-')", "style": {"color": "#ef4444", "backgroundColor": "rgba(239,68,68,0.08)"}}
                  ]}}
             ],
             defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "resizable": True},
@@ -259,8 +259,8 @@ def update_si_attribution(signal):
             {"field": "Effect Fmt", "headerName": "Effect ($)", "type": "rightAligned", "sort": "desc", "comparator": {"function": "MoneyComparator"}},
             {"field": "Contrib Fmt", "headerName": contrib_header, "type": "rightAligned", "comparator": {"function": "MoneyComparator"},
              "cellStyle": {"styleConditions": [
-                {"condition": "params.value.includes('+')", "style": {"color": "#9BBB59"}},
-                {"condition": "params.value.includes('-')", "style": {"color": "#C0504D"}}
+                {"condition": "params.value.includes('+')", "style": {"color": "#22c55e", "backgroundColor": "rgba(34,197,94,0.08)"}},
+                {"condition": "params.value.includes('-')", "style": {"color": "#ef4444", "backgroundColor": "rgba(239,68,68,0.08)"}}
              ]}}
         ],
         defaultColDef={"flex": 1, "minWidth": 100, "sortable": True, "resizable": True},

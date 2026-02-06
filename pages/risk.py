@@ -305,10 +305,10 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal):
     labels = [f"{ac}: {val:.1f}%" for ac, val in zip(asset_classes, slider_values)]
     
     if abs(total_weight - 100) < 0.1:
-        weight_color = "#28a745"
+        weight_color = "#22c55e"
         weight_msg = f"✓ Total: {total_weight:.1f}%"
     else:
-        weight_color = "#dc3545"
+        weight_color = "#ef4444"
         weight_msg = f"⚠ Total: {total_weight:.1f}% (should be 100%)"
     
     total_display = html.Span(weight_msg, style={'color': weight_color})

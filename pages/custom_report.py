@@ -724,21 +724,21 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
                         html.Div([
                             html.Div(twr_label, className="kpi-label-print text-white"),
                             html.Div(fmt_pct_clean(metrics.get('twr_si', 0) if metrics else 0), className="kpi-value-print",
-                                     style={"color": "#28a745" if (metrics.get('twr_si', 0) or 0) >= 0 else "#dc3545"})
+                                     style={"color": "#22c55e" if (metrics.get('twr_si', 0) or 0) >= 0 else "#ef4444"})
                         ], className="kpi-box-print")
                     ], width=3),
                     dbc.Col([
                         html.Div([
                             html.Div(pl_label, className="kpi-label-print text-white"),
                             html.Div(fmt_dollar_clean(metrics.get('pl_si', 0) if metrics else 0), className="kpi-value-print",
-                                     style={"color": "#28a745" if (metrics.get('pl_si', 0) or 0) >= 0 else "#dc3545"})
+                                     style={"color": "#22c55e" if (metrics.get('pl_si', 0) or 0) >= 0 else "#ef4444"})
                         ], className="kpi-box-print")
                     ], width=3),
                     dbc.Col([
                         html.Div([
                             html.Div("MTD Return", className="kpi-label-print text-white"),
                             html.Div(fmt_pct_clean(mtd_ret), className="kpi-value-print",
-                                     style={"color": "#28a745" if (mtd_ret or 0) >= 0 else "#dc3545"})
+                                     style={"color": "#22c55e" if (mtd_ret or 0) >= 0 else "#ef4444"})
                         ], className="kpi-box-print")
                     ], width=3),
                 ], className="mb-4"),
@@ -749,7 +749,7 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
                         html.Div([
                             html.Div("Max Drawdown", className="kpi-label-print text-white"),
                             html.Div(fmt_pct_clean(metrics.get('max_dd', 0) if metrics else 0), className="kpi-value-print",
-                                     style={"color": "#dc3545"})
+                                     style={"color": "#ef4444"})
                         ], className="kpi-box-print")
                     ], width=4),
                     dbc.Col([

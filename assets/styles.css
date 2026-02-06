@@ -18,8 +18,8 @@
     --shadow-lg: 0 8px 24px rgba(0,0,0,0.2);
     --shadow-hover: 0 8px 16px rgba(0,0,0,0.2);
     --accent-color: #00d4ff;
-    --success-color: #28a745;
-    --danger-color: #dc3545;
+    --success-color: #22c55e;
+    --danger-color: #ef4444;
     --warning-color: #ffc107;
 }
 
@@ -461,21 +461,21 @@ body {
 
 /* Positive (green) glow */
 .kpi-glass--positive::before {
-    box-shadow: inset 0 0 30px rgba(40, 167, 69, 0.18);
+    box-shadow: inset 0 0 30px rgba(34, 197, 94, 0.18);
     opacity: 0.6;
 }
 .kpi-glass-wrapper:hover .kpi-glass--positive::before {
-    box-shadow: inset 0 0 40px rgba(40, 167, 69, 0.28);
+    box-shadow: inset 0 0 40px rgba(34, 197, 94, 0.28);
     opacity: 1;
 }
 
 /* Negative (red) glow */
 .kpi-glass--negative::before {
-    box-shadow: inset 0 0 30px rgba(220, 53, 69, 0.18);
+    box-shadow: inset 0 0 30px rgba(239, 68, 68, 0.18);
     opacity: 0.6;
 }
 .kpi-glass-wrapper:hover .kpi-glass--negative::before {
-    box-shadow: inset 0 0 40px rgba(220, 53, 69, 0.28);
+    box-shadow: inset 0 0 40px rgba(239, 68, 68, 0.28);
     opacity: 1;
 }
 
@@ -501,11 +501,11 @@ body {
 
 /* Accent variant — green-tinted (Sortino) */
 .kpi-glass--accent-green::before {
-    box-shadow: inset 0 0 30px rgba(40, 167, 69, 0.12);
+    box-shadow: inset 0 0 30px rgba(34, 197, 94, 0.12);
     opacity: 0.5;
 }
 .kpi-glass-wrapper:hover .kpi-glass--accent-green::before {
-    box-shadow: inset 0 0 40px rgba(40, 167, 69, 0.25);
+    box-shadow: inset 0 0 40px rgba(34, 197, 94, 0.25);
     opacity: 1;
 }
 
@@ -513,9 +513,9 @@ body {
 .kpi-glass-wrapper--positive {
     background: linear-gradient(
         135deg,
-        rgba(40,167,69,0.30) 0%,
+        rgba(34,197,94,0.30) 0%,
         rgba(255,255,255,0.06) 50%,
-        rgba(40,167,69,0.18) 100%
+        rgba(34,197,94,0.18) 100%
     );
     background-size: 200% 200%;
     animation: kpi-border-shift 6s ease infinite;
@@ -524,9 +524,9 @@ body {
 .kpi-glass-wrapper--negative {
     background: linear-gradient(
         135deg,
-        rgba(220,53,69,0.30) 0%,
+        rgba(239,68,68,0.30) 0%,
         rgba(255,255,255,0.06) 50%,
-        rgba(220,53,69,0.18) 100%
+        rgba(239,68,68,0.18) 100%
     );
     background-size: 200% 200%;
     animation: kpi-border-shift 6s ease infinite;

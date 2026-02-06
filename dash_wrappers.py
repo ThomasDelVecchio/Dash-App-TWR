@@ -1762,7 +1762,7 @@ def get_asset_allocation_charts(data, theme="light"):
     
     # Delta overlay: Drift (Actual − Target) as thin bars, green=overweight, red=underweight
     drift_vals = merged_bar["delta"].values
-    drift_colors = ['#00C853' if d >= 0 else '#FF1744' for d in drift_vals]
+    drift_colors = ['#22c55e' if d >= 0 else '#ef4444' for d in drift_vals]
     bar_fig.add_trace(go.Bar(
         x=merged_bar["short_name"],
         y=drift_vals,
@@ -2238,7 +2238,7 @@ def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="lig
     ))
 
     # Market Effect Bar — conditional green/red coloring by sign
-    mkt_bar_colors = [GLOBAL_PALETTE[4] if v >= 0 else GLOBAL_PALETTE[2] for v in mkt_agg.values]
+    mkt_bar_colors = ['#22c55e' if v >= 0 else '#ef4444' for v in mkt_agg.values]
     fig.add_trace(go.Bar(
         x=x_values,
         y=mkt_agg,
@@ -2595,7 +2595,7 @@ def get_flows_chart(data, theme="light", start_date=None, end_date=None):
         y=net_flows.index,
         x=net_flows.values,
         orientation='h',
-        marker_color=np.where(net_flows > 0, GLOBAL_PALETTE[4], GLOBAL_PALETTE[2]),
+        marker_color=np.where(net_flows > 0, '#22c55e', '#ef4444'),
         marker_line=dict(width=1, color='rgba(255,255,255,0.15)'),
         text=net_flows.apply(fmt_dollar_clean),
         textposition='auto',
@@ -2718,7 +2718,7 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
             tooltip_data.append([p_val * 100, b_ret * 100, diff])
                 
         # Conditional bar coloring: green for positive alpha, red for negative
-        bar_colors = ['#00C853' if v >= 0 else '#FF1744' for v in excess_vals]
+        bar_colors = ['#22c55e' if v >= 0 else '#ef4444' for v in excess_vals]
         base_color = GLOBAL_PALETTE[i % len(GLOBAL_PALETTE)] if len(benchmark_tickers) > 1 else None
         use_colors = [base_color] * len(excess_vals) if base_color and len(benchmark_tickers) > 1 else bar_colors
         
@@ -2874,7 +2874,7 @@ def get_ticker_allocation_charts(data, theme="light"):
     
     # Delta overlay: Drift (Actual − Target) as thin bars, green=overweight, red=underweight
     drift_vals = ticker_merge["delta"].values
-    drift_colors = ['#00C853' if d >= 0 else '#FF1744' for d in drift_vals]
+    drift_colors = ['#22c55e' if d >= 0 else '#ef4444' for d in drift_vals]
     bar_fig.add_trace(go.Bar(
         x=ticker_merge["ticker"],
         y=drift_vals,

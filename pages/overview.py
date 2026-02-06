@@ -41,13 +41,13 @@ def create_kpi_card(title, value, subtext=None, is_positive=None, accent=None):
     elif is_positive is True:
         glass_mod = "kpi-glass--positive"
         wrapper_mod = "kpi-glass-wrapper--positive"
-        value_color = "#28a745"
-        sub_color = "rgba(40,167,69,0.75)"
+        value_color = "#22c55e"
+        sub_color = "rgba(34,197,94,0.75)"
     elif is_positive is False:
         glass_mod = "kpi-glass--negative"
         wrapper_mod = "kpi-glass-wrapper--negative"
-        value_color = "#dc3545"
-        sub_color = "rgba(220,53,69,0.75)"
+        value_color = "#ef4444"
+        sub_color = "rgba(239,68,68,0.75)"
     else:
         glass_mod = "kpi-glass--neutral"
         wrapper_mod = ""
