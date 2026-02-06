@@ -870,26 +870,13 @@ def modified_dietz_for_asset_class_window(
                 total_days = (end - start).days + 1
                 # V0 remains 0.0
 
-    # Early Exit Logic (GIPS compliance) for Asset Class
-    # If the asset class is fully liquidated (V1=0) before the end date,
-    # clamp the end date to the last transaction to avoid denominator dilution.
-    # GIPS FIX: Guard against empty DataFrame to prevent numpy array comparison error
-    if abs(V1) < 1e-6 and not tx_all.empty:
-        # Find the last transaction in this window for these tickers
-        tx_in_window = tx_all[
-            (tx_all["ticker"].isin(tickers)) &
-            (tx_all["date"] >= start) &
-            (tx_all["date"] <= end)
-        ]
-        if not tx_in_window.empty:
-            last_date = tx_in_window["date"].max()
-            if last_date < end:
-                # Clamp end to the exit date
-                end = last_date
-                total_days = (end - start).days + 1
-                # Re-check start/end validity
-                if total_days <= 0:
-                    return np.nan
+    # GIPS FIX: Do NOT clamp end to exit date for fully liquidated positions.
+    # Modified Dietz flow weighting naturally handles V1=0 cases:
+    #   - The sell flow reduces the denominator proportionally to time remaining
+    #   - Post-exit dividends (earned while holding) are captured through full end date
+    #   - This ensures consistency between ticker-level and class-level returns
+    # Previously, clamping distorted the denominator and created mismatches
+    # between the "Total" row and individual ticker returns.
 
     # Aggregate cashflows for the asset class
     # CRITICAL FIX: For SI calculations where V0=0, include flows ON the start date
@@ -1068,19 +1055,12 @@ def compute_security_modified_dietz(
             if dividends is not None and not dividends.empty:
                 divs_t = dividends[dividends["ticker"] == t].copy()
 
-            # Early Exit Logic:
-            # If the position is fully closed (shares=0), we should calculate return 
-            # ending on the Last Held Date (exit date) if it is BEFORE our calculation end.
-            
+            # GIPS FIX: Do NOT clamp effective_end to exit date.
+            # Modified Dietz flow weighting naturally handles partial-period
+            # positions (V1=0, sell flow reduces denominator proportionally).
+            # Clamping distorts the denominator and drops post-exit dividends
+            # (e.g., bond ETF interest paid after shares are sold).
             effective_end = calc_end
-            if abs(net_shares) < 1e-6:
-                # Position is closed. Clamp end to last_held_date if it precedes calc_end.
-                if last_held_date < calc_end:
-                    effective_end = last_held_date
-                
-                # Correction: If last_held_date is BEFORE the horizon start, 
-                # effectively the position didn't exist in this window?
-                # No, "last_held_date" is the ultimate exit.
 
             md_ret = modified_dietz_for_ticker_window(
                 t,

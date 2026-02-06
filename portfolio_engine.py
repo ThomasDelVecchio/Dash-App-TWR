@@ -772,7 +772,10 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
     first_trade = tx["date"].min()
 
     # Early Exit Logic: If position is closed, clamp the end date to the last transaction
-    # This ensures P/L reporting periods stop at liquidation rather than dragging to Today
+    # This ensures P/L price lookups use a valid date.
+    # GIPS FIX: Preserve unclamped end for dividend filtering, since post-exit
+    # dividends (earned while holding) are real income and must be captured.
+    dividend_end = calc_end  # Always use full reporting period for dividends
     net_shares = tx["shares"].sum()
     if abs(net_shares) < 1e-6:
         last_tx_date = tx["date"].max()
@@ -900,15 +903,17 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
     net_internal = -tx.loc[mask2, "amount"].sum()
 
     # ----- Dividends (Income) inside window -----
+    # GIPS FIX: Use dividend_end (unclamped) to capture post-exit dividends
+    # earned while holding (e.g., bond ETF interest paid after shares sold).
     total_divs = 0.0
     if dividends is not None and not dividends.empty:
         div_t = dividends[dividends["ticker"] == ticker]
         if not div_t.empty:
             # FIX: For SI, include dividends ON inception day
             if h == "SI" and portfolio_inception is not None:
-                mask_div = (div_t["date"] >= shares_boundary) & (div_t["date"] <= calc_end)
+                mask_div = (div_t["date"] >= shares_boundary) & (div_t["date"] <= dividend_end)
             else:
-                mask_div = (div_t["date"] > shares_boundary) & (div_t["date"] <= calc_end)
+                mask_div = (div_t["date"] > shares_boundary) & (div_t["date"] <= dividend_end)
             total_divs = div_t.loc[mask_div, "amount"].sum()
 
     # ----- Economic P/L -----
