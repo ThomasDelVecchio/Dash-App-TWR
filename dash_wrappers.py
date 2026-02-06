@@ -2717,31 +2717,22 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
             excess_vals.append(diff)
             tooltip_data.append([p_val * 100, b_ret * 100, diff])
                 
-        # Conditional bar coloring: green for positive alpha, red for negative
-        bar_colors = ['#22c55e' if v >= 0 else '#ef4444' for v in excess_vals]
-        base_color = GLOBAL_PALETTE[i % len(GLOBAL_PALETTE)] if len(benchmark_tickers) > 1 else None
-        use_colors = [base_color] * len(excess_vals) if base_color and len(benchmark_tickers) > 1 else bar_colors
+        # Conditional coloring: green/red for single benchmark, palette colors for multi-benchmark
+        if len(benchmark_tickers) == 1:
+            bar_colors = ['#22c55e' if v >= 0 else '#ef4444' for v in excess_vals]
+            line_colors = [_hex_to_rgba(c, 0.6) for c in bar_colors]
+        else:
+            base = GLOBAL_PALETTE[i % len(GLOBAL_PALETTE)]
+            bar_colors = [base] * len(excess_vals)
+            line_colors = [_hex_to_rgba(base, 0.6)] * len(excess_vals)
         
-        # Glow trace (semi-transparent duplicate bars behind main bars for glow effect)
-        glow_colors = [_hex_to_rgba(c, 0.25) for c in use_colors]
         fig.add_trace(go.Bar(
             x=display_horizons,
             y=excess_vals,
             name=bm_name,
-            marker_color=glow_colors,
-            width=0.65,
-            showlegend=False,
-            hoverinfo='skip',
-        ))
-        
-        # Main bars with rounded corners via marker_line
-        fig.add_trace(go.Bar(
-            x=display_horizons,
-            y=excess_vals,
-            name=bm_name,
-            marker_color=use_colors,
+            marker_color=bar_colors,
             marker_line=dict(
-                color=[_hex_to_rgba(c, 0.8) for c in use_colors],
+                color=line_colors,
                 width=1.5,
             ),
             customdata=tooltip_data,
@@ -2753,7 +2744,7 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
             )
         ))
         
-    # Zero-line annotation — subtle dashed hline at y=0 for visual anchor
+    # Zero-line — subtle dashed hline at y=0 for visual anchor
     fig.add_hline(
         y=0,
         line_dash="dash",
@@ -2764,7 +2755,7 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
     fig.update_layout(
         
         yaxis_title="Excess Return (%)",
-        barmode='overlay',
+        barmode='group',
         template="plotly_dark",
         margin=dict(l=40, r=20, t=60, b=40),
         height=450,

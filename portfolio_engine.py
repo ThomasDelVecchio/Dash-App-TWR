@@ -510,11 +510,17 @@ def run_engine(end_date=None):
 
                     # =========================================================
                     # GIPS FIX: Only include tickers with full horizon history
+                    # AND that had economic exposure during the window.
                     # =========================================================
-                    # A ticker is eligible for horizon h ONLY if its first trade
-                    # was STRICTLY BEFORE the horizon start date.
-                    # Exception for 1D: allow first trade ON the horizon start date.
-                    # This prevents new positions from inflating AC returns.
+                    # Gate 1: First trade must be STRICTLY BEFORE horizon start
+                    #         (Exception for 1D: allow ON the start date).
+                    # Gate 2: Exclude fully-exited positions that had ZERO
+                    #         economic activity (no shares, trades, or dividends)
+                    #         during the measurement window [start, end].
+                    #         A liquidated ticker with no activity contributes
+                    #         nothing to the return but dilutes the denominator.
+                    #         Post-exit dividends (pay-date after sale) ARE
+                    #         captured because they fall inside the window.
                     eligible_tickers = []
                     for t in class_tickers:
                         if t == "CASH": continue
@@ -524,6 +530,23 @@ def run_engine(end_date=None):
                             # GIPS: Security must have existed STRICTLY BEFORE horizon start
                             # Exception for 1D: allow first trade ON the horizon start date
                             if (h == "1D" and first_trade_t <= start_date) or (h != "1D" and first_trade_t < start_date):
+                                # Gate 2: Check if position was fully exited before window
+                                net_shares_at_start = tx_t[tx_t["date"] <= start_date]["shares"].sum()
+                                if abs(net_shares_at_start) < 1e-6:
+                                    # Position was flat at window start — only include if
+                                    # there is ANY activity (trades or dividends) in (start, end].
+                                    has_trades = not tx_t[
+                                        (tx_t["date"] > start_date) & (tx_t["date"] <= effective_as_of)
+                                    ].empty
+                                    has_divs = False
+                                    if dividends is not None and not dividends.empty:
+                                        has_divs = not dividends[
+                                            (dividends["ticker"] == t) &
+                                            (dividends["date"] > start_date) &
+                                            (dividends["date"] <= effective_as_of)
+                                        ].empty
+                                    if not has_trades and not has_divs:
+                                        continue  # No economic exposure — skip
                                 eligible_tickers.append(t)
                     
                     # If no tickers are eligible, return N/A for this horizon
