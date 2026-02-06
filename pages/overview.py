@@ -9,65 +9,93 @@ from components.ai_brief import generate_ai_summary
 from components.data_source_badge import create_price_source_badge
 from components.page_header import page_header
 
-def create_kpi_card(title, value, subtext=None, is_positive=None):
+def create_kpi_card(title, value, subtext=None, is_positive=None, accent=None):
     """
-    Bloomberg-style KPI card with professional styling.
+    Glassmorphism KPI card with frosted-glass surface, animated gradient
+    border, and inner glow that shifts colour based on positive / negative.
+
+    Args:
+        title:       Label text (e.g. "Inception TWR")
+        value:       Formatted value string (e.g. "+12.4%")
+        subtext:     Optional secondary line (e.g. "Ann. CAGR")
+        is_positive: True  → green glow / border
+                     False → red glow / border
+                     None  → neutral cyan glow
+        accent:      Override glow flavour: "blue" | "green" (used for Sharpe / Sortino)
     """
-    subtext_arrow = ""
-    subtext_color = "#6c757d"  # Gray default
-    main_arrow_span = None
-    
+    # ---- normalise is_positive to a plain Python bool (numpy.bool_ fails `is`) ----
     if is_positive is not None:
-        if is_positive:
-            color = "#28a745"  # Green
-            symbol = "▲"
-        else:
-            color = "#dc3545"  # Red
-            symbol = "▼"
-            
-        if subtext:
-            subtext_arrow = f"{symbol} "
-            subtext_color = color
-            
-        main_arrow_span = html.Span(
-            f"{symbol} ", 
+        is_positive = bool(is_positive)
+
+    # ---- determine colour classes ----
+    if accent == "blue":
+        glass_mod = "kpi-glass--accent-blue"
+        wrapper_mod = "kpi-glass-wrapper--accent-blue"
+        value_color = "#6ea8fe"  # Bootstrap primary-light
+        sub_color = "rgba(110,168,254,0.7)"
+    elif accent == "green":
+        glass_mod = "kpi-glass--accent-green"
+        wrapper_mod = "kpi-glass-wrapper--accent-green"
+        value_color = "#75b798"  # Bootstrap success-light
+        sub_color = "rgba(117,183,152,0.7)"
+    elif is_positive is True:
+        glass_mod = "kpi-glass--positive"
+        wrapper_mod = "kpi-glass-wrapper--positive"
+        value_color = "#28a745"
+        sub_color = "rgba(40,167,69,0.75)"
+    elif is_positive is False:
+        glass_mod = "kpi-glass--negative"
+        wrapper_mod = "kpi-glass-wrapper--negative"
+        value_color = "#dc3545"
+        sub_color = "rgba(220,53,69,0.75)"
+    else:
+        glass_mod = "kpi-glass--neutral"
+        wrapper_mod = ""
+        value_color = "#f8f9fa"
+        sub_color = "rgba(248,249,250,0.45)"
+
+    # ---- arrow indicator ----
+    arrow_span = None
+    if is_positive is not None:
+        symbol = "▲" if is_positive else "▼"
+        arrow_span = html.Span(
+            f"{symbol} ",
             style={
-                'color': color, 
-                'fontSize': '1.2rem', 
-                'marginRight': '4px', 
-                'verticalAlign': 'middle'
-            }
+                "color": value_color,
+                "fontSize": "1rem",
+                "marginRight": "3px",
+                "verticalAlign": "middle",
+            },
         )
-    
-    h2_content = [main_arrow_span, value] if main_arrow_span else value
-    
-    card_content = [
-        html.Div(title, className="text-muted small mb-1", style={'fontSize': '0.75rem', 'fontWeight': '500'}),
-        html.H4(h2_content, className="mb-1", style={'fontWeight': '600', 'fontSize': '1.4rem'}),
-    ]
-    
-    # Force a placeholder if subtext is missing to maintain height
-    subtext_display = f"{subtext_arrow}{subtext}" if subtext else " "
-    
-    card_content.append(
-        html.Div(
-            subtext_display,
-            style={
-                'fontSize': '0.8rem',
-                'fontWeight': '500',
-                'color': subtext_color if subtext else 'transparent'
-            }
+
+    value_children = [arrow_span, value] if arrow_span else value
+
+    # ---- subtext line (always present to keep height stable) ----
+    if subtext:
+        sub_prefix = ("▲ " if is_positive else "▼ ") if is_positive is not None else ""
+        sub_el = html.Div(
+            f"{sub_prefix}{subtext}",
+            className="kpi-glass-sub",
+            style={"color": sub_color},
         )
+    else:
+        sub_el = html.Div("\u00a0", className="kpi-glass-sub", style={"color": "transparent"})
+
+    # ---- assemble ----
+    inner = html.Div(
+        [
+            html.Div(title, className="kpi-glass-label"),
+            html.Div(
+                value_children,
+                className="kpi-glass-value",
+                style={"color": value_color},
+            ),
+            sub_el,
+        ],
+        className=f"kpi-glass {glass_mod}",
     )
-    
-    return dbc.Card(
-        dbc.CardBody(card_content, className="p-2"),
-        className="shadow-sm",
-        style={
-            'borderLeft': f'4px solid {subtext_color if is_positive is not None else "#4C6A92"}',
-            'height': '100%'
-        }
-    )
+
+    return html.Div(inner, className=f"kpi-glass-wrapper {wrapper_mod}")
 
 layout = html.Div([
     # --- HEADER ---
@@ -110,23 +138,11 @@ layout = html.Div([
         # MTD
         dbc.Col(html.Div(id='kpi-mtd-card', style={'height': '100%'}), width=2),
 
-        # Sharpe
-        dbc.Col(dbc.Card([
-            dbc.CardBody([
-                html.Div("Sharpe Ratio", className="text-muted small mb-1", style={'fontSize': '0.75rem', 'fontWeight': '500'}),
-                html.H4(id="perf-sharpe-val", className="text-primary fw-bold mb-1", style={'fontWeight': '600', 'fontSize': '1.4rem'}),
-                html.Div("Risk-Adj (Total)", className="text-muted", style={'fontSize': '0.8rem', 'fontWeight': '500'})
-            ], className="p-2")
-        ], className="shadow-sm border-start border-4 border-primary", style={'height': '100%'}), width=2),
+        # Alpha vs S&P 500 (Since Inception)
+        dbc.Col(html.Div(id='kpi-alpha-card', style={'height': '100%'}), width=2),
 
-        # Sortino
-        dbc.Col(dbc.Card([
-            dbc.CardBody([
-                html.Div("Sortino Ratio", className="text-muted small mb-1", style={'fontSize': '0.75rem', 'fontWeight': '500'}),
-                html.H4(id="perf-sortino-val", className="text-success fw-bold mb-1", style={'fontWeight': '600', 'fontSize': '1.4rem'}),
-                html.Div("Risk-Adj (Down)", className="text-muted", style={'fontSize': '0.8rem', 'fontWeight': '500'})
-            ], className="p-2")
-        ], className="shadow-sm border-start border-4 border-success", style={'height': '100%'}), width=2),
+        # Cash Drag
+        dbc.Col(html.Div(id='kpi-cashdrag-card', style={'height': '100%'}), width=2),
     ], className="mb-4 g-2"),
 
     # Chart & Snapshot Row
@@ -185,8 +201,8 @@ def update_ai_brief(signal):
      Output('highlights-table-container', 'children'),
      Output('risk-table-container', 'children'),
      Output('flows-table-container', 'children'),
-     Output('perf-sharpe-val', 'children'),
-     Output('perf-sortino-val', 'children')],
+     Output('kpi-alpha-card', 'children'),
+     Output('kpi-cashdrag-card', 'children')],
     [Input('data-signal', 'data'),
      Input('chatbot-command', 'data'),
      Input('filter-store', 'data')]
@@ -194,7 +210,7 @@ def update_ai_brief(signal):
 def update_overview(signal, chat_cmd, _filters):
     data = dw.get_data()
     if not data:
-        return None, None, "...", "...", "...", "...", {}, "Loading...", "Loading...", "Loading...", "Loading...", "N/A", "N/A"
+        return None, None, "...", "...", "...", "...", {}, "Loading...", "Loading...", "Loading...", "Loading...", None, None
     
     # Price Source Badge
     price_source_meta = dw.get_price_source_summary(data)
@@ -365,8 +381,27 @@ def update_overview(signal, chat_cmd, _filters):
         dashGridOptions={"domLayout": "autoHeight", "headerHeight": 0}
     )
 
-    # Efficiency Metrics
-    sharpe_val = f"{metrics['sharpe']:.2f}" if isinstance(metrics['sharpe'], (int, float)) else "N/A"
-    sortino_val = f"{metrics['sortino']:.2f}" if isinstance(metrics['sortino'], (int, float)) else "N/A"
-    
-    return status_note, price_badge, val_card, twr_card, pl_card, mtd_card, fig, snap_table, high_table, risk_table, flows_table, sharpe_val, sortino_val
+    # Alpha vs S&P 500 (Since Inception)
+    import numpy as np
+    alpha_raw = metrics.get('alpha_vs_spy', np.nan)
+    if pd.notna(alpha_raw):
+        alpha_str = fmt_pct_clean(alpha_raw)
+        alpha_pos = alpha_raw >= 0
+        alpha_sub = "Ann." if metrics.get("is_annualized") else "Cumulative"
+    else:
+        alpha_str = "N/A"
+        alpha_pos = None
+        alpha_sub = ""
+    alpha_card = create_kpi_card("Alpha vs S&P 500 (SI)", alpha_str, subtext=alpha_sub, is_positive=alpha_pos)
+
+    # Cash Drag %
+    cash_pct = metrics.get('cash_drag_pct', 0.0)
+    cash_str = f"{cash_pct * 100:.1f}%"
+    # Treat > 10% as warning (negative glow), otherwise neutral
+    cash_accent = None
+    cash_pos = None
+    if cash_pct > 0.10:
+        cash_pos = False  # red glow — high cash drag
+    alpha_card_cash = create_kpi_card("Cash Drag", cash_str, subtext="% of portfolio in cash", is_positive=cash_pos)
+
+    return status_note, price_badge, val_card, twr_card, pl_card, mtd_card, fig, snap_table, high_table, risk_table, flows_table, alpha_card, alpha_card_cash

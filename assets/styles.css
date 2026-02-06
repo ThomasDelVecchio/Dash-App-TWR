@@ -317,6 +317,190 @@ body {
     margin-left: var(--sidebar-collapsed-width);
 }
 
+/* ============================================================
+   GLASSMORPHISM KPI CARDS
+   ============================================================ */
+
+/* Outer wrapper provides the animated gradient border */
+.kpi-glass-wrapper {
+    position: relative;
+    border-radius: var(--border-radius-lg);
+    padding: 1px; /* thickness of the gradient border */
+    background: linear-gradient(
+        135deg,
+        rgba(255,255,255,0.12) 0%,
+        rgba(0,212,255,0.25) 50%,
+        rgba(255,255,255,0.08) 100%
+    );
+    background-size: 200% 200%;
+    animation: kpi-border-shift 6s ease infinite;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    height: 100%;
+}
+
+.kpi-glass-wrapper:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(0, 212, 255, 0.18);
+}
+
+@keyframes kpi-border-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Inner frosted-glass surface */
+.kpi-glass {
+    position: relative;
+    overflow: hidden;
+    border-radius: calc(var(--border-radius-lg) - 1px);
+    background: rgba(30, 30, 30, 0.55);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    backdrop-filter: blur(16px) saturate(140%);
+    padding: 1.1rem 1rem 0.9rem;
+    text-align: left;
+    color: var(--text-color);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Subtle inner glow (pseudo-element) — colour set by modifier class */
+.kpi-glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+/* Show glow on hover */
+.kpi-glass-wrapper:hover .kpi-glass::before {
+    opacity: 1;
+}
+
+/* Positive (green) glow */
+.kpi-glass--positive::before {
+    box-shadow: inset 0 0 30px rgba(40, 167, 69, 0.18);
+    opacity: 0.6;
+}
+.kpi-glass-wrapper:hover .kpi-glass--positive::before {
+    box-shadow: inset 0 0 40px rgba(40, 167, 69, 0.28);
+    opacity: 1;
+}
+
+/* Negative (red) glow */
+.kpi-glass--negative::before {
+    box-shadow: inset 0 0 30px rgba(220, 53, 69, 0.18);
+    opacity: 0.6;
+}
+.kpi-glass-wrapper:hover .kpi-glass--negative::before {
+    box-shadow: inset 0 0 40px rgba(220, 53, 69, 0.28);
+    opacity: 1;
+}
+
+/* Neutral / accent glow (no pos/neg signal) */
+.kpi-glass--neutral::before {
+    box-shadow: inset 0 0 30px rgba(0, 212, 255, 0.10);
+    opacity: 0.5;
+}
+.kpi-glass-wrapper:hover .kpi-glass--neutral::before {
+    box-shadow: inset 0 0 40px rgba(0, 212, 255, 0.22);
+    opacity: 1;
+}
+
+/* Accent variant for Sharpe / Sortino — blue-tinted */
+.kpi-glass--accent-blue::before {
+    box-shadow: inset 0 0 30px rgba(13, 110, 253, 0.15);
+    opacity: 0.5;
+}
+.kpi-glass-wrapper:hover .kpi-glass--accent-blue::before {
+    box-shadow: inset 0 0 40px rgba(13, 110, 253, 0.28);
+    opacity: 1;
+}
+
+/* Accent variant — green-tinted (Sortino) */
+.kpi-glass--accent-green::before {
+    box-shadow: inset 0 0 30px rgba(40, 167, 69, 0.12);
+    opacity: 0.5;
+}
+.kpi-glass-wrapper:hover .kpi-glass--accent-green::before {
+    box-shadow: inset 0 0 40px rgba(40, 167, 69, 0.25);
+    opacity: 1;
+}
+
+/* Gradient border colour variants */
+.kpi-glass-wrapper--positive {
+    background: linear-gradient(
+        135deg,
+        rgba(40,167,69,0.30) 0%,
+        rgba(255,255,255,0.06) 50%,
+        rgba(40,167,69,0.18) 100%
+    );
+    background-size: 200% 200%;
+    animation: kpi-border-shift 6s ease infinite;
+}
+
+.kpi-glass-wrapper--negative {
+    background: linear-gradient(
+        135deg,
+        rgba(220,53,69,0.30) 0%,
+        rgba(255,255,255,0.06) 50%,
+        rgba(220,53,69,0.18) 100%
+    );
+    background-size: 200% 200%;
+    animation: kpi-border-shift 6s ease infinite;
+}
+
+.kpi-glass-wrapper--accent-blue {
+    background: linear-gradient(
+        135deg,
+        rgba(13,110,253,0.28) 0%,
+        rgba(255,255,255,0.06) 50%,
+        rgba(0,212,255,0.20) 100%
+    );
+    background-size: 200% 200%;
+    animation: kpi-border-shift 6s ease infinite;
+}
+
+.kpi-glass-wrapper--accent-green {
+    background: linear-gradient(
+        135deg,
+        rgba(40,167,69,0.28) 0%,
+        rgba(255,255,255,0.06) 50%,
+        rgba(32,201,80,0.18) 100%
+    );
+    background-size: 200% 200%;
+    animation: kpi-border-shift 6s ease infinite;
+}
+
+/* Label & value styling */
+.kpi-glass .kpi-glass-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: rgba(248, 249, 250, 0.55);
+    margin-bottom: 0.3rem;
+}
+
+.kpi-glass .kpi-glass-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 0.2rem;
+}
+
+.kpi-glass .kpi-glass-sub {
+    font-size: 0.75rem;
+    font-weight: 500;
+    min-height: 1.1em; /* prevent layout shift when empty */
+}
+
+/* Legacy fallback — keep for non-overview pages if needed */
 .kpi-card {
     text-align: center;
     padding: 1.5rem;
@@ -1106,6 +1290,19 @@ mjx-container > svg {
     
     .kpi-value {
         font-size: 1.4rem;
+    }
+
+    /* Glassmorphism KPI responsive */
+    .kpi-glass {
+        padding: 0.8rem 0.75rem;
+    }
+
+    .kpi-glass .kpi-glass-value {
+        font-size: 1.15rem;
+    }
+
+    .kpi-glass .kpi-glass-label {
+        font-size: 0.65rem;
     }
     
     /* Chart heights */

@@ -112,7 +112,7 @@
                 <div style="opacity: 0.8;">Executive Integrity Dashboard</div>
             </div>
             <div class="meta">
-                <div>Date: 2026-02-05 16:02:26</div>
+                <div>Date: 2026-02-05 17:19:20</div>
                 <div>Version: 3.0 (Modular Opus Suite)</div>
             </div>
         </header>
@@ -126,22 +126,22 @@
             </p>
             
             <div class="status-grid">
-                <div class="status-card pass">
+                <div class="status-card fail">
                     <h3>System Health</h3>
                     <div style="font-size: 2.5rem; font-weight: bold; color: var(--primary-color);">
-                        100%
+                        62%
                     </div>
                 </div>
                 <div class="status-card pass">
                     <h3>Modules Passed</h3>
                     <div style="font-size: 2.5rem; font-weight: bold; color: var(--success-color);">
-                        16
+                        10
                     </div>
                 </div>
-                <div class="status-card pass">
+                <div class="status-card fail">
                     <h3>Modules Failed</h3>
-                    <div style="font-size: 2.5rem; font-weight: bold; color: var(--border-color);">
-                        0
+                    <div style="font-size: 2.5rem; font-weight: bold; color: var(--danger-color);">
+                        6
                     </div>
                 </div>
             </div>
@@ -168,7 +168,7 @@ Checking External Cashflows...
 [PASS] Cashflows loaded: 3 entries.
 
 Checking Transactions...
-[PASS] Transactions loaded: 75 trades.
+[PASS] Transactions loaded: 76 trades.
 
 Checking Dividends...
 [PASS] Dividends loaded: 11 entries.
@@ -275,7 +275,7 @@ Reconciling Shares (Holdings vs Transactions)...
             <div class="audit-module">
                 <div class="module-header">
                     <h3>P/L Attribution Ledger <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_03_pl_attribution.py)</span></h3>
-                    <span class="status-badge pass">PASSED</span>
+                    <span class="status-badge fail">FAILED</span>
                 </div>
                 <div class="module-content">
                     <p><strong>Objective:</strong> Prove that no money is disappearing from the portfolio.</p>
@@ -285,23 +285,34 @@ Reconciling Shares (Holdings vs Transactions)...
 Loading live data via Analytics Engine...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
 [PRICE] FMP success: 17/17, yfinance fallback: 0
-[PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
-[PRICE] FMP success: 23/24, yfinance fallback: 1
-[PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
-[PRICE] FMP success: 7/7, yfinance fallback: 0
-Data loaded.
-[PASS] [1W] Match! Port: -2,085.99 | Sum: -2,071.82 | Gap: -14.16
-[PASS] [1M] Match! Port: -986.68 | Sum: -972.52 | Gap: -14.16
-[PASS] [MTD] Match! Port: -1,339.77 | Sum: -1,325.62 | Gap: -14.16
-[PASS] [YTD] Match! Port: -362.64 | Sum: -348.48 | Gap: -14.16
-[1Y] Insufficient data for Portfolio P/L.
-[PASS] [SI] Match! Port: 833.55 | Sum: 826.53 | Gap: 7.02
 
---- Dividend Integrity Check ---
-Checking Dividend: CASH on 2025-11-28 for $0.08
-[PASS] Dividend accounted for. Total Income for CASH: $0.15000000000000002 >= Sample $0.08
+[CRITICAL ERROR] 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
 
-[SUCCESS] audit_03_pl_attribution.py passed.
+
+[STDERR]
+Traceback (most recent call last):
+  File "C:\Users\Tommy\TWR_MD  Report\Validation\forensic_audit\audit_03_pl_attribution.py", line 167, in <module>
+    test_pl_attribution()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Tommy\TWR_MD  Report\Validation\forensic_audit\audit_03_pl_attribution.py", line 30, in test_pl_attribution
+    data = run_analytics_engine()
+  File "C:\Users\Tommy\TWR_MD  Report\dash_wrappers.py", line 203, in run_analytics_engine
+    twr_df, sec_table, class_df, pv, twr_si, twr_si_annualized, pl_si = run_engine(end_date=end_date)
+                                                                        ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tommy\TWR_MD  Report\portfolio_engine.py", line 163, in run_engine
+    pv, cash_trace = build_portfolio_value_series_from_flows(holdings, prices)
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tommy\TWR_MD  Report\financial_math.py", line 366, in build_portfolio_value_series_from_flows
+    print(
+    ~~~~~^
+        f"\u26a0\ufe0f  CASH reconciliation bridged for unsettled external sales: +{cash_delta:.2f}"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Tommy\AppData\Local\Programs\Python\Python314\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
 </div>
                 </div>
             </div>
@@ -309,7 +320,7 @@ Checking Dividend: CASH on 2025-11-28 for $0.08
             <div class="audit-module">
                 <div class="module-header">
                     <h3>Risk Intelligence <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_04_risk_intelligence.py)</span></h3>
-                    <span class="status-badge pass">PASSED</span>
+                    <span class="status-badge fail">FAILED</span>
                 </div>
                 <div class="module-content">
                     <p><strong>Objective:</strong> Validate advanced risk metrics and correlation data.</p>
@@ -319,22 +330,34 @@ Checking Dividend: CASH on 2025-11-28 for $0.08
 Loading live data...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
 [PRICE] FMP success: 17/17, yfinance fallback: 0
-[PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
-[PRICE] FMP success: 23/24, yfinance fallback: 1
-[PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
-[PRICE] FMP success: 7/7, yfinance fallback: 0
-Checking Correlation Matrix...
-[PASS] Correlation Matrix Diagonal is all 1.0
-[PASS] Correlation Matrix is Symmetric
-[PASS] Correlation Values within [-1, 1]
-Checking Active Metrics (Beta/TE)...
-[PASS] Beta vs SPY calculated: 0.6797
-[PASS] Tracking Error calculated: 6.2874%
-Checking Drawdown Logic...
-[PASS] Max Drawdown (-4.31%) matches Minimum of Series
-[PASS] Drawdown Series is always <= 0.0
 
-[SUCCESS] audit_04_risk_intelligence.py passed.
+[CRITICAL ERROR] 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
+
+
+[STDERR]
+Traceback (most recent call last):
+  File "C:\Users\Tommy\TWR_MD  Report\Validation\forensic_audit\audit_04_risk_intelligence.py", line 114, in <module>
+    test_risk_intelligence()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Tommy\TWR_MD  Report\Validation\forensic_audit\audit_04_risk_intelligence.py", line 28, in test_risk_intelligence
+    data = run_analytics_engine()
+  File "C:\Users\Tommy\TWR_MD  Report\dash_wrappers.py", line 203, in run_analytics_engine
+    twr_df, sec_table, class_df, pv, twr_si, twr_si_annualized, pl_si = run_engine(end_date=end_date)
+                                                                        ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tommy\TWR_MD  Report\portfolio_engine.py", line 163, in run_engine
+    pv, cash_trace = build_portfolio_value_series_from_flows(holdings, prices)
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tommy\TWR_MD  Report\financial_math.py", line 366, in build_portfolio_value_series_from_flows
+    print(
+    ~~~~~^
+        f"\u26a0\ufe0f  CASH reconciliation bridged for unsettled external sales: +{cash_delta:.2f}"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Tommy\AppData\Local\Programs\Python\Python314\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
 </div>
                 </div>
             </div>
@@ -342,7 +365,7 @@ Checking Drawdown Logic...
             <div class="audit-module">
                 <div class="module-header">
                     <h3>UI Consistency Matrix <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_05_consistency_matrix.py)</span></h3>
-                    <span class="status-badge pass">PASSED</span>
+                    <span class="status-badge fail">FAILED</span>
                 </div>
                 <div class="module-content">
                     <p><strong>Objective:</strong> Ensure the Dashboard tells a consistent story across all views.</p>
@@ -352,23 +375,34 @@ Checking Drawdown Logic...
 Loading live data...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
 [PRICE] FMP success: 17/17, yfinance fallback: 0
-[PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
-[PRICE] FMP success: 23/24, yfinance fallback: 1
-[PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
-[PRICE] FMP success: 7/7, yfinance fallback: 0
-Checking Snapshot vs Chart...
-[PASS] Cumulative SI TWR (0.0186) matches Chart Final Value (0.0186)
-Checking Snapshot vs Horizon Table...
-[PASS] Snapshot SI P/L (878.91) matches Horizon Table (878.91)
-Checking Growth Table vs P/L...
-[PASS] Growth Table Total (879.54) matches SI P/L (878.91)
-Checking Attribution vs SI TWR...
-[PASS] Attribution Sum (1.86%) matches SI TWR (1.86%)
-Checking Risk Chart vs Horizon Table...
-Risk Chart US Large Cap Return: 13.83%
-[PASS] Risk Data exists.
 
-[SUCCESS] audit_05_consistency_matrix.py passed.
+[CRITICAL ERROR] 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
+
+
+[STDERR]
+Traceback (most recent call last):
+  File "C:\Users\Tommy\TWR_MD  Report\Validation\forensic_audit\audit_05_consistency_matrix.py", line 198, in <module>
+    test_consistency_matrix()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Tommy\TWR_MD  Report\Validation\forensic_audit\audit_05_consistency_matrix.py", line 31, in test_consistency_matrix
+    data = run_analytics_engine()
+  File "C:\Users\Tommy\TWR_MD  Report\dash_wrappers.py", line 203, in run_analytics_engine
+    twr_df, sec_table, class_df, pv, twr_si, twr_si_annualized, pl_si = run_engine(end_date=end_date)
+                                                                        ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tommy\TWR_MD  Report\portfolio_engine.py", line 163, in run_engine
+    pv, cash_trace = build_portfolio_value_series_from_flows(holdings, prices)
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tommy\TWR_MD  Report\financial_math.py", line 366, in build_portfolio_value_series_from_flows
+    print(
+    ~~~~~^
+        f"\u26a0\ufe0f  CASH reconciliation bridged for unsettled external sales: +{cash_delta:.2f}"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Tommy\AppData\Local\Programs\Python\Python314\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
 </div>
                 </div>
             </div>
@@ -630,7 +664,7 @@ Final GIPS Score: 5/5
   Passed:       199
   Failed:       0
   Pass Rate:    100.0%
-  Duration:     0.23s
+  Duration:     0.22s
 ======================================================================
 
 📝 Appended new Frontend Stress section to report.
@@ -643,7 +677,7 @@ Final GIPS Score: 5/5
             <div class="audit-module">
                 <div class="module-header">
                     <h3>Time Machine (Point-in-Time) <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_08_time_machine.py)</span></h3>
-                    <span class="status-badge pass">PASSED</span>
+                    <span class="status-badge fail">FAILED</span>
                 </div>
                 <div class="module-content">
                     <p><strong>Objective:</strong> Verify historical accuracy and absence of look-ahead bias.</p>
@@ -653,16 +687,7 @@ Final GIPS Score: 5/5
 Running Live Engine...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
 [PRICE] FMP success: 17/17, yfinance fallback: 0
-Time Machine Target: 2026-01-22
-Running Historical Engine...
-
-Checking PV Consistency...
-[PASS] PV Matches: History=49552.06 vs Live=49552.06
-
-Checking Future Leakage (Transactions)...
-[PASS] No future tickers detected in historical view.
-
-[SUCCESS] audit_08_time_machine.py passed.
+[FAIL] Live Engine Crash: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
 </div>
                 </div>
             </div>
@@ -670,7 +695,7 @@ Checking Future Leakage (Transactions)...
             <div class="audit-module">
                 <div class="module-header">
                     <h3>Custom Report Logic <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_09_custom_report.py)</span></h3>
-                    <span class="status-badge pass">PASSED</span>
+                    <span class="status-badge fail">FAILED</span>
                 </div>
                 <div class="module-content">
                     <p><strong>Objective:</strong> Validate 'Curve Slicing' methodology for arbitrary time periods.</p>
@@ -680,18 +705,7 @@ Checking Future Leakage (Transactions)...
 Loading Live Data...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
 [PRICE] FMP success: 17/17, yfinance fallback: 0
-[PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
-[PRICE] FMP success: 23/24, yfinance fallback: 1
-[PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
-[PRICE] FMP success: 7/7, yfinance fallback: 0
-
-Scanning Last 30 Days (2026-01-06 to 2026-02-05)...
-[PASS] Last 30 Days: Match! Slice=-0.026134 vs Rigorous=-0.026134
-
-Scanning Middle 20 Days (2025-12-20 to 2026-01-09)...
-[PASS] Middle 20 Days: Match! Slice=0.023277 vs Rigorous=0.023277
-
-[SUCCESS] audit_09_custom_report.py passed.
+[FAIL] Engine Load Crash: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
 </div>
                 </div>
             </div>
@@ -722,7 +736,7 @@ Scanning Middle 20 Days (2025-12-20 to 2026-01-09)...
             <div class="audit-module">
                 <div class="module-header">
                     <h3>Single-Ticker Consistency <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">(audit_11_single_ticker_consistency.py)</span></h3>
-                    <span class="status-badge pass">PASSED</span>
+                    <span class="status-badge fail">FAILED</span>
                 </div>
                 <div class="module-content">
                     <p><strong>Objective:</strong> Verify that Asset Class returns strictly match Ticker returns when the class contains only that ticker.</p>
@@ -733,18 +747,32 @@ Objective: Ensure Asset Class returns match Ticker returns exactly when 1:1.
 Loading engine data...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
 [PRICE] FMP success: 17/17, yfinance fallback: 0
-[PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
-[PRICE] FMP success: 23/24, yfinance fallback: 1
-[PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
-[PRICE] FMP success: 7/7, yfinance fallback: 0
-Found 3 single-ticker asset classes: {'Gold / Precious Metals': 'GLD', 'US Mid Cap': 'XMHQ', 'Digital Assets': 'FBTC'}
 
-Checking Gold / Precious Metals vs GLD...
 
-Checking US Mid Cap vs XMHQ...
-
-Checking Digital Assets vs FBTC...
-[PASS] All single-ticker asset classes match their tickers exactly across all horizons.
+[STDERR]
+Traceback (most recent call last):
+  File "C:\Users\Tommy\TWR_MD  Report\Validation\forensic_audit\audit_11_single_ticker_consistency.py", line 119, in <module>
+    test_single_ticker_consistency()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Tommy\TWR_MD  Report\Validation\forensic_audit\audit_11_single_ticker_consistency.py", line 25, in test_single_ticker_consistency
+    data = run_analytics_engine()
+  File "C:\Users\Tommy\TWR_MD  Report\dash_wrappers.py", line 203, in run_analytics_engine
+    twr_df, sec_table, class_df, pv, twr_si, twr_si_annualized, pl_si = run_engine(end_date=end_date)
+                                                                        ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tommy\TWR_MD  Report\portfolio_engine.py", line 163, in run_engine
+    pv, cash_trace = build_portfolio_value_series_from_flows(holdings, prices)
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Tommy\TWR_MD  Report\financial_math.py", line 366, in build_portfolio_value_series_from_flows
+    print(
+    ~~~~~^
+        f"\u26a0\ufe0f  CASH reconciliation bridged for unsettled external sales: +{cash_delta:.2f}"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Tommy\AppData\Local\Programs\Python\Python314\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
 </div>
                 </div>
             </div>
@@ -1007,7 +1035,7 @@ Current Configuration:
 [PASS]: Both price sets available
         Close: 1255 rows, Adj: 1255 rows
 [PASS]: Close and Adj Close have data
-        Close: $677.74, Adj: $677.74, Diff: 0.00%
+        Close: $677.62, Adj: $677.62, Diff: 0.00%
 [PASS]: Difference is reasonable (<5%)
         Historical divergence: Close $390.51, Adj $364.54, Diff: 6.65%
 

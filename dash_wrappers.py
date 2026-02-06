@@ -789,6 +789,50 @@ def get_snapshot_metrics(data):
     # (Engine uses calculated inception_date and effective_as_of)
     si_is_ann = is_annualized(data["inception_date"], data.get("effective_as_of"))
     
+    # ---- Alpha vs SPY (Since Inception) ----
+    # Portfolio TWR (SI) minus SPY total return over the same window
+    alpha_vs_spy = np.nan
+    try:
+        bench_prices_adj = data.get("benchmark_prices_adj")
+        if bench_prices_adj is not None and "SPY" in bench_prices_adj.columns:
+            spy_ser = bench_prices_adj["SPY"].dropna()
+            pv = data["pv"]
+            inception_date = data["inception_date"]
+            effective_as_of = data.get("effective_as_of")
+            market_start = pv.index.min() if not pv.empty else None
+
+            if market_start is not None and not spy_ser.empty:
+                # Base price: last close strictly before portfolio start (captures Day 1)
+                history_before = spy_ser[spy_ser.index < market_start]
+                if not history_before.empty:
+                    base_price = float(history_before.iloc[-1])
+                else:
+                    base_price = float(spy_ser.asof(market_start)) if not spy_ser[spy_ser.index <= market_start].empty else None
+
+                if base_price is not None and base_price > 0:
+                    end_anchor = effective_as_of if effective_as_of is not None else pv.index.max()
+                    end_price = float(spy_ser.asof(end_anchor))
+                    if not pd.isna(end_price) and end_price > 0:
+                        spy_cum = end_price / base_price - 1.0
+                        spy_ret = annualize_return(spy_cum, market_start, end_anchor)
+                        alpha_vs_spy = twr_si - spy_ret
+    except Exception as e:
+        print(f"Alpha vs SPY calculation error: {e}")
+        alpha_vs_spy = np.nan
+
+    # ---- Cash Drag % ----
+    # CASH market value as a percentage of total portfolio value
+    cash_drag_pct = 0.0
+    if not sec_table.empty and current_mv > 0:
+        cash_rows = sec_table[sec_table["ticker"] == "CASH"] if "ticker" in sec_table.columns else pd.DataFrame()
+        # sec_table_current excludes CASH; use the full holdings data
+        holdings = data.get("holdings", pd.DataFrame())
+        if not holdings.empty:
+            cash_rows_h = holdings[holdings["ticker"] == "CASH"]
+            if not cash_rows_h.empty:
+                cash_mv = float(cash_rows_h["shares"].iloc[0])  # CASH shares == dollar value
+                cash_drag_pct = cash_mv / current_mv
+
     return {
         "current_mv": current_mv,
         "twr_si": twr_si,
@@ -799,7 +843,9 @@ def get_snapshot_metrics(data):
         "sortino": eff["sortino"],
         "max_dd": max_dd,
         "position_count": position_count,
-        "is_annualized": si_is_ann
+        "is_annualized": si_is_ann,
+        "alpha_vs_spy": alpha_vs_spy,
+        "cash_drag_pct": cash_drag_pct,
     }
 
 def get_horizon_analysis(data):
