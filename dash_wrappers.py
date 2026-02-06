@@ -2366,7 +2366,7 @@ def get_risk_return_chart(data, theme="light"):
 
     fig = px.scatter(
         df, x="Volatility", y="Return", hover_name="Asset Class",
-        size="Weight", size_max=45,
+        size="Weight", size_max=30,
         color="Asset Class",
         color_discrete_sequence=GLOBAL_PALETTE
     )
@@ -2385,13 +2385,60 @@ def get_risk_return_chart(data, theme="light"):
                   annotation_text="Avg Vol", annotation_position="top left",
                   annotation_font_color="rgba(255,255,255,0.5)", annotation_font_size=10)
 
-    # Direct annotation labels on each bubble
-    for _, row in df.iterrows():
+    # Direct annotation labels on each bubble with collision avoidance
+    # Sort by volatility so we process left-to-right
+    df_sorted = df.sort_values(["Volatility", "Return"]).reset_index(drop=True)
+    placed = []  # list of (x, y) in data coords for placed labels
+    
+    # Get axis ranges for converting pixel offsets to data coords
+    vol_range = df["Volatility"].max() - df["Volatility"].min()
+    ret_range = df["Return"].max() - df["Return"].min()
+    # Approximate label footprint in data units (rough px-to-data conversion)
+    label_h = ret_range * 0.08 if ret_range > 0 else 3
+    label_w = vol_range * 0.12 if vol_range > 0 else 3
+    
+    for _, row in df_sorted.iterrows():
+        base_x = row["Volatility"]
+        base_y = row["Return"]
+        bubble_offset = max(row["Weight"] * 0.25, 8) + 8  # pixels
+        
+        # Candidate positions: above, below, right, left, upper-right, lower-right
+        candidates = [
+            (0, bubble_offset),          # above
+            (0, -(bubble_offset + 5)),   # below
+            (bubble_offset * 1.5, 0),    # right
+            (-(bubble_offset * 1.5), 0), # left  
+            (bubble_offset, bubble_offset * 0.7),        # upper-right
+            (bubble_offset, -(bubble_offset * 0.7)),     # lower-right
+        ]
+        
+        best_shift = candidates[0]  # default: above
+        best_min_dist = -1
+        
+        for dx_px, dy_px in candidates:
+            # Convert pixel shifts to approximate data coordinates for overlap check
+            approx_x = base_x + (dx_px / 400) * vol_range if vol_range > 0 else base_x
+            approx_y = base_y + (dy_px / 400) * ret_range if ret_range > 0 else base_y
+            min_dist = float('inf')
+            for px, py in placed:
+                dist = ((approx_x - px) / max(label_w, 1)) ** 2 + ((approx_y - py) / max(label_h, 1)) ** 2
+                min_dist = min(min_dist, dist)
+            if not placed or min_dist > best_min_dist:
+                best_min_dist = min_dist
+                best_shift = (dx_px, dy_px)
+                best_approx = (approx_x, approx_y)
+        
+        placed.append(best_approx if placed or best_min_dist >= 0 else (base_x, base_y + (bubble_offset / 400) * ret_range))
+        
         fig.add_annotation(
-            x=row["Volatility"], y=row["Return"],
+            x=base_x, y=base_y,
             text=row["Asset Class"],
-            showarrow=False,
-            yshift=max(row["Weight"] * 0.4, 12) + 8,
+            showarrow=True if best_shift != candidates[0] else False,
+            arrowhead=0,
+            arrowwidth=0.8,
+            arrowcolor="rgba(255,255,255,0.25)",
+            xshift=best_shift[0],
+            yshift=best_shift[1],
             font=dict(size=10, color="rgba(255,255,255,0.75)"),
         )
     
@@ -2401,7 +2448,7 @@ def get_risk_return_chart(data, theme="light"):
         yaxis_title="Expected Return (%)",
         template="plotly_dark",
         showlegend=True,
-        height=500,
+        height=550,
         margin=dict(l=40, r=40, t=40, b=80), # Standardized margin
         legend=dict(
             orientation="h",
