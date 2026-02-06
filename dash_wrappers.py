@@ -1490,7 +1490,8 @@ def get_pv_mountain_chart(data, theme="light"):
         template="plotly_dark",
         margin=dict(l=40, r=20, t=40, b=40),
         hovermode="x unified",
-        height=428
+        height=428,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     return fig
 
@@ -1621,7 +1622,7 @@ def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, t
         
         yaxis_title="Return (%)",
         template="plotly_dark",
-        margin=dict(l=40, r=20, t=40, b=40),
+        margin=dict(l=40, r=20, t=60, b=40),
         hovermode="x unified",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         height=450
@@ -2561,7 +2562,9 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
         yaxis_title="Excess Return (%)",
         barmode='group',
         template="plotly_dark",
-        height=450
+        margin=dict(l=40, r=20, t=60, b=40),
+        height=450,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     return fig
 
