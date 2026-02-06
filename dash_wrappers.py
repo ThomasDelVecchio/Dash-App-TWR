@@ -1239,21 +1239,44 @@ def get_correlation_heatmap(data, theme="light"):
     corr = get_rolling_correlations(data)
     if corr.empty: return go.Figure()
     
+    # Mask diagonal (self-correlation is always 1, visually dominates)
+    labels = corr.columns.tolist()
+    corr_masked = corr.copy()
+    np.fill_diagonal(corr_masked.values, np.nan)
+
+    # Custom CYBORG-themed diverging colorscale: deep blue → dark gray (0) → neon accent
+    cyborg_colorscale = [
+        [0.0,  "#1a3a5c"],   # deep blue (strong negative)
+        [0.25, "#2a5a8c"],   # mid blue
+        [0.5,  "#2d2d2d"],   # dark gray (zero / neutral)
+        [0.75, "#6a4f8a"],   # muted purple accent
+        [1.0,  "#8064A2"],   # neon purple accent (strong positive)
+    ]
+    
     fig = px.imshow(
-        corr,
+        corr_masked,
         text_auto=".2f",
         aspect="auto",
-        color_continuous_scale="RdBu_r", # Red = High Corr, Blue = Inverse
+        color_continuous_scale=cyborg_colorscale,
         zmin=-1, zmax=1
     )
     
     fig.update_traces(hovertemplate="<b>%{x}</b> vs <b>%{y}</b><br>Correlation: %{z:.2f}<extra></extra>")
+    
+    # Add gray "1.00" annotations on the diagonal (masked cells)
+    for i, lbl in enumerate(labels):
+        fig.add_annotation(
+            x=lbl, y=lbl,
+            text="1.00",
+            showarrow=False,
+            font=dict(size=11, color="rgba(180,180,180,0.6)"),
+        )
 
     fig.update_layout(
-        # title="90-Day Rolling Correlation (Top Holdings)", # Removed to avoid duplicate title in UI
         template="plotly_dark",
-        margin=dict(l=20, r=20, t=10, b=40), # Reduced margins to maximize chart area
-        height=500
+        margin=dict(l=20, r=20, t=10, b=40),
+        height=550,
+        font=dict(size=11),
     )
     return fig
 
@@ -1668,7 +1691,7 @@ def get_asset_allocation_charts(data, theme="light"):
         else:
             display_text.append(f"{row['short_name']}<br>{row['actual_pct']:.1f}%")
             
-    # Pie Chart
+    # Pie Chart (Donut)
     pie_fig = go.Figure(go.Pie(
         labels=merged_actual["short_name"],
         values=merged_actual["value"],
@@ -1682,6 +1705,16 @@ def get_asset_allocation_charts(data, theme="light"):
         textfont=dict(color='white'),
         hovertemplate="<b>%{label}</b><br>Value: $%{value:,.2f}<br>Share: %{percent:.2%}<extra></extra>"
     ))
+    
+    # Center annotation showing total portfolio value
+    pie_fig.add_annotation(
+        text=f"<b>${total_val:,.0f}</b>",
+        x=0.5, y=0.5,
+        font=dict(size=16, color='white'),
+        showarrow=False,
+        xref='paper', yref='paper',
+    )
+    
     pie_fig.update_layout(
         
         template="plotly_dark",
@@ -1708,6 +1741,10 @@ def get_asset_allocation_charts(data, theme="light"):
         y=merged_bar["actual_pct"],
         name="Actual %",
         marker_color=GLOBAL_PALETTE[0],
+        marker_line=dict(
+            color=_hex_to_rgba(GLOBAL_PALETTE[0], 0.5),
+            width=1,
+        ),
         customdata=merged_bar["value"],
         hovertemplate="<b>Actual</b>: %{y:.2f}%<br>Value: %{customdata:$,.2f}<extra></extra>"
     ))
@@ -1716,7 +1753,28 @@ def get_asset_allocation_charts(data, theme="light"):
         y=merged_bar["target_pct"],
         name="Target %",
         marker_color=GLOBAL_PALETTE[1],
+        marker_line=dict(
+            color=_hex_to_rgba(GLOBAL_PALETTE[1], 0.5),
+            width=1,
+        ),
         hovertemplate="<b>Target</b>: %{y:.2f}%<extra></extra>"
+    ))
+    
+    # Delta overlay: Drift (Actual − Target) as thin bars, green=overweight, red=underweight
+    drift_vals = merged_bar["delta"].values
+    drift_colors = ['#00C853' if d >= 0 else '#FF1744' for d in drift_vals]
+    bar_fig.add_trace(go.Bar(
+        x=merged_bar["short_name"],
+        y=drift_vals,
+        name="Drift",
+        marker_color=drift_colors,
+        marker_line=dict(
+            color=[_hex_to_rgba(c, 0.7) for c in drift_colors],
+            width=1,
+        ),
+        width=0.15,
+        customdata=np.column_stack([merged_bar["actual_pct"].values, merged_bar["target_pct"].values]),
+        hovertemplate="<b>Drift</b>: %{y:.2f}%<br>Actual: %{customdata[0]:.2f}%<br>Target: %{customdata[1]:.2f}%<extra></extra>"
     ))
     
     bar_fig.update_layout(
@@ -1772,7 +1830,12 @@ def get_asset_drilldown_chart(data, asset_class, theme="light"):
             display_text.append("")
         else:
             display_text.append(f"{row['ticker']}<br>{row['actual_pct']:.1f}%")
-            
+    
+    # Pull out the largest slice slightly for emphasis
+    pull_vals = [0.0] * len(filtered)
+    if len(pull_vals) > 0:
+        pull_vals[0] = 0.05  # First row is largest (sorted desc)
+    
     # Pie Chart
     fig = go.Figure(go.Pie(
         labels=filtered["ticker"],
@@ -1785,12 +1848,21 @@ def get_asset_drilldown_chart(data, asset_class, theme="light"):
         sort=False,
         direction='clockwise',
         rotation=-90,
+        pull=pull_vals,
         textfont=dict(color='white'),
         hovertemplate="<b>%{label}</b><br>Value: $%{value:,.2f}<br>Share: %{percent:.2%}<extra></extra>"
     ))
     
+    # Larger center annotation with AC name and total dollar value
+    fig.add_annotation(
+        text=f"<b>{full_name}</b><br>${total_val:,.0f}",
+        x=0.5, y=0.5,
+        font=dict(size=16, color='white'),
+        showarrow=False,
+        xref='paper', yref='paper',
+    )
+    
     fig.update_layout(
-        title=dict(text=f"{full_name}", x=0.5,y=0.5, xanchor='center', yanchor='middle', font=dict(size=14, color='white')),
         template="plotly_dark",
         margin=dict(l=20, r=20, t=40, b=20),
         height=450,
@@ -1813,13 +1885,29 @@ def get_sector_allocation_chart(data, theme="light"):
     sector_df = data["sector_df"]
     if sector_df.empty: return go.Figure()
     
+    # Gradient bars: higher exposure = more saturated accent, lower = muted
+    base_color = GLOBAL_PALETTE[0]  # "#4C6A92" steel blue
+    max_exp = sector_df["Exposure"].max() if not sector_df["Exposure"].empty else 1.0
+    if max_exp == 0:
+        max_exp = 1.0
+    gradient_colors = [
+        _hex_to_rgba(base_color, 0.4 + 0.6 * (exp / max_exp)) for exp in sector_df["Exposure"]
+    ]
+    
+    # Force text positioning: inside for bars > 3%, outside for small ones
+    text_positions = ['inside' if exp > 3.0 else 'outside' for exp in sector_df["Exposure"]]
+    
     fig = go.Figure(go.Bar(
         y=sector_df["Sector"],
         x=sector_df["Exposure"],
         orientation='h',
-        marker_color=GLOBAL_PALETTE[0],
+        marker_color=gradient_colors,
+        marker_line=dict(
+            color=_hex_to_rgba(base_color, 0.5),
+            width=1,
+        ),
         text=sector_df["Exposure"].apply(lambda x: f"{x:.2f}%"),
-        textposition='auto',
+        textposition=text_positions,
         hovertemplate="<b>%{y}</b>: %{x:.2f}%<extra></extra>"
     ))
     
@@ -1828,7 +1916,12 @@ def get_sector_allocation_chart(data, theme="light"):
         xaxis_title="Exposure (%)",
         template="plotly_dark",
         margin=dict(l=20, r=20, t=40, b=20),
-        height=450
+        height=450,
+        xaxis=dict(
+            showgrid=True,
+            gridcolor='rgba(255,255,255,0.08)',
+            gridwidth=1,
+        ),
     )
     return fig
 
@@ -1902,12 +1995,23 @@ def get_allocation_history_chart(data, theme="light"):
             name=col,
             line=dict(
                 color=GLOBAL_PALETTE[i % len(GLOBAL_PALETTE)],
-                width=1.5,
+                width=0.5,
                 shape='spline',
                 smoothing=1.2
             ),
             hovertemplate=f"<b>{col}</b>: %{{y:.2f}}%<extra></extra>"
         ))
+    
+    # Subtle top-line glow on the total (sum) boundary
+    total_pct = pct.sum(axis=1)
+    fig.add_trace(go.Scatter(
+        x=total_pct.index,
+        y=total_pct.values,
+        mode='lines',
+        line=dict(color='rgba(255,255,255,0.1)', width=6, shape='spline'),
+        hoverinfo='skip',
+        showlegend=False,
+    ))
         
     fig.update_layout(
         
@@ -2129,15 +2233,18 @@ def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="lig
         y=ext_agg,
         name="External Flows",
         marker_color=GLOBAL_PALETTE[1],
+        marker_line_width=0,
         customdata=[d['date'] for d in custom_data]
     ))
 
-    # Market Effect Bar
+    # Market Effect Bar — conditional green/red coloring by sign
+    mkt_bar_colors = [GLOBAL_PALETTE[4] if v >= 0 else GLOBAL_PALETTE[2] for v in mkt_agg.values]
     fig.add_trace(go.Bar(
         x=x_values,
         y=mkt_agg,
         name="Market Effect",
-        marker_color=GLOBAL_PALETTE[0],
+        marker_color=mkt_bar_colors,
+        marker_line_width=0,
         customdata=[d['date'] for d in custom_data]
     ))
     
@@ -2148,12 +2255,23 @@ def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="lig
     # Cumulative Line: Sum of Market Effects only (Represents Since Inception Gain)
     cum = mkt_agg.cumsum()
     
+    # Glow trace behind cumulative line (wider semi-transparent)
+    fig.add_trace(go.Scatter(
+        x=x_values,
+        y=cum.values,
+        mode='lines',
+        line=dict(color=_hex_to_rgba(GLOBAL_PALETTE[8], 0.3), width=8),
+        yaxis='y2',
+        hoverinfo='skip',
+        showlegend=False,
+    ))
+    # Main cumulative line
     fig.add_trace(go.Scatter(
         x=x_values,
         y=cum.values,
         mode='lines+markers',
         name="Cumulative ΔPV",
-        line=dict(color=GLOBAL_PALETTE[2], width=2, dash='dot'),
+        line=dict(color=GLOBAL_PALETTE[8], width=2, dash='dot'),
         yaxis='y2',
         hovertemplate="<b>Cumulative Gain</b>: %{y:$,.2f}<extra></extra>"
     ))
@@ -2202,7 +2320,7 @@ def get_smart_attribution_chart(data, start_date=None, end_date=None, theme="lig
             type='category',
             tickangle=-45
         ),
-        bargap=0.3
+        bargap=0.15 if freq == 'ME' else 0.3
     )
     # Ensure text labels don't clip at the axis edge
     fig.update_traces(selector=dict(type='bar'), cliponaxis=False)
@@ -2225,28 +2343,57 @@ def get_risk_return_chart(data, theme="light"):
         return go.Figure()
     ac_values = sec_table.groupby("asset_class")["market_value"].sum()
     included_classes = set(ac_values[ac_values > 0].index)
+    total_value = ac_values[ac_values > 0].sum()
     
     plot_data = []
     for cls, metrics in risk_return.items():
         if cls not in included_classes:
             continue
+        weight = (ac_values.get(cls, 0) / total_value * 100) if total_value > 0 else 1
         plot_data.append({
             "Asset Class": cls,
             "Return": metrics["return"],
-            "Volatility": metrics["vol"]
+            "Volatility": metrics["vol"],
+            "Weight": max(weight, 2),  # Min 2% so tiny allocations are still visible
         })
     df = pd.DataFrame(plot_data)
     
     if df.empty: return go.Figure()
 
+    # Compute portfolio-weighted averages for quadrant lines
+    avg_vol = (df["Volatility"] * df["Weight"]).sum() / df["Weight"].sum()
+    avg_ret = (df["Return"] * df["Weight"]).sum() / df["Weight"].sum()
+
     fig = px.scatter(
         df, x="Volatility", y="Return", hover_name="Asset Class",
-        size=[1]*len(df), size_max=10, # Uniform size markers
+        size="Weight", size_max=45,
         color="Asset Class",
         color_discrete_sequence=GLOBAL_PALETTE
     )
     
-    fig.update_traces(hovertemplate="<b>%{hovertext}</b><br>Return: %{y:.2f}%<br>Volatility: %{x:.2f}%<extra></extra>")
+    fig.update_traces(
+        hovertemplate="<b>%{hovertext}</b><br>Return: %{y:.2f}%<br>Volatility: %{x:.2f}%<br>Weight: %{marker.size:.1f}%<extra></extra>",
+        marker_line_width=2,
+        marker_line_color='white',
+    )
+
+    # Quadrant reference lines
+    fig.add_hline(y=avg_ret, line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1,
+                  annotation_text="Avg Return", annotation_position="bottom right",
+                  annotation_font_color="rgba(255,255,255,0.5)", annotation_font_size=10)
+    fig.add_vline(x=avg_vol, line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1,
+                  annotation_text="Avg Vol", annotation_position="top left",
+                  annotation_font_color="rgba(255,255,255,0.5)", annotation_font_size=10)
+
+    # Direct annotation labels on each bubble
+    for _, row in df.iterrows():
+        fig.add_annotation(
+            x=row["Volatility"], y=row["Return"],
+            text=row["Asset Class"],
+            showarrow=False,
+            yshift=max(row["Weight"] * 0.4, 12) + 8,
+            font=dict(size=10, color="rgba(255,255,255,0.75)"),
+        )
     
     fig.update_layout(
         
@@ -2358,37 +2505,53 @@ def get_projections_chart(data, theme="light", rate_pct=None, monthly_contrib=No
         monthly_contrib = TARGET_MONTHLY_CONTRIBUTION
         
         
-    # 1. Plot Lump Sum Lines (Solid)
+    # Pre-compute all lines so we can pair lump-sum and contribution for shaded bands
+    lump_lines = []   # list of (rate, values)
+    contrib_lines = []  # list of (rate, values)
+
     for i, r in enumerate(rates):
-        vals = []
         r_dec = r / 100.0
-        for yr in years:
-            vals.append(fv_lump(initial_value, r_dec, yr))
-            
+        lump_vals = [fv_lump(initial_value, r_dec, yr) for yr in years]
+        contrib_vals = [fv_lump(initial_value, r_dec, yr) + fv_contrib(monthly_contrib, r_dec, yr) for yr in years]
+        lump_lines.append((r, lump_vals))
+        contrib_lines.append((r, contrib_vals))
+
+    # Plot paired bands: lump-sum line (bottom) + contribution line (top) with shaded fill between
+    for i, r in enumerate(rates):
+        _, lump_vals = lump_lines[i]
+        _, contrib_vals = contrib_lines[i]
+
+        # Lump Sum Line (solid, bottom of band)
         fig.add_trace(go.Scatter(
-            x=years, y=vals,
+            x=years, y=lump_vals,
             mode='lines',
             name=f"{r:.1f}% Lump Sum",
             line=dict(color=colors[i], width=2),
             hovertemplate=f"<b>{r:.1f}% Lump Sum</b>: %{{y:$,.2f}}<extra></extra>"
         ))
-        
-    # 2. Plot Contribution Lines (Dashed)
-    for i, r in enumerate(rates):
-        vals = []
-        r_dec = r / 100.0
-        for yr in years:
-            lump = fv_lump(initial_value, r_dec, yr)
-            contrib = fv_contrib(monthly_contrib, r_dec, yr)
-            vals.append(lump + contrib)
-            
+
+        # Contribution Line (dot dash, top of band) — fills down to lump-sum
         fig.add_trace(go.Scatter(
-            x=years, y=vals,
+            x=years, y=contrib_vals,
             mode='lines',
             name=f"{r:.1f}% + ${monthly_contrib:,.0f}/mo",
-            line=dict(color=colors[i+3], width=2, dash='dash'),
+            line=dict(color=colors[i+3], width=2.5, dash='dot'),
+            fill='tonexty',
+            fillcolor=_hex_to_rgba(colors[i], 0.12),
             hovertemplate=f"<b>{r:.1f}% + ${monthly_contrib:,.0f}/mo</b>: %{{y:$,.2f}}<extra></extra>"
         ))
+
+    # "Current Value" horizontal reference line
+    fig.add_hline(
+        y=initial_value,
+        line_dash="dash",
+        line_color="rgba(255,255,255,0.35)",
+        line_width=1,
+        annotation_text="Today",
+        annotation_position="top left",
+        annotation_font_color="rgba(255,255,255,0.6)",
+        annotation_font_size=11,
+    )
         
     fig.update_layout(
         
@@ -2424,18 +2587,29 @@ def get_flows_chart(data, theme="light", start_date=None, end_date=None):
     ac_map = holdings.set_index("ticker")["asset_class"].to_dict()
     tx_raw["asset_class"] = tx_raw["ticker"].map(ac_map).fillna("Other")
     
-    net_flows = tx_raw.groupby("asset_class")["amount"].sum().sort_values()
+    net_flows = tx_raw.groupby("asset_class")["amount"].sum()
+    # Sort by absolute value so biggest movers appear first (top)
+    net_flows = net_flows.reindex(net_flows.abs().sort_values().index)
     
     fig = go.Figure(go.Bar(
         y=net_flows.index,
         x=net_flows.values,
         orientation='h',
         marker_color=np.where(net_flows > 0, GLOBAL_PALETTE[4], GLOBAL_PALETTE[2]),
+        marker_line=dict(width=1, color='rgba(255,255,255,0.15)'),
+        text=net_flows.apply(fmt_dollar_clean),
+        textposition='auto',
+        textfont=dict(size=11),
         hovertemplate="<b>%{y}</b>: %{x:$,.2f}<extra></extra>"
     ))
     
+    # Prominent vertical zero-line
+    fig.add_vline(
+        x=0, line_width=2, line_color='rgba(255,255,255,0.5)',
+        line_dash='solid'
+    )
+    
     fig.update_layout(
-        
         xaxis_title="Net Flow ($)",
         template="plotly_dark",
         height=450
@@ -2543,11 +2717,33 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
             excess_vals.append(diff)
             tooltip_data.append([p_val * 100, b_ret * 100, diff])
                 
+        # Conditional bar coloring: green for positive alpha, red for negative
+        bar_colors = ['#00C853' if v >= 0 else '#FF1744' for v in excess_vals]
+        base_color = GLOBAL_PALETTE[i % len(GLOBAL_PALETTE)] if len(benchmark_tickers) > 1 else None
+        use_colors = [base_color] * len(excess_vals) if base_color and len(benchmark_tickers) > 1 else bar_colors
+        
+        # Glow trace (semi-transparent duplicate bars behind main bars for glow effect)
+        glow_colors = [_hex_to_rgba(c, 0.25) for c in use_colors]
         fig.add_trace(go.Bar(
             x=display_horizons,
             y=excess_vals,
             name=bm_name,
-            marker_color=GLOBAL_PALETTE[i % len(GLOBAL_PALETTE)] if len(benchmark_tickers) > 1 else GLOBAL_PALETTE[0],
+            marker_color=glow_colors,
+            width=0.65,
+            showlegend=False,
+            hoverinfo='skip',
+        ))
+        
+        # Main bars with rounded corners via marker_line
+        fig.add_trace(go.Bar(
+            x=display_horizons,
+            y=excess_vals,
+            name=bm_name,
+            marker_color=use_colors,
+            marker_line=dict(
+                color=[_hex_to_rgba(c, 0.8) for c in use_colors],
+                width=1.5,
+            ),
             customdata=tooltip_data,
             hovertemplate=(
                 f"<b>{bm_name}</b><br>"
@@ -2557,10 +2753,18 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
             )
         ))
         
+    # Zero-line annotation — subtle dashed hline at y=0 for visual anchor
+    fig.add_hline(
+        y=0,
+        line_dash="dash",
+        line_color="rgba(255,255,255,0.3)",
+        line_width=1,
+    )
+    
     fig.update_layout(
         
         yaxis_title="Excess Return (%)",
-        barmode='group',
+        barmode='overlay',
         template="plotly_dark",
         margin=dict(l=40, r=20, t=60, b=40),
         height=450,
@@ -2590,7 +2794,7 @@ def get_ticker_allocation_charts(data, theme="light"):
         else:
             display_text.append(f"{row['ticker']}<br>{row['actual_pct']:.1f}%")
     
-    # Pie Chart
+    # Pie Chart (Donut) with center annotation
     pie_fig = go.Figure(go.Pie(
         labels=ticker_group["ticker"],
         values=ticker_group["market_value"],
@@ -2604,6 +2808,16 @@ def get_ticker_allocation_charts(data, theme="light"):
         textfont=dict(color='white'),
         hovertemplate="<b>%{label}</b><br>Value: $%{value:,.2f}<br>Share: %{percent:.2%}<extra></extra>"
     ))
+    
+    # Center annotation showing total portfolio value
+    pie_fig.add_annotation(
+        text=f"<b>${total_val_pie:,.0f}</b>",
+        x=0.5, y=0.5,
+        font=dict(size=16, color='white'),
+        showarrow=False,
+        xref='paper', yref='paper',
+    )
+    
     pie_fig.update_layout(
         
         template="plotly_dark",
@@ -2631,6 +2845,7 @@ def get_ticker_allocation_charts(data, theme="light"):
     
     total_val = ticker_merge["market_value"].sum()
     ticker_merge["actual_pct"] = ticker_merge["market_value"] / total_val * 100
+    ticker_merge["delta"] = ticker_merge["actual_pct"] - ticker_merge["target_pct"]
     
     bar_fig = go.Figure()
     bar_fig.add_trace(go.Bar(
@@ -2638,6 +2853,10 @@ def get_ticker_allocation_charts(data, theme="light"):
         y=ticker_merge["actual_pct"],
         name="Actual %",
         marker_color=GLOBAL_PALETTE[0],
+        marker_line=dict(
+            color=_hex_to_rgba(GLOBAL_PALETTE[0], 0.5),
+            width=1,
+        ),
         customdata=ticker_merge["market_value"],
         hovertemplate="<b>Actual</b>: %{y:.2f}%<br>Value: %{customdata:$,.2f}<extra></extra>"
     ))
@@ -2646,7 +2865,28 @@ def get_ticker_allocation_charts(data, theme="light"):
         y=ticker_merge["target_pct"],
         name="Target %",
         marker_color=GLOBAL_PALETTE[1],
+        marker_line=dict(
+            color=_hex_to_rgba(GLOBAL_PALETTE[1], 0.5),
+            width=1,
+        ),
         hovertemplate="<b>Target</b>: %{y:.2f}%<extra></extra>"
+    ))
+    
+    # Delta overlay: Drift (Actual − Target) as thin bars, green=overweight, red=underweight
+    drift_vals = ticker_merge["delta"].values
+    drift_colors = ['#00C853' if d >= 0 else '#FF1744' for d in drift_vals]
+    bar_fig.add_trace(go.Bar(
+        x=ticker_merge["ticker"],
+        y=drift_vals,
+        name="Drift",
+        marker_color=drift_colors,
+        marker_line=dict(
+            color=[_hex_to_rgba(c, 0.7) for c in drift_colors],
+            width=1,
+        ),
+        width=0.15,
+        customdata=np.column_stack([ticker_merge["actual_pct"].values, ticker_merge["target_pct"].values]),
+        hovertemplate="<b>Drift</b>: %{y:.2f}%<br>Actual: %{customdata[0]:.2f}%<br>Target: %{customdata[1]:.2f}%<extra></extra>"
     ))
     
     bar_fig.update_layout(
@@ -3084,7 +3324,7 @@ def get_growth_of_capital_chart(data, filter_value="Total", theme="light", end_d
         # Get list of classes to plot
         plot_classes = stack_df["Asset Class"].unique()
         
-        # Add Stacked Area Traces (Portfolio Value)
+        # Add Stacked Area Traces (Portfolio Value) with spline smoothing
         for i, ac in enumerate(plot_classes):
             ac_data = stack_df[stack_df["Asset Class"] == ac]
             color = GLOBAL_PALETTE[i % len(GLOBAL_PALETTE)]
@@ -3095,7 +3335,7 @@ def get_growth_of_capital_chart(data, filter_value="Total", theme="light", end_d
                 mode='lines',
                 name=ac,
                 stackgroup='one', # Enable Stacking
-                line=dict(width=0.5, color=color),
+                line=dict(width=0.5, color=color, shape='spline'),
                 fillcolor=color,
                 hovertemplate=(
                     f"<b>{ac}</b>" + 
@@ -3107,12 +3347,30 @@ def get_growth_of_capital_chart(data, filter_value="Total", theme="light", end_d
         # Add Total Cash Invested Line (Dashed Overlay)
         total_data = ts_df[ts_df["Asset Class"] == "Total"].sort_values("Date")
         if not total_data.empty:
+            # Glow trace behind the dashed invested line
+            fig.add_trace(go.Scatter(
+                x=total_data["Date"],
+                y=total_data["Cash Invested"],
+                mode='lines',
+                line=dict(color=_hex_to_rgba("#FFA500", 0.2), width=10, shape='spline'),
+                hoverinfo='skip',
+                showlegend=False,
+            ))
+            # Main dashed invested line with vertical gradient fill
             fig.add_trace(go.Scatter(
                 x=total_data["Date"],
                 y=total_data["Cash Invested"],
                 mode='lines',
                 name="Total Net Invested", 
-                line=dict(color="#FFA500", width=3, dash='dash'),
+                line=dict(color="#FFA500", width=3, dash='dash', shape='spline'),
+                fill='tozeroy',
+                fillgradient=dict(
+                    type="vertical",
+                    colorscale=[
+                        [0.0, "rgba(0,0,0,0)"],
+                        [1.0, _hex_to_rgba("#FFA500", 0.12)],
+                    ],
+                ),
                 hovertemplate=(
                     "<b>Total Net Invested</b>: %{y:$,.2f}<extra></extra>"
                 )
@@ -3125,24 +3383,34 @@ def get_growth_of_capital_chart(data, filter_value="Total", theme="light", end_d
         if not ac_data.empty:
             color = GLOBAL_PALETTE[0]
             
-            # Area (Value)
+            # Area (Value) with spline smoothing
             fig.add_trace(go.Scatter(
                 x=ac_data["Date"],
                 y=ac_data["Portfolio Value"],
                 mode='lines',
                 name=f"{filter_value} Value",
                 fill='tozeroy',
-                line=dict(color=color, width=2),
+                line=dict(color=color, width=2, shape='spline'),
                 hovertemplate="<b>Value</b>: %{y:$,.2f}<extra></extra>"
             ))
             
-            # Line (Invested)
+            # Glow trace behind invested line
+            fig.add_trace(go.Scatter(
+                x=ac_data["Date"],
+                y=ac_data["Cash Invested"],
+                mode='lines',
+                line=dict(color=_hex_to_rgba("#FFA500", 0.2), width=8, shape='spline'),
+                hoverinfo='skip',
+                showlegend=False,
+            ))
+            
+            # Line (Invested) with spline smoothing
             fig.add_trace(go.Scatter(
                 x=ac_data["Date"],
                 y=ac_data["Cash Invested"],
                 mode='lines',
                 name="Net Invested", 
-                line=dict(color="#FFA500", width=2, dash='dash'),
+                line=dict(color="#FFA500", width=2, dash='dash', shape='spline'),
                 hovertemplate="<b>Invested</b>: %{y:$,.2f}<extra></extra>"
             ))
 
@@ -4217,10 +4485,16 @@ def get_tax_liability_sunburst(open_lots, realized_events, theme="light"):
         })
 
     # --- LEVEL 2: TERM ---
+    # Use muted palette colors that harmonize with CYBORG theme
+    st_dark = GLOBAL_PALETTE[2]   # muted red
+    lt_dark = GLOBAL_PALETTE[0]   # steel blue
+    st_light = GLOBAL_PALETTE[3]  # soft red-gray
+    lt_light = GLOBAL_PALETTE[1]  # soft gray-blue
+
     if not re_pos.empty:
         rt = re_pos.groupby("Term")["Tax Impact"].sum()
         for term, val in rt.items():
-            color = "#c0392b" if "Short" in term else "#2980b9" # Darker solid tones
+            color = st_dark if "Short" in term else lt_dark
             data.append({
                 "id": f"Realized_{term}", "parent": "Realized", "label": term, 
                 "value": val, "color": color, "status": "Realized"
@@ -4228,7 +4502,7 @@ def get_tax_liability_sunburst(open_lots, realized_events, theme="light"):
     if not ol_pos.empty:
         ut = ol_pos.groupby("Term")["Est Tax Liability"].sum()
         for term, val in ut.items():
-            color = "#e74c3c" if "Short" in term else "#3498db" # Lighter tones
+            color = st_light if "Short" in term else lt_light
             data.append({
                 "id": f"Unrealized_{term}", "parent": "Unrealized", "label": term, 
                 "value": val, "color": color, "status": "Unrealized"
@@ -4238,7 +4512,7 @@ def get_tax_liability_sunburst(open_lots, realized_events, theme="light"):
     if not re_pos.empty:
         rtk = re_pos.groupby(["Term", "Ticker"])["Tax Impact"].sum().reset_index()
         for _, row in rtk.iterrows():
-            color = "#c0392b" if "Short" in row["Term"] else "#2980b9"
+            color = st_dark if "Short" in row["Term"] else lt_dark
             data.append({
                 "id": f"Realized_{row['Term']}_{row['Ticker']}", "parent": f"Realized_{row['Term']}", 
                 "label": row["Ticker"], "value": row["Tax Impact"], "color": color, "status": "Realized"
@@ -4246,7 +4520,7 @@ def get_tax_liability_sunburst(open_lots, realized_events, theme="light"):
     if not ol_pos.empty:
         utk = ol_pos.groupby(["Term", "Ticker"])["Est Tax Liability"].sum().reset_index()
         for _, row in utk.iterrows():
-            color = "#e74c3c" if "Short" in row["Term"] else "#3498db"
+            color = st_light if "Short" in row["Term"] else lt_light
             data.append({
                 "id": f"Unrealized_{row['Term']}_{row['Ticker']}", "parent": f"Unrealized_{row['Term']}", 
                 "label": row["Ticker"], "value": row["Est Tax Liability"], "color": color, "status": "Unrealized"
@@ -4272,7 +4546,15 @@ def get_tax_liability_sunburst(open_lots, realized_events, theme="light"):
     fig.update_layout(
         template="plotly_dark",
         margin=dict(t=10, l=10, r=10, b=10),
-        height=350
+        height=350,
+        annotations=[
+            dict(
+                text=f"<b>{fmt_dollar_clean(total_liab)}</b>",
+                x=0.5, y=0.5, xref="paper", yref="paper",
+                showarrow=False,
+                font=dict(size=14, color="white"),
+            )
+        ]
     )
     return fig
 
@@ -4297,6 +4579,14 @@ def get_tax_tactical_radar(open_lots, theme="light"):
     # Fix Date Formatting for Tooltip (Remove timestamp)
     df["Date Acquired Display"] = pd.to_datetime(df["Date Acquired"]).dt.strftime("%Y-%m-%d")
 
+    # Opacity gradient — larger positions more opaque, smaller ones fade
+    mv_vals = df["Market Value"]
+    mv_min, mv_max = mv_vals.min(), mv_vals.max()
+    if mv_max > mv_min:
+        df["opacity"] = 0.35 + 0.65 * (mv_vals - mv_min) / (mv_max - mv_min)
+    else:
+        df["opacity"] = 0.8
+
     fig = px.scatter(
         df,
         x="Days Held",
@@ -4305,8 +4595,16 @@ def get_tax_tactical_radar(open_lots, theme="light"):
         color="Status",
         color_discrete_map=color_map,
         hover_name="Ticker",
+        opacity=None,  # we set per-point below
         custom_data=["Ticker", "Shares", "Date Acquired Display"]
     )
+
+    # Apply per-point opacity and marker styling for depth
+    for trace in fig.data:
+        status = trace.name  # "Gain" or "Loss"
+        mask = df["Status"] == status
+        trace.marker.opacity = df.loc[mask, "opacity"].values
+        trace.marker.line = dict(width=1, color='rgba(255,255,255,0.3)')
 
     # Hover Template customization
     fig.update_traces(
@@ -4325,13 +4623,29 @@ def get_tax_tactical_radar(open_lots, theme="light"):
     # Horizontal line at 0 P/L
     fig.add_hline(y=0, line_dash="dash", line_color="gray")
 
+    # Quadrant labels for tactical context
+    x_max = df["Days Held"].max() * 1.05 if not df.empty else 730
+    y_max = df["Unrealized P/L"].max() if not df.empty else 1000
+    y_min = df["Unrealized P/L"].min() if not df.empty else -1000
+    quadrant_labels = [
+        dict(x=182, y=y_min * 0.7, text="HARVEST", showarrow=False,
+             font=dict(size=13, color="rgba(192,80,77,0.45)"), xref="x", yref="y"),
+        dict(x=x_max * 0.75, y=y_min * 0.7, text="HOLD", showarrow=False,
+             font=dict(size=13, color="rgba(140,156,177,0.45)"), xref="x", yref="y"),
+        dict(x=x_max * 0.75, y=y_max * 0.7, text="LT GAIN", showarrow=False,
+             font=dict(size=13, color="rgba(155,187,89,0.45)"), xref="x", yref="y"),
+        dict(x=182, y=y_max * 0.7, text="ST GAIN", showarrow=False,
+             font=dict(size=13, color="rgba(242,194,0,0.45)"), xref="x", yref="y"),
+    ]
+
     fig.update_layout(
         template="plotly_dark",
         margin=dict(t=30, l=50, r=30, b=50),
         xaxis_title="Days Held",
         yaxis_title="Unrealized P/L ($)",
         showlegend=False,
-        height=350
+        height=350,
+        annotations=quadrant_labels
     )
     
     # Format X and Y axes
