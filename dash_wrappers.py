@@ -2720,21 +2720,15 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
         # Conditional coloring: green/red for single benchmark, palette colors for multi-benchmark
         if len(benchmark_tickers) == 1:
             bar_colors = ['#22c55e' if v >= 0 else '#ef4444' for v in excess_vals]
-            line_colors = [_hex_to_rgba(c, 0.6) for c in bar_colors]
         else:
             base = GLOBAL_PALETTE[i % len(GLOBAL_PALETTE)]
             bar_colors = [base] * len(excess_vals)
-            line_colors = [_hex_to_rgba(base, 0.6)] * len(excess_vals)
         
         fig.add_trace(go.Bar(
             x=display_horizons,
             y=excess_vals,
             name=bm_name,
             marker_color=bar_colors,
-            marker_line=dict(
-                color=line_colors,
-                width=1.5,
-            ),
             customdata=tooltip_data,
             hovertemplate=(
                 f"<b>{bm_name}</b><br>"
