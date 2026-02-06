@@ -1456,14 +1456,30 @@ def get_pv_mountain_chart(data, theme="light"):
     twr_ret_pct = (twr_curve_daily - 1.0) * 100.0
     
     fig = go.Figure()
+    # Glow trace (wider, semi-transparent behind main line for neon effect)
+    fig.add_trace(go.Scatter(
+        x=twr_ret_pct.index,
+        y=twr_ret_pct.values,
+        mode='lines',
+        line=dict(color=_hex_to_rgba(GLOBAL_PALETTE[0], 0.25), width=8, shape='spline'),
+        hoverinfo='skip',
+        showlegend=False,
+    ))
+    # Main trace with vertical gradient fill
     fig.add_trace(go.Scatter(
         x=twr_ret_pct.index,
         y=twr_ret_pct.values,
         mode='lines',
         fill='tozeroy',
         name='Portfolio Return (TWR)',
-        line=dict(color=GLOBAL_PALETTE[0], width=2),
-        fillcolor=_hex_to_rgba(GLOBAL_PALETTE[0], 0.2),
+        line=dict(color=GLOBAL_PALETTE[0], width=2.5, shape='spline'),
+        fillgradient=dict(
+            type="vertical",
+            colorscale=[
+                [0.0, "rgba(0,0,0,0)"],
+                [1.0, _hex_to_rgba(GLOBAL_PALETTE[0], 0.35)],
+            ],
+        ),
         customdata=pv_daily.values,
         hovertemplate="<b>TWR</b>: %{y:.2f}%<br><b>Value</b>: %{customdata:$,.2f}<extra></extra>"
     ))
@@ -1507,12 +1523,30 @@ def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, t
     twr_plot = (twr_window - 1.0) * 100
     
     fig = go.Figure()
+    # Glow trace (wider, semi-transparent for neon effect)
     fig.add_trace(go.Scatter(
         x=twr_plot.index,
         y=twr_plot.values,
         mode='lines',
+        line=dict(color=_hex_to_rgba(GLOBAL_PALETTE[0], 0.2), width=10, shape='spline'),
+        hoverinfo='skip',
+        showlegend=False,
+    ))
+    # Main portfolio trace with vertical gradient fill
+    fig.add_trace(go.Scatter(
+        x=twr_plot.index,
+        y=twr_plot.values,
+        mode='lines',
+        fill='tozeroy',
         name='Portfolio',
-        line=dict(color=GLOBAL_PALETTE[0], width=3),
+        line=dict(color=GLOBAL_PALETTE[0], width=3, shape='spline'),
+        fillgradient=dict(
+            type="vertical",
+            colorscale=[
+                [0.0, "rgba(0,0,0,0)"],
+                [1.0, _hex_to_rgba(GLOBAL_PALETTE[0], 0.25)],
+            ],
+        ),
         hovertemplate="<b>Portfolio</b>: %{y:.2f}%<extra></extra>"
     ))
     
@@ -1577,7 +1611,7 @@ def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, t
                     y=ser_norm.values,
                     mode='lines',
                     name=name,
-                    line=dict(color=colors[i % len(colors)], width=1.5),
+                    line=dict(color=colors[i % len(colors)], width=1.5, shape='spline'),
                     hovertemplate=f"<b>{name}</b>: %{{y:.2f}}%<extra></extra>"
                 ))
             except:
@@ -2245,15 +2279,30 @@ def get_drawdown_chart(data, theme="light"):
     
     fig = go.Figure()
     
-    # Area Chart for Drawdown
+    # Glow trace (wider, semi-transparent for neon effect)
+    fig.add_trace(go.Scatter(
+        x=drawdown_series.index,
+        y=drawdown_series.values,
+        mode='lines',
+        line=dict(color=_hex_to_rgba(GLOBAL_PALETTE[2], 0.3), width=6, shape='spline'),
+        hoverinfo='skip',
+        showlegend=False,
+    ))
+    # Main drawdown trace with vertical gradient fill
     fig.add_trace(go.Scatter(
         x=drawdown_series.index,
         y=drawdown_series.values,
         mode='lines',
         fill='tozeroy',
         name='Drawdown',
-        line=dict(color=GLOBAL_PALETTE[2], width=1), # Red
-        fillcolor=_hex_to_rgba(GLOBAL_PALETTE[2], 0.3),
+        line=dict(color=GLOBAL_PALETTE[2], width=1.5, shape='spline'),
+        fillgradient=dict(
+            type="vertical",
+            colorscale=[
+                [0.0, _hex_to_rgba(GLOBAL_PALETTE[2], 0.4)],
+                [1.0, "rgba(0,0,0,0)"],
+            ],
+        ),
         hovertemplate="<b>Drawdown</b>: %{y:.2f}%<extra></extra>"
     ))
     
