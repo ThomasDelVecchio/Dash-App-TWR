@@ -888,7 +888,7 @@ def toggle_audit_modal(request_data, is_open):
     Input("active-modules-store", "data")
 )
 def update_sidebar_modules(active_modules_ids):
-    """Generate sidebar nav links with icons for icon-only mode support."""
+    """Generate sidebar nav links with icons and section group dividers."""
     
     def create_nav_link(module):
         """Create a NavLink with icon and text for responsive sidebar."""
@@ -902,22 +902,37 @@ def update_sidebar_modules(active_modules_ids):
             active="exact"
         )
     
-    # Fallback: if data is None, show ALL modules (default ON)
-    if active_modules_ids is None:
-        return [create_nav_link(m) for m in NAV_MODULES]
+    def create_section_label(label):
+        """Create a subtle all-caps section divider label (Linear/Notion style)."""
+        return html.Div(
+            label,
+            className="sidebar-section-label"
+        )
     
-    # Filter modules
-    # Always include non-toggleable modules (can_toggle=False)
-    # Include toggleable modules only if their ID is in active_modules_ids
-    
-    filtered_links = []
+    # Build the visible module list (respecting toggle state)
+    visible_modules = []
     for m in NAV_MODULES:
         if not m["can_toggle"]:
-            filtered_links.append(create_nav_link(m))
-        elif m["id"] in active_modules_ids:
-            filtered_links.append(create_nav_link(m))
+            visible_modules.append(m)
+        elif active_modules_ids is None or m["id"] in active_modules_ids:
+            visible_modules.append(m)
+    
+    # Render links with section group dividers inserted between groups
+    children = []
+    current_group = None
+    
+    for m in visible_modules:
+        group = m.get("group", "")
+        
+        # Insert a section label when the group changes (skip OVERVIEW — it's just the home link)
+        if group != current_group:
+            current_group = group
+            if group and group != "OVERVIEW":
+                children.append(create_section_label(group))
+        
+        children.append(create_nav_link(m))
             
-    return filtered_links
+    return children
 
 # 8. Next Page Navigation Callback
 @app.callback(
