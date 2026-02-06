@@ -22,6 +22,9 @@ TICKER_PROXY_OVERRIDES = {
     "SPMO": "MTUM",  # Momentum proxy with longer history than SPMO
     "VXUS": "VEU",   # Ex-US proxy with longer history
     "BND": "AGG",    # Core bond proxy with longer history
+    "AVDV": "SCZ",   # Intl Small Cap Value → EAFE Small Cap (2007)
+    "AVUV": "IWN",   # US Small Cap Value → Russell 2000 Value (2000)
+    "XMHQ": "MDY",   # S&P MidCap Quality → S&P MidCap 400 (1995)
 }
 
 # Known benchmark classifications (fallback when ticker not in holdings)
@@ -55,6 +58,14 @@ KNOWN_BENCHMARK_CLASSES = {
     "ONEQ": "US Growth",
     "IWM": "US Small Cap",
     "AVUV": "US Small Cap",
+    "AVDV": "International Equity",
+    "XMHQ": "US Mid Cap",
+    "MDY": "US Mid Cap",
+    "IJH": "US Mid Cap",
+    "VO": "US Mid Cap",
+    "IWR": "US Mid Cap",
+    "IVOO": "US Mid Cap",
+    "SCHM": "US Mid Cap",
     "VBR": "US Small Cap",
     "IJR": "US Small Cap",
     "VB": "US Small Cap",
@@ -776,10 +787,20 @@ def get_strategy_backtest_growth_chart(backtest_data, initial_value: float = 100
 
     fig.update_layout(
         template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
         yaxis_title="Portfolio Value ($)",
         height=450,
-        margin=dict(l=40, r=20, t=40, b=40),
-        hovermode="x unified"
+        margin=dict(l=40, r=20, t=40, b=80),
+        hovermode="x unified",
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=11),
+        ),
     )
     return fig
 
@@ -815,11 +836,21 @@ def get_strategy_backtest_drawdown_chart(backtest_data):
 
     fig.update_layout(
         template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
         yaxis_title="Drawdown (%)",
         height=320,
-        margin=dict(l=40, r=20, t=30, b=40),
+        margin=dict(l=40, r=20, t=30, b=80),
         hovermode="x unified",
-        yaxis=dict(autorange="reversed")
+        yaxis=dict(autorange="reversed"),
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.18,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=11),
+        ),
     )
     return fig
 
@@ -848,9 +879,19 @@ def get_strategy_backtest_risk_return_chart(backtest_data):
 
     fig.update_layout(
         template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
         xaxis_title="Volatility (%)",
         yaxis_title="Annualized Return (%)",
         height=420,
-        margin=dict(l=40, r=20, t=40, b=60)
+        margin=dict(l=40, r=20, t=40, b=80),
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.18,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=11),
+        ),
     )
     return fig

@@ -6,6 +6,7 @@ import pandas as pd
 ASSET_CLASS_BENCHMARKS = {
     "US Large Cap": "SPY",
     "US Growth": "QQQ", 
+    "US Mid Cap": "MDY",
     "US Small Cap": "IWM",
     "International Equity": "VXUS",
     "Fixed Income": "BND",
