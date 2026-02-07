@@ -793,6 +793,7 @@ def get_strategy_backtest_growth_chart(backtest_data, initial_value: float = 100
         height=450,
         margin=dict(l=40, r=20, t=40, b=80),
         hovermode="x unified",
+        hoverlabel=dict(bgcolor="#1e1e1e", font_color="#ffffff", font_size=13, bordercolor="#555"),
         legend=dict(
             orientation="h",
             yanchor="top",
@@ -842,6 +843,7 @@ def get_strategy_backtest_drawdown_chart(backtest_data):
         height=320,
         margin=dict(l=40, r=20, t=30, b=80),
         hovermode="x unified",
+        hoverlabel=dict(bgcolor="#1e1e1e", font_color="#ffffff", font_size=13, bordercolor="#555"),
         yaxis=dict(autorange="reversed"),
         legend=dict(
             orientation="h",
@@ -885,6 +887,7 @@ def get_strategy_backtest_risk_return_chart(backtest_data):
         yaxis_title="Annualized Return (%)",
         height=420,
         margin=dict(l=40, r=20, t=40, b=80),
+        hoverlabel=dict(bgcolor="#1e1e1e", font_color="#ffffff", font_size=13, bordercolor="#555"),
         legend=dict(
             orientation="h",
             yanchor="top",

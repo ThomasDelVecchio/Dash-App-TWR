@@ -30,23 +30,25 @@ layout = html.Div([
     ], className="mb-4 g-3"),
 
     # --- VISUALIZATIONS ---
+    # Liability Treemap
     dbc.Row([
-        # Liability Treemap
         dbc.Col(dbc.Card([
             dbc.CardHeader("Liability Composition", className="section-header"),
             dbc.CardBody([
                 dcc.Graph(id="tax-sunburst-chart", config={"displayModeBar": False},
                           style={"height": "420px"})
             ])
-        ], className="h-100"), width=12, lg=5),
+        ]), width=12),
+    ], className="mb-4"),
 
-        # Tactical Radar
+    # Tactical Radar
+    dbc.Row([
         dbc.Col(dbc.Card([
             dbc.CardHeader("Tactical Decision Radar (Harvest vs Hold)", className="section-header"),
             dbc.CardBody([
                 dcc.Graph(id="tax-tactical-radar", config={"displayModeBar": False})
             ])
-        ], className="h-100"), width=12, lg=7),
+        ]), width=12),
     ], className="mb-4 g-3"),
 
     # --- ALERTS SECTION ---
