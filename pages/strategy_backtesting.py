@@ -98,7 +98,7 @@ layout = html.Div([
                         ],
                         value="MAX",
                         clearable=False,
-                        className="mb-2"
+                        className="mb-2 dark-dropdown"
                     )
                 ], width=3),
                 dbc.Col([
@@ -119,7 +119,7 @@ layout = html.Div([
                         options=_preset_options(),
                         value=[TARGET_WEIGHT_PRESET_NAME] + [p["name"] for p in BENCHMARK_PRESETS],
                         multi=True,
-                        className="mb-2"
+                        className="mb-2 dark-dropdown"
                     )
                 ], width=6)
             ]),

@@ -88,7 +88,7 @@ layout = html.Div([
                 options=[{"label": "Total", "value": "Total"}],  # Will be populated dynamically
                 value="Total",
                 clearable=False,
-                className="mb-3"
+                className="mb-3 dark-dropdown"
             )
         ], width=4)
     ]),
