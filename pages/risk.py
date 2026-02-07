@@ -165,7 +165,7 @@ layout = html.Div([
 def update_risk_page(signal, proj_return, proj_contrib):
     data = dw.get_data()
     if not data: 
-        return {}, {}, {}, {}
+        return {}, {}, {}, {}, "", ""
     
     # 1. Risk Scatter
     risk_fig = dw.get_risk_return_chart(data, "dark")

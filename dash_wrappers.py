@@ -1760,23 +1760,6 @@ def get_asset_allocation_charts(data, theme="light"):
         hovertemplate="<b>Target</b>: %{y:.2f}%<extra></extra>"
     ))
     
-    # Delta overlay: Drift (Actual − Target) as thin bars, green=overweight, red=underweight
-    drift_vals = merged_bar["delta"].values
-    drift_colors = ['#22c55e' if d >= 0 else '#ef4444' for d in drift_vals]
-    bar_fig.add_trace(go.Bar(
-        x=merged_bar["short_name"],
-        y=drift_vals,
-        name="Drift",
-        marker_color=drift_colors,
-        marker_line=dict(
-            color=[_hex_to_rgba(c, 0.7) for c in drift_colors],
-            width=1,
-        ),
-        width=0.15,
-        customdata=np.column_stack([merged_bar["actual_pct"].values, merged_bar["target_pct"].values]),
-        hovertemplate="<b>Drift</b>: %{y:.2f}%<br>Actual: %{customdata[0]:.2f}%<br>Target: %{customdata[1]:.2f}%<extra></extra>"
-    ))
-    
     bar_fig.update_layout(
         
         barmode='group',
@@ -2393,63 +2376,6 @@ def get_risk_return_chart(data, theme="light"):
                   annotation_text="Avg Vol", annotation_position="top left",
                   annotation_font_color="rgba(255,255,255,0.5)", annotation_font_size=10)
 
-    # Direct annotation labels on each bubble with collision avoidance
-    # Sort by volatility so we process left-to-right
-    df_sorted = df.sort_values(["Volatility", "Return"]).reset_index(drop=True)
-    placed = []  # list of (x, y) in data coords for placed labels
-    
-    # Get axis ranges for converting pixel offsets to data coords
-    vol_range = df["Volatility"].max() - df["Volatility"].min()
-    ret_range = df["Return"].max() - df["Return"].min()
-    # Approximate label footprint in data units (rough px-to-data conversion)
-    label_h = ret_range * 0.08 if ret_range > 0 else 3
-    label_w = vol_range * 0.12 if vol_range > 0 else 3
-    
-    for _, row in df_sorted.iterrows():
-        base_x = row["Volatility"]
-        base_y = row["Return"]
-        bubble_offset = max(row["Weight"] * 0.25, 8) + 8  # pixels
-        
-        # Candidate positions: above, below, right, left, upper-right, lower-right
-        candidates = [
-            (0, bubble_offset),          # above
-            (0, -(bubble_offset + 5)),   # below
-            (bubble_offset * 1.5, 0),    # right
-            (-(bubble_offset * 1.5), 0), # left  
-            (bubble_offset, bubble_offset * 0.7),        # upper-right
-            (bubble_offset, -(bubble_offset * 0.7)),     # lower-right
-        ]
-        
-        best_shift = candidates[0]  # default: above
-        best_min_dist = -1
-        
-        for dx_px, dy_px in candidates:
-            # Convert pixel shifts to approximate data coordinates for overlap check
-            approx_x = base_x + (dx_px / 400) * vol_range if vol_range > 0 else base_x
-            approx_y = base_y + (dy_px / 400) * ret_range if ret_range > 0 else base_y
-            min_dist = float('inf')
-            for px, py in placed:
-                dist = ((approx_x - px) / max(label_w, 1)) ** 2 + ((approx_y - py) / max(label_h, 1)) ** 2
-                min_dist = min(min_dist, dist)
-            if not placed or min_dist > best_min_dist:
-                best_min_dist = min_dist
-                best_shift = (dx_px, dy_px)
-                best_approx = (approx_x, approx_y)
-        
-        placed.append(best_approx if placed or best_min_dist >= 0 else (base_x, base_y + (bubble_offset / 400) * ret_range))
-        
-        fig.add_annotation(
-            x=base_x, y=base_y,
-            text=row["Asset Class"],
-            showarrow=True if best_shift != candidates[0] else False,
-            arrowhead=0,
-            arrowwidth=0.8,
-            arrowcolor="rgba(255,255,255,0.25)",
-            xshift=best_shift[0],
-            yshift=best_shift[1],
-            font=dict(size=10, color="rgba(255,255,255,0.75)"),
-        )
-    
     fig.update_layout(
         
         xaxis_title="Volatility (%)",
@@ -2910,23 +2836,6 @@ def get_ticker_allocation_charts(data, theme="light"):
             width=1,
         ),
         hovertemplate="<b>Target</b>: %{y:.2f}%<extra></extra>"
-    ))
-    
-    # Delta overlay: Drift (Actual − Target) as thin bars, green=overweight, red=underweight
-    drift_vals = ticker_merge["delta"].values
-    drift_colors = ['#22c55e' if d >= 0 else '#ef4444' for d in drift_vals]
-    bar_fig.add_trace(go.Bar(
-        x=ticker_merge["ticker"],
-        y=drift_vals,
-        name="Drift",
-        marker_color=drift_colors,
-        marker_line=dict(
-            color=[_hex_to_rgba(c, 0.7) for c in drift_colors],
-            width=1,
-        ),
-        width=0.15,
-        customdata=np.column_stack([ticker_merge["actual_pct"].values, ticker_merge["target_pct"].values]),
-        hovertemplate="<b>Drift</b>: %{y:.2f}%<br>Actual: %{customdata[0]:.2f}%<br>Target: %{customdata[1]:.2f}%<extra></extra>"
     ))
     
     bar_fig.update_layout(
