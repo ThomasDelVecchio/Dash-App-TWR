@@ -233,7 +233,7 @@ sidebar = html.Div(
                 id="date-picker-end",
                 date=datetime.now().date(),
                 display_format="YYYY-MM-DD",
-                className="mb-2 d-block",
+                className="mb-2 d-block dark-datepicker",
                 style={'zIndex': 100},
                 persistence=True,
                 persistence_type="local"
@@ -253,7 +253,7 @@ sidebar = html.Div(
                 ],
                 value=["SPY", "VTI", "AOA"],
                 multi=True,
-                className="mb-2 text-dark",
+                className="mb-2 dark-dropdown",
                 persistence=True,
                 persistence_type="local"
             ),

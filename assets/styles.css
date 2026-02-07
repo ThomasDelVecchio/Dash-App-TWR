@@ -1140,64 +1140,118 @@ mjx-container > svg {
 
 /* ============================================================
    DROPDOWN DARK MODE STYLING (dcc.Dropdown / react-select)
+   ============================================================
+   NOTE: We use BOTH [data-theme="dark"] selectors AND direct
+   .dark-dropdown / .dark-datepicker class selectors. This is
+   because on mobile (ngrok/Colab), portaled dropdown menus can
+   render OUTSIDE the #main-container that carries data-theme,
+   causing [data-theme] selectors to miss. The direct class
+   selectors ensure dark styling regardless of DOM position.
    ============================================================ */
 
-/* Main dropdown container */
+/* --- Main dropdown container --- */
 [data-theme="dark"] .Select-control,
-[data-theme="dark"] .Select--single > .Select-control {
+[data-theme="dark"] .Select--single > .Select-control,
+[data-theme="dark"] .Select--multi > .Select-control,
+.dark-dropdown .Select-control,
+.dark-dropdown .Select--single > .Select-control,
+.dark-dropdown .Select--multi > .Select-control {
     background-color: #333 !important;
     border-color: #555 !important;
-}
-
-/* Selected value text */
-[data-theme="dark"] .Select-value-label,
-[data-theme="dark"] .Select-placeholder,
-[data-theme="dark"] .Select-input input {
     color: #fff !important;
 }
 
-/* Dropdown menu (the floating options list) */
-[data-theme="dark"] .Select-menu-outer {
+/* --- Selected value text --- */
+[data-theme="dark"] .Select-value-label,
+[data-theme="dark"] .Select-placeholder,
+[data-theme="dark"] .Select-input input,
+.dark-dropdown .Select-value-label,
+.dark-dropdown .Select-placeholder,
+.dark-dropdown .Select-input input {
+    color: #fff !important;
+}
+
+/* --- Multi-select value tags (the pills/chips) --- */
+[data-theme="dark"] .Select--multi .Select-value,
+.dark-dropdown .Select--multi .Select-value {
+    background-color: #4a4a4a !important;
+    border-color: #666 !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .Select--multi .Select-value-label,
+.dark-dropdown .Select--multi .Select-value-label {
+    color: #fff !important;
+}
+
+[data-theme="dark"] .Select--multi .Select-value-icon,
+.dark-dropdown .Select--multi .Select-value-icon {
+    border-right-color: #666 !important;
+    color: #ccc !important;
+}
+
+[data-theme="dark"] .Select--multi .Select-value-icon:hover,
+[data-theme="dark"] .Select--multi .Select-value-icon:focus,
+.dark-dropdown .Select--multi .Select-value-icon:hover,
+.dark-dropdown .Select--multi .Select-value-icon:focus {
+    background-color: #d9534f !important;
+    color: #fff !important;
+}
+
+/* --- Dropdown menu (the floating options list) --- */
+[data-theme="dark"] .Select-menu-outer,
+.dark-dropdown .Select-menu-outer {
     background-color: #333 !important;
     border-color: #555 !important;
     z-index: 9999 !important;
 }
 
-/* Individual option items */
+/* --- Individual option items --- */
 [data-theme="dark"] .VirtualizedSelectOption,
-[data-theme="dark"] .Select-option {
+[data-theme="dark"] .Select-option,
+.dark-dropdown .VirtualizedSelectOption,
+.dark-dropdown .Select-option {
     background-color: #333 !important;
     color: #fff !important;
 }
 
-/* Option hover state */
+/* --- Option hover state --- */
 [data-theme="dark"] .VirtualizedSelectOption:hover,
 [data-theme="dark"] .Select-option:hover,
 [data-theme="dark"] .VirtualizedSelectFocusedOption,
-[data-theme="dark"] .Select-option.is-focused {
+[data-theme="dark"] .Select-option.is-focused,
+.dark-dropdown .VirtualizedSelectOption:hover,
+.dark-dropdown .Select-option:hover,
+.dark-dropdown .VirtualizedSelectFocusedOption,
+.dark-dropdown .Select-option.is-focused {
     background-color: #4a4a4a !important;
     color: #fff !important;
 }
 
-/* Option selected state */
+/* --- Option selected state --- */
 [data-theme="dark"] .VirtualizedSelectSelectedOption,
-[data-theme="dark"] .Select-option.is-selected {
+[data-theme="dark"] .Select-option.is-selected,
+.dark-dropdown .VirtualizedSelectSelectedOption,
+.dark-dropdown .Select-option.is-selected {
     background-color: #0d6efd !important;
     color: #fff !important;
 }
 
-/* Dropdown arrow/indicator */
-[data-theme="dark"] .Select-arrow {
+/* --- Dropdown arrow/indicator --- */
+[data-theme="dark"] .Select-arrow,
+.dark-dropdown .Select-arrow {
     border-color: #aaa transparent transparent !important;
 }
 
-/* Clear indicator (X button) */
-[data-theme="dark"] .Select-clear-zone {
+/* --- Clear indicator (X button) --- */
+[data-theme="dark"] .Select-clear-zone,
+.dark-dropdown .Select-clear-zone {
     color: #aaa !important;
 }
 
-/* No options message */
-[data-theme="dark"] .Select-noresults {
+/* --- No options message --- */
+[data-theme="dark"] .Select-noresults,
+.dark-dropdown .Select-noresults {
     color: #888 !important;
 }
 
@@ -1219,22 +1273,52 @@ mjx-container > svg {
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
 }
 
+/* --- Date picker input (dark mode) --- */
 [data-theme="dark"] .sidebar-controls .DateInput_input,
 [data-theme="dark"] .sidebar-controls .DateInput_input_1,
-[data-theme="dark"] .sidebar-controls .SingleDatePickerInput__withBorder {
+[data-theme="dark"] .sidebar-controls .SingleDatePickerInput,
+[data-theme="dark"] .sidebar-controls .SingleDatePickerInput__withBorder,
+.dark-datepicker .DateInput_input,
+.dark-datepicker .DateInput_input_1,
+.dark-datepicker .SingleDatePickerInput,
+.dark-datepicker .SingleDatePickerInput__withBorder {
     background-color: #333 !important;
     color: #fff !important;
     border: 1px solid #555 !important;
     box-shadow: none !important;
+    -webkit-appearance: none !important;
 }
 
+/* --- Date input placeholder --- */
 [data-theme="dark"] .sidebar-controls .DateInput_input::placeholder,
-[data-theme="dark"] .sidebar-controls .DateInput_input_1::placeholder {
+[data-theme="dark"] .sidebar-controls .DateInput_input_1::placeholder,
+.dark-datepicker .DateInput_input::placeholder,
+.dark-datepicker .DateInput_input_1::placeholder {
     color: rgba(255, 255, 255, 0.6) !important;
 }
 
+/* --- Date input focused state --- */
+[data-theme="dark"] .sidebar-controls .DateInput_input__focused,
+.dark-datepicker .DateInput_input__focused {
+    background-color: #333 !important;
+    color: #fff !important;
+    border-color: #0d6efd !important;
+}
+
+/* --- DateInput container background (prevents white flash) --- */
+[data-theme="dark"] .sidebar-controls .DateInput,
+.dark-datepicker .DateInput {
+    background-color: #333 !important;
+}
+
+/* --- Calendar icon / arrow --- */
+[data-theme="dark"] .sidebar-controls .SingleDatePickerInput_calendarIcon,
+.dark-datepicker .SingleDatePickerInput_calendarIcon {
+    color: #aaa !important;
+}
+
 /* ============================================================
-   DATE PICKER POPUP - CENTERED
+   DATE PICKER POPUP - CENTERED (Desktop + Mobile)
    ============================================================ */
 
 .SingleDatePicker_picker {
@@ -1243,6 +1327,9 @@ mjx-container > svg {
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
     z-index: 2000 !important;
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    overflow: auto !important;
 }
 
 .SingleDatePicker_picker__openDown,
@@ -1251,6 +1338,89 @@ mjx-container > svg {
     top: 50% !important;
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
+    z-index: 2000 !important;
+}
+
+/* --- Calendar dark mode (inside popup) --- */
+[data-theme="dark"] .DayPicker,
+[data-theme="dark"] .CalendarMonth,
+[data-theme="dark"] .CalendarMonthGrid,
+.dark-datepicker .DayPicker,
+.dark-datepicker .CalendarMonth,
+.dark-datepicker .CalendarMonthGrid {
+    background-color: #2a2a2a !important;
+}
+
+[data-theme="dark"] .CalendarMonth_caption,
+[data-theme="dark"] .DayPicker_weekHeader_li,
+.dark-datepicker .CalendarMonth_caption,
+.dark-datepicker .DayPicker_weekHeader_li {
+    color: #fff !important;
+}
+
+[data-theme="dark"] .CalendarDay__default,
+.dark-datepicker .CalendarDay__default {
+    background-color: #2a2a2a !important;
+    color: #e0e0e0 !important;
+    border-color: #444 !important;
+}
+
+[data-theme="dark"] .CalendarDay__default:hover,
+.dark-datepicker .CalendarDay__default:hover {
+    background-color: #4a4a4a !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .CalendarDay__selected,
+[data-theme="dark"] .CalendarDay__selected:hover,
+.dark-datepicker .CalendarDay__selected,
+.dark-datepicker .CalendarDay__selected:hover {
+    background-color: #0d6efd !important;
+    color: #fff !important;
+    border-color: #0d6efd !important;
+}
+
+[data-theme="dark"] .CalendarDay__blocked_out_of_range,
+.dark-datepicker .CalendarDay__blocked_out_of_range {
+    background-color: #1a1a1a !important;
+    color: #555 !important;
+    border-color: #333 !important;
+}
+
+[data-theme="dark"] .DayPickerNavigation_button__default,
+.dark-datepicker .DayPickerNavigation_button__default {
+    background-color: #333 !important;
+    border-color: #555 !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .DayPickerNavigation_svg__horizontal,
+.dark-datepicker .DayPickerNavigation_svg__horizontal {
+    fill: #fff !important;
+}
+
+[data-theme="dark"] .DayPicker_weekHeader,
+.dark-datepicker .DayPicker_weekHeader {
+    color: #aaa !important;
+}
+
+/* --- Backdrop to darken background when calendar is open (mobile) --- */
+@media (max-width: 768px) {
+    .SingleDatePicker_picker {
+        max-width: 90vw !important;
+        max-height: 80vh !important;
+    }
+
+    .SingleDatePicker_picker::before {
+        content: '';
+        position: fixed;
+        top: -100vh;
+        left: -100vw;
+        width: 300vw;
+        height: 300vh;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: -1;
+    }
 }
 
 
