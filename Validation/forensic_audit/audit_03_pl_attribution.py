@@ -84,18 +84,21 @@ def test_pl_attribution():
         total_divs_in_pl = 0.0
         
         for t in tickers:
-            if t == "CASH": continue
-            
             # Need sec_row for shares_end
             sec_row = sec_table[sec_table["ticker"] == t]
             
             # Use return_components to debug if needed
+            # skip_gips_gate=True: Attribution must include ALL tickers
+            # (including those opened mid-period) to fully reconcile with
+            # Portfolio P/L. The GIPS gate is a presentation concern for
+            # the display tables, not an attribution concern.
             comps = calculate_ticker_pl(
                 t, h, prices, as_of, tx_raw, sec_row, 
                 raw_start=raw_start, 
                 dividends=dividends,
                 portfolio_inception=pv_start_date if h == "SI" else None,
-                return_components=True
+                return_components=True,
+                skip_gips_gate=True
             )
             
             val = 0.0
