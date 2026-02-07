@@ -1718,15 +1718,15 @@ def get_asset_allocation_charts(data, theme="light"):
     pie_fig.update_layout(
         
         template="plotly_dark",
-        margin=dict(l=20, r=20, t=40, b=20),
+        margin=dict(l=20, r=20, t=40, b=80),
         height=450,
         legend=dict(
-            orientation="v",
+            orientation="h",
             yanchor="top",
-            y=1,
-            xanchor="left",
-            x=1.05,
-            title_text="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Legend",
+            y=-0.05,
+            xanchor="center",
+            x=0.5,
+            title_text="",
             bordercolor="Grey",
             borderwidth=1
         )
@@ -1782,8 +1782,15 @@ def get_asset_allocation_charts(data, theme="light"):
         barmode='group',
         yaxis_title="Percentage (%)",
         template="plotly_dark",
-        margin=dict(l=40, r=20, t=40, b=40),
-        height=450
+        margin=dict(l=40, r=20, t=40, b=80),
+        height=450,
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.12,
+            xanchor="center",
+            x=0.5,
+        )
     )
     
     return pie_fig, bar_fig
@@ -1864,15 +1871,15 @@ def get_asset_drilldown_chart(data, asset_class, theme="light"):
     
     fig.update_layout(
         template="plotly_dark",
-        margin=dict(l=20, r=20, t=40, b=20),
+        margin=dict(l=20, r=20, t=40, b=80),
         height=450,
         legend=dict(
-            orientation="v",
+            orientation="h",
             yanchor="top",
-            y=1,
-            xanchor="left",
-            x=1.05,
-            title_text="Holdings",
+            y=-0.05,
+            xanchor="center",
+            x=0.5,
+            title_text="",
             bordercolor="Grey",
             borderwidth=1
         )
@@ -2023,9 +2030,10 @@ def get_allocation_history_chart(data, theme="light"):
         legend=dict(
             orientation="h",
             yanchor="top",
+            y=-0.05,
             xanchor="center",
             x=0.5,
-            title_text="Legend",
+            title_text="",
             bordercolor="Grey",
             borderwidth=1
         )
@@ -2853,15 +2861,15 @@ def get_ticker_allocation_charts(data, theme="light"):
     pie_fig.update_layout(
         
         template="plotly_dark",
-        margin=dict(l=20, r=20, t=40, b=20),
+        margin=dict(l=20, r=20, t=40, b=80),
         height=450,
         legend=dict(
-            orientation="v",
+            orientation="h",
             yanchor="top",
-            y=1,
-            xanchor="left",
-            x=1.05,
-            title_text="&nbsp;&nbsp;&nbsp;Legend",
+            y=-0.05,
+            xanchor="center",
+            x=0.5,
+            title_text="",
             bordercolor="Grey",
             borderwidth=1
         )
@@ -2926,8 +2934,15 @@ def get_ticker_allocation_charts(data, theme="light"):
         barmode='group',
         yaxis_title="Percentage (%)",
         template="plotly_dark",
-        margin=dict(l=40, r=20, t=40, b=40),
-        height=450
+        margin=dict(l=40, r=20, t=40, b=80),
+        height=450,
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.12,
+            xanchor="center",
+            x=0.5,
+        )
     )
     
     return pie_fig, bar_fig

@@ -313,7 +313,15 @@ def update_trade_lab(n_clicks, ticker, side, amount, swap_target):
         yaxis_title="Portfolio Value ($)",
         template="plotly_dark",
         hovermode="x unified",
-        xaxis=dict(hoverformat=".1f")
+        xaxis=dict(hoverformat=".1f"),
+        margin=dict(l=40, r=20, t=40, b=80),
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.12,
+            xanchor="center",
+            x=0.5,
+        )
     )
     
     # Stats Text - Helper
