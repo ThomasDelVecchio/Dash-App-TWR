@@ -3519,7 +3519,8 @@ def get_cash_recon_pl(data, horizons):
             val = calculate_ticker_pl(
                 t, h, prices, as_of_dt, tx_raw, sec_table, raw_start, dividends=dividends,
                 portfolio_inception=pv_start_date if h == "SI" else None,
-                effective_as_of=effective_as_of
+                effective_as_of=effective_as_of,
+                skip_gips_gate=True  # Recon must include ALL tickers to match Portfolio P/L
             )
             if val is not None:
                 sum_ticker_pl += val

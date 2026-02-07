@@ -506,11 +506,7 @@ def update_performance(signal, dates, benchmarks, chat_cmd, _filters, include_ex
         defaultColDef={"flex": 1, "minWidth": 100, "resizable": True},
         className="ag-theme-alpine-dark audit-target",
         dashGridOptions={
-            "domLayout": "autoHeight", 
-            "headerHeight": 0, # Hide Header to blend in? Or keep it? Keeping it ensures column alignment visual.
-                               # Actually header makes it look like a new table. 
-                               # If we hide header, columns won't align visually with above tables if screen resizes.
-                               # It's safer to show header or wrap in a card titled "Reconciliation".
+            "domLayout": "autoHeight",
         }
     )
     

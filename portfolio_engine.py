@@ -693,13 +693,18 @@ def calculate_horizon_pl(pv: pd.Series, inception_date: pd.Timestamp, cf_ext: pd
     pl = mv_end - mv_start - net_flows
     return pl
 
-def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw_start=None, dividends=None, portfolio_inception=None, return_components=False, effective_as_of=None):
+def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw_start=None, dividends=None, portfolio_inception=None, return_components=False, effective_as_of=None, skip_gips_gate=False):
     """
     Correct economic P/L for a single ticker over a horizon.
     P/L = MV_end - MV_start - Net Capital Flows + Income
     
     IMPORTANT: For SI calculations, aligns with portfolio inception to ensure
     Cash/Recon reconciliation is accurate.
+    
+    Args:
+        skip_gips_gate: If True, skip the GIPS gate that excludes tickers
+            whose first trade is on/after horizon start. Used by Cash/Recon
+            reconciliation to include ALL ticker P/Ls (matching Portfolio P/L).
     """
     # GIPS FIX: Use Effective Anchor (Friday) if provided to prevent weekend drag
     if effective_as_of is not None:
@@ -810,7 +815,8 @@ def calculate_ticker_pl(ticker, h, prices, pv_as_of, transactions, sec_only, raw
 
     # GIPS GATE (Non-SI): Security must have existed strictly before horizon start
     # Exception for 1D: allow first trade ON the horizon start date
-    if h != "SI":
+    # skip_gips_gate: Recon needs ALL tickers to reconcile with Portfolio P/L
+    if h != "SI" and not skip_gips_gate:
         if (h == "1D" and first_trade > raw_start) or (h != "1D" and first_trade >= raw_start):
             return None
         
