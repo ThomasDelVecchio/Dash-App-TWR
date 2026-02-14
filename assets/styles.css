@@ -759,6 +759,11 @@ body {
     -webkit-overflow-scrolling: touch;
 }
 
+.strategy-backtesting-page #strategy-lookback,
+.strategy-backtesting-page #strategy-lookback.form-select {
+    color: #000 !important;
+}
+
 @media (max-width: 768px) {
     .strategy-backtesting-page .strategy-scorecard-body {
         padding-left: 0.5rem;
@@ -1281,6 +1286,8 @@ mjx-container > svg {
    ============================================================ */
 
 [data-theme="dark"] .sidebar-controls .form-select,
+[data-theme="dark"] .sidebar-controls .form-control,
+[data-theme="dark"] .sidebar-controls input[type="date"],
 [data-theme="dark"] .sidebar-controls select {
     background-color: #333 !important;
     color: #fff !important;
@@ -1289,9 +1296,16 @@ mjx-container > svg {
 }
 
 [data-theme="dark"] .sidebar-controls .form-select:focus,
+[data-theme="dark"] .sidebar-controls .form-control:focus,
+[data-theme="dark"] .sidebar-controls input[type="date"]:focus,
 [data-theme="dark"] .sidebar-controls select:focus {
     border-color: #0d6efd !important;
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+}
+
+[data-theme="dark"] .sidebar-controls input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.85;
 }
 
 /* --- Date picker input (dark mode) --- */
