@@ -27,6 +27,16 @@ TICKER_PROXY_OVERRIDES = {
     "XMHQ": "MDY",   # S&P MidCap Quality → S&P MidCap 400 (1995)
 }
 
+# Multi-asset proxy baskets for allocation ETFs.
+# Used when a ticker lacks full lookback history; weights are normalized by available
+# component data each day so partial history can still be spliced consistently.
+TICKER_PROXY_BASKETS = {
+    "AOA": {"VTI": 0.80, "BND": 0.20},
+    "AOR": {"VTI": 0.60, "BND": 0.40},
+    "AOM": {"VTI": 0.40, "BND": 0.60},
+    "AOK": {"VTI": 0.30, "BND": 0.70},
+}
+
 # Known benchmark classifications (fallback when ticker not in holdings)
 KNOWN_BENCHMARK_CLASSES = {
     # US Equity
@@ -164,6 +174,12 @@ KNOWN_BENCHMARK_CLASSES = {
     "ETHV": "Digital Assets",
     "EZET": "Digital Assets",
     "ARKB": "Digital Assets",
+
+    # Allocation / multi-asset ETFs
+    "AOA": "Allocation 80/20",
+    "AOR": "Allocation 60/40",
+    "AOM": "Allocation 40/60",
+    "AOK": "Allocation 30/70",
 }
 
 
@@ -430,9 +446,49 @@ def _resolve_proxy_ticker(asset_class: str) -> str:
     return ASSET_CLASS_BENCHMARKS.get("US Large Cap", "SPY")
 
 
+def _build_weighted_proxy_return_series(
+    prices: pd.DataFrame,
+    full_index: pd.DatetimeIndex,
+    basket_weights: dict,
+) -> tuple[pd.Series | None, pd.Timestamp | None]:
+    if prices.empty or not basket_weights:
+        return None, None
+
+    normalized = _normalize_weights(basket_weights)
+    if not normalized:
+        return None, None
+
+    components = [t for t in normalized.keys() if t in prices.columns]
+    if not components:
+        return None, None
+
+    comp_prices = prices[components].reindex(full_index)
+    comp_rets = comp_prices.pct_change()
+    weight_series = pd.Series({t: normalized[t] for t in components})
+
+    numer = comp_rets.multiply(weight_series, axis=1).sum(axis=1)
+    denom = comp_rets.notna().multiply(weight_series, axis=1).sum(axis=1)
+    proxy_ret = numer.div(denom)
+
+    valid_idx = proxy_ret[proxy_ret.notna()].index
+    first_valid = valid_idx.min() if len(valid_idx) else None
+    return proxy_ret, first_valid
+
+
+def _format_proxy_basket_label(basket_weights: dict) -> str:
+    normalized = _normalize_weights(basket_weights)
+    if not normalized:
+        return ""
+    parts = [f"{ticker}({weight * 100.0:.0f}%)" for ticker, weight in normalized.items()]
+    return " + ".join(parts)
+
+
 def _collect_proxy_tickers(tickers: list[str], holdings_map: dict) -> set[str]:
     proxies = set()
     for t in tickers:
+        basket = TICKER_PROXY_BASKETS.get(t)
+        if basket:
+            proxies.update({k for k in basket.keys() if k and k != "CASH"})
         override = TICKER_PROXY_OVERRIDES.get(t)
         if override and override != "CASH":
             proxies.add(override)
@@ -477,24 +533,36 @@ def _splice_proxy_returns(
 
         if needs_splice:
             asset_class = _resolve_asset_class(ticker, holdings_map)
+            basket = TICKER_PROXY_BASKETS.get(ticker)
             proxy_ticker = TICKER_PROXY_OVERRIDES.get(ticker) or _resolve_proxy_ticker(asset_class)
-            if proxy_ticker == ticker:
-                proxy_ticker = _resolve_proxy_ticker("US Large Cap")
+            proxy_series = None
+            proxy_first_valid = None
+            proxy_label = None
 
-            proxy_series = prices[proxy_ticker].reindex(full_index) if proxy_ticker in prices.columns else None
-            proxy_first_valid = proxy_series.first_valid_index() if proxy_series is not None else None
+            if basket:
+                proxy_series, proxy_first_valid = _build_weighted_proxy_return_series(prices, full_index, basket)
+                proxy_label = _format_proxy_basket_label(basket)
+            else:
+                if proxy_ticker == ticker:
+                    proxy_ticker = _resolve_proxy_ticker("US Large Cap")
+                proxy_series = prices[proxy_ticker].reindex(full_index) if proxy_ticker in prices.columns else None
+                proxy_first_valid = proxy_series.first_valid_index() if proxy_series is not None else None
+                proxy_label = proxy_ticker
 
             status = "Spliced"
             if proxy_series is None or proxy_series.dropna().empty:
                 status = "Failed"
                 healed[ticker] = series.ffill()
-                proxy_ticker = None
+                proxy_label = None
             else:
                 if proxy_first_valid is None or proxy_first_valid > buffer_cutoff:
                     status = "Partial History"
 
                 orig_ret = series.pct_change()
-                proxy_ret = proxy_series.pct_change()
+                if basket:
+                    proxy_ret = proxy_series
+                else:
+                    proxy_ret = proxy_series.pct_change()
                 combined_ret = orig_ret.fillna(proxy_ret).fillna(0.0)
                 synthetic = (1.0 + combined_ret).cumprod()
                 if not synthetic.empty:
@@ -504,7 +572,7 @@ def _splice_proxy_returns(
             log_records.append({
                 "Ticker": ticker,
                 "Status": status,
-                "Proxy Used": proxy_ticker,
+                "Proxy Used": proxy_label,
                 "Asset Class": asset_class,
                 "Original Start": first_valid.date() if first_valid is not None else None,
                 "Proxy Start": proxy_first_valid.date() if proxy_first_valid is not None else None,

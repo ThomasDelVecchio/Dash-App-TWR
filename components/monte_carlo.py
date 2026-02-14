@@ -19,6 +19,63 @@ ASSET_CLASS_BENCHMARKS = {
     "CASH": "CASH"
 }
 
+TICKER_PROXY_BASKETS = {
+    "AOA": {"VTI": 0.80, "BND": 0.20},
+    "AOR": {"VTI": 0.60, "BND": 0.40},
+    "AOM": {"VTI": 0.40, "BND": 0.60},
+    "AOK": {"VTI": 0.30, "BND": 0.70},
+}
+
+ASSET_CLASS_PROXY_BASKETS = {
+    "Allocation 80/20": {"VTI": 0.80, "BND": 0.20},
+    "Allocation 60/40": {"VTI": 0.60, "BND": 0.40},
+    "Allocation 40/60": {"VTI": 0.40, "BND": 0.60},
+    "Allocation 30/70": {"VTI": 0.30, "BND": 0.70},
+}
+
+
+def _normalize_weights(raw_weights):
+    cleaned = {}
+    for ticker, weight in (raw_weights or {}).items():
+        if ticker is None:
+            continue
+        t = str(ticker).strip().upper()
+        try:
+            w = float(weight)
+        except Exception:
+            continue
+        if not t or w <= 0:
+            continue
+        cleaned[t] = w
+
+    total = sum(cleaned.values())
+    if total <= 0:
+        return {}
+
+    return {ticker: weight / total for ticker, weight in cleaned.items()}
+
+
+def _build_weighted_proxy_return_series(daily_rets, basket_weights, fallback_ret):
+    normalized = _normalize_weights(basket_weights)
+    if not normalized:
+        return fallback_ret
+
+    components = [t for t in normalized.keys() if t in daily_rets.columns]
+    if not components:
+        return fallback_ret
+
+    comp_rets = daily_rets[components]
+    weight_series = pd.Series({t: normalized[t] for t in components})
+
+    numer = comp_rets.multiply(weight_series, axis=1).sum(axis=1)
+    denom = comp_rets.notna().multiply(weight_series, axis=1).sum(axis=1)
+    basket_ret = numer.div(denom)
+
+    if fallback_ret is not None:
+        basket_ret = basket_ret.fillna(fallback_ret)
+
+    return basket_ret
+
 def run_monte_carlo_simulation(
     current_value, 
     weights, 
@@ -107,13 +164,17 @@ def run_monte_carlo_simulation(
                         # GAP FILLING (The "Short History" Fix)
                         # If ticker has NaNs (e.g. FBTC), fill with Proxy based on Asset Class
                         if t_ret.isna().any():
-                            ac = holdings_map.get(ticker, "US Large Cap")
-                            proxy_ticker = ASSET_CLASS_BENCHMARKS.get(ac, "SPY")
-                            
-                            if proxy_ticker in daily_rets.columns:
-                                proxy_ret = daily_rets[proxy_ticker]
+                            basket = TICKER_PROXY_BASKETS.get(ticker)
+                            if basket:
+                                proxy_ret = _build_weighted_proxy_return_series(daily_rets, basket, fallback_ret)
                             else:
-                                proxy_ret = fallback_ret
+                                ac = holdings_map.get(ticker, "US Large Cap")
+                                proxy_ticker = ASSET_CLASS_BENCHMARKS.get(ac, "SPY")
+
+                                if proxy_ticker in daily_rets.columns:
+                                    proxy_ret = daily_rets[proxy_ticker]
+                                else:
+                                    proxy_ret = fallback_ret
                                 
                             t_ret = t_ret.fillna(proxy_ret)
                             
@@ -129,9 +190,14 @@ def run_monte_carlo_simulation(
                         if proxy in daily_rets.columns:
                             ac_ret = daily_rets[proxy]
                         else:
-                            ac_ret = fallback_ret
+                            basket = ASSET_CLASS_PROXY_BASKETS.get(ac)
+                            if basket:
+                                ac_ret = _build_weighted_proxy_return_series(daily_rets, basket, fallback_ret)
+                            else:
+                                ac_ret = fallback_ret
                         
-                        ac_ret = ac_ret.fillna(fallback_ret)
+                        if fallback_ret is not None:
+                            ac_ret = ac_ret.fillna(fallback_ret)
                         port_daily_ret += (ac_ret * weight)
                         valid_history = True
                     

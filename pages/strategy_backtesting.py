@@ -9,6 +9,9 @@ from data_loader import load_holdings
 import pandas as pd
 
 
+_DEFAULT_PRESET_EXCLUSIONS = {"Bogleheads 3-Fund", "Permanent Portfolio"}
+
+
 def _preset_options():
     options = [{"label": TARGET_WEIGHT_PRESET_NAME, "value": TARGET_WEIGHT_PRESET_NAME}]
     options.extend([{"label": p["name"], "value": p["name"]} for p in BENCHMARK_PRESETS])
@@ -116,7 +119,10 @@ layout = html.Div([
                     dcc.Dropdown(
                         id="strategy-preset-checklist",
                         options=_preset_options(),
-                        value=[TARGET_WEIGHT_PRESET_NAME] + [p["name"] for p in BENCHMARK_PRESETS],
+                        value=[TARGET_WEIGHT_PRESET_NAME] + [
+                            p["name"] for p in BENCHMARK_PRESETS
+                            if p.get("name") not in _DEFAULT_PRESET_EXCLUSIONS
+                        ],
                         multi=True,
                         className="mb-2 dark-dropdown"
                     )

@@ -1260,25 +1260,263 @@ mjx-container > svg {
     color: #888 !important;
 }
 
-/* Mobile compatibility for Dash dropdown internals (side panel + backtesting presets) */
+/* Mobile compatibility for Dash dropdown internals (legacy + modern react-select classnames) */
 #benchmark-dropdown [class$="-control"],
 #benchmark-dropdown [class*="__control"],
+#benchmark-dropdown .Select-control,
+#growth-asset-class-filter [class$="-control"],
+#growth-asset-class-filter [class*="__control"],
+#growth-asset-class-filter .Select-control,
 #strategy-preset-checklist [class$="-control"],
 #strategy-preset-checklist [class*="__control"],
+#strategy-preset-checklist .Select-control,
+.dark-dropdown [class$="-control"],
+.dark-dropdown [class*="__control"],
+.dark-dropdown .Select-control {
+    background-color: #333 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+}
+
 #benchmark-dropdown [class$="-singleValue"],
 #benchmark-dropdown [class*="__single-value"],
 #benchmark-dropdown [class$="-placeholder"],
 #benchmark-dropdown [class*="__placeholder"],
+#growth-asset-class-filter [class$="-singleValue"],
+#growth-asset-class-filter [class*="__single-value"],
+#growth-asset-class-filter [class$="-placeholder"],
+#growth-asset-class-filter [class*="__placeholder"],
 #strategy-preset-checklist [class$="-singleValue"],
 #strategy-preset-checklist [class*="__single-value"],
 #strategy-preset-checklist [class$="-placeholder"],
 #strategy-preset-checklist [class*="__placeholder"],
+#benchmark-dropdown .Select-value-label,
+#benchmark-dropdown .Select-placeholder,
+#growth-asset-class-filter .Select-value-label,
+#growth-asset-class-filter .Select-placeholder,
+#strategy-preset-checklist .Select-value-label,
+#strategy-preset-checklist .Select-placeholder,
 #benchmark-dropdown input,
-#strategy-preset-checklist input {
+#growth-asset-class-filter input,
+#strategy-preset-checklist input,
+.dark-dropdown input {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+}
+
+#benchmark-dropdown [class$="-menu"],
+#benchmark-dropdown [class$="-menu-outer"],
+#benchmark-dropdown [class*="__menu"],
+#growth-asset-class-filter [class$="-menu"],
+#growth-asset-class-filter [class$="-menu-outer"],
+#growth-asset-class-filter [class*="__menu"],
+#strategy-preset-checklist [class$="-menu"],
+#strategy-preset-checklist [class$="-menu-outer"],
+#strategy-preset-checklist [class*="__menu"],
+.dark-dropdown .Select-menu-outer {
+    background-color: #333 !important;
+    border-color: #555 !important;
+    color: #fff !important;
+}
+
+#benchmark-dropdown [class$="-option"],
+#benchmark-dropdown [class*="__option"],
+#growth-asset-class-filter [class$="-option"],
+#growth-asset-class-filter [class*="__option"],
+#strategy-preset-checklist [class$="-option"],
+#strategy-preset-checklist [class*="__option"],
+.dark-dropdown .Select-option,
+.dark-dropdown .VirtualizedSelectOption {
     background-color: #333 !important;
     color: #fff !important;
-    border-color: #555 !important;
-    -webkit-text-fill-color: #fff !important;
+}
+
+#benchmark-dropdown [class$="-multiValue"],
+#benchmark-dropdown [class*="__multi-value"],
+#growth-asset-class-filter [class$="-multiValue"],
+#growth-asset-class-filter [class*="__multi-value"],
+#strategy-preset-checklist [class$="-multiValue"],
+#strategy-preset-checklist [class*="__multi-value"],
+#benchmark-dropdown .Select--multi .Select-value,
+#growth-asset-class-filter .Select--multi .Select-value,
+#strategy-preset-checklist .Select--multi .Select-value,
+.dark-dropdown .Select--multi .Select-value {
+    background-color: #4a4a4a !important;
+    border-color: #666 !important;
+    color: #fff !important;
+}
+
+#benchmark-dropdown [class$="-indicator"],
+#benchmark-dropdown [class*="__indicator"],
+#growth-asset-class-filter [class$="-indicator"],
+#growth-asset-class-filter [class*="__indicator"],
+#strategy-preset-checklist [class$="-indicator"],
+#strategy-preset-checklist [class*="__indicator"],
+#benchmark-dropdown .Select-clear-zone,
+#strategy-preset-checklist .Select-clear-zone {
+    color: #d6d6d6 !important;
+}
+
+/* Mobile-only readability fixes for key controls (keep desktop untouched) */
+@media (max-width: 768px) {
+    /* Force sidebar benchmark dropdown dark mode on mobile (highest specificity) */
+    .sidebar .sidebar-controls #benchmark-dropdown > div,
+    .sidebar .sidebar-controls #benchmark-dropdown .Select-control,
+    .sidebar .sidebar-controls #benchmark-dropdown div[class$="-control"],
+    .sidebar .sidebar-controls #benchmark-dropdown div[class*="__control"],
+    .sidebar .sidebar-controls #benchmark-dropdown div[class*="-control"] {
+        background: #333 !important;
+        background-color: #333 !important;
+        border-color: #555 !important;
+        color: #fff !important;
+    }
+
+    .sidebar .sidebar-controls #benchmark-dropdown .Select-value-label,
+    .sidebar .sidebar-controls #benchmark-dropdown .Select-placeholder,
+    .sidebar .sidebar-controls #benchmark-dropdown .Select-input input,
+    .sidebar .sidebar-controls #benchmark-dropdown div[class$="-singleValue"],
+    .sidebar .sidebar-controls #benchmark-dropdown div[class*="__single-value"],
+    .sidebar .sidebar-controls #benchmark-dropdown div[class$="-placeholder"],
+    .sidebar .sidebar-controls #benchmark-dropdown div[class*="__placeholder"],
+    .sidebar .sidebar-controls #benchmark-dropdown input {
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+    }
+
+    .sidebar .sidebar-controls #benchmark-dropdown .Select--multi .Select-value,
+    .sidebar .sidebar-controls #benchmark-dropdown div[class$="-multiValue"],
+    .sidebar .sidebar-controls #benchmark-dropdown div[class*="__multi-value"] {
+        background-color: #4a4a4a !important;
+        color: #fff !important;
+        border-color: #666 !important;
+    }
+
+    .sidebar .sidebar-controls #benchmark-dropdown .Select-clear-zone,
+    .sidebar .sidebar-controls #benchmark-dropdown .Select-arrow-zone,
+    .sidebar .sidebar-controls #benchmark-dropdown div[class$="-indicator"],
+    .sidebar .sidebar-controls #benchmark-dropdown div[class*="__indicator"] {
+        color: #d6d6d6 !important;
+    }
+
+    /* Sidebar benchmark selector + growth selector + strategy presets */
+    #benchmark-dropdown [class$="-control"],
+    #benchmark-dropdown [class*="__control"],
+    #growth-asset-class-filter [class$="-control"],
+    #growth-asset-class-filter [class*="__control"],
+    #strategy-preset-checklist [class$="-control"],
+    #strategy-preset-checklist [class*="__control"] {
+        background-color: #333 !important;
+        border-color: #555 !important;
+        color: #fff !important;
+    }
+
+    #benchmark-dropdown [class$="-menu"],
+    #benchmark-dropdown [class$="-menu-outer"],
+    #benchmark-dropdown [class*="__menu"],
+    #growth-asset-class-filter [class$="-menu"],
+    #growth-asset-class-filter [class$="-menu-outer"],
+    #growth-asset-class-filter [class*="__menu"],
+    #strategy-preset-checklist [class$="-menu"],
+    #strategy-preset-checklist [class$="-menu-outer"],
+    #strategy-preset-checklist [class*="__menu"] {
+        background-color: #333 !important;
+        border-color: #555 !important;
+        color: #fff !important;
+    }
+
+    #benchmark-dropdown [class$="-option"],
+    #benchmark-dropdown [class*="__option"],
+    #growth-asset-class-filter [class$="-option"],
+    #growth-asset-class-filter [class*="__option"],
+    #strategy-preset-checklist [class$="-option"],
+    #strategy-preset-checklist [class*="__option"] {
+        background-color: #333 !important;
+        color: #fff !important;
+    }
+
+    #benchmark-dropdown [class$="-singleValue"],
+    #benchmark-dropdown [class*="__single-value"],
+    #benchmark-dropdown [class$="-placeholder"],
+    #benchmark-dropdown [class*="__placeholder"],
+    #growth-asset-class-filter [class$="-singleValue"],
+    #growth-asset-class-filter [class*="__single-value"],
+    #growth-asset-class-filter [class$="-placeholder"],
+    #growth-asset-class-filter [class*="__placeholder"],
+    #strategy-preset-checklist [class$="-singleValue"],
+    #strategy-preset-checklist [class*="__single-value"],
+    #strategy-preset-checklist [class$="-placeholder"],
+    #strategy-preset-checklist [class*="__placeholder"],
+    #benchmark-dropdown input,
+    #growth-asset-class-filter input,
+    #strategy-preset-checklist input {
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+    }
+
+    /* Improve slider legibility on touch devices */
+    #proj-return-slider .rc-slider-dot,
+    #proj-contrib-slider .rc-slider-dot,
+    #simulator-sliders-container .rc-slider-dot {
+        border-color: #666 !important;
+        background-color: #2a2a2a !important;
+    }
+
+    #proj-return-slider .rc-slider-tooltip-inner,
+    #proj-contrib-slider .rc-slider-tooltip-inner,
+    #simulator-sliders-container .rc-slider-tooltip-inner {
+        background-color: #2a2a2a !important;
+        color: #f8f9fa !important;
+        border: 1px solid #555 !important;
+    }
+
+    #proj-return-slider .rc-slider-tooltip-arrow,
+    #proj-contrib-slider .rc-slider-tooltip-arrow,
+    #simulator-sliders-container .rc-slider-tooltip-arrow {
+        border-top-color: #2a2a2a !important;
+    }
+
+    #simulator-sliders-container .input-group > div {
+        background: transparent !important;
+        border: none !important;
+    }
+
+    /* 20-year projection sliders + asset allocation simulator sliders */
+    #proj-return-slider .rc-slider-rail,
+    #proj-contrib-slider .rc-slider-rail,
+    #simulator-sliders-container .rc-slider-rail {
+        background-color: #4a4a4a !important;
+    }
+
+    #proj-return-slider .rc-slider-track,
+    #proj-contrib-slider .rc-slider-track,
+    #simulator-sliders-container .rc-slider-track {
+        background-color: #0d6efd !important;
+    }
+
+    #proj-return-slider .rc-slider-handle,
+    #proj-contrib-slider .rc-slider-handle,
+    #simulator-sliders-container .rc-slider-handle {
+        border-color: #0d6efd !important;
+        background-color: #0d6efd !important;
+        box-shadow: none !important;
+    }
+
+    #proj-return-slider .rc-slider-mark-text,
+    #proj-contrib-slider .rc-slider-mark-text,
+    #simulator-sliders-container .rc-slider-mark-text {
+        color: #d6d6d6 !important;
+    }
+
+    #simulator-sliders-container label,
+    #total-weight-display {
+        color: #f8f9fa !important;
+    }
+
+    #simulator-sliders-container .btn-outline-secondary {
+        color: #f8f9fa !important;
+        border-color: #6c757d !important;
+        background-color: #2a2a2a !important;
+    }
 }
 
 /* ============================================================
