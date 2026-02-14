@@ -1255,6 +1255,27 @@ mjx-container > svg {
     color: #888 !important;
 }
 
+/* Mobile compatibility for Dash dropdown internals (side panel + backtesting presets) */
+#benchmark-dropdown [class$="-control"],
+#benchmark-dropdown [class*="__control"],
+#strategy-preset-checklist [class$="-control"],
+#strategy-preset-checklist [class*="__control"],
+#benchmark-dropdown [class$="-singleValue"],
+#benchmark-dropdown [class*="__single-value"],
+#benchmark-dropdown [class$="-placeholder"],
+#benchmark-dropdown [class*="__placeholder"],
+#strategy-preset-checklist [class$="-singleValue"],
+#strategy-preset-checklist [class*="__single-value"],
+#strategy-preset-checklist [class$="-placeholder"],
+#strategy-preset-checklist [class*="__placeholder"],
+#benchmark-dropdown input,
+#strategy-preset-checklist input {
+    background-color: #333 !important;
+    color: #fff !important;
+    border-color: #555 !important;
+    -webkit-text-fill-color: #fff !important;
+}
+
 /* ============================================================
    SIDEBAR SELECT + DATE PICKER (Match Benchmark Selector)
    ============================================================ */

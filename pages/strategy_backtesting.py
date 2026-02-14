@@ -86,7 +86,7 @@ layout = html.Div([
             dbc.Row([
                 dbc.Col([
                     dbc.Label("Lookback Period"),
-                    dcc.Dropdown(
+                    dbc.Select(
                         id="strategy-lookback",
                         options=[
                             {"label": "1Y", "value": "1Y"},
@@ -97,8 +97,7 @@ layout = html.Div([
                             {"label": "Max", "value": "MAX"},
                         ],
                         value="MAX",
-                        clearable=False,
-                        className="mb-2 dark-dropdown"
+                        className="mb-2 text-dark"
                     )
                 ], width=3),
                 dbc.Col([
@@ -440,6 +439,9 @@ def update_strategy_backtesting(signal, lookback, initial_value, presets, custom
     data = dw.get_data()
     if not data:
         return {}, {}, {}, [], [], [], "", "No data available."
+
+    if isinstance(presets, str):
+        presets = [presets]
 
     result = dw.get_strategy_backtest_results(
         data,

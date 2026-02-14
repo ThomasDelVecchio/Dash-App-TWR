@@ -229,12 +229,11 @@ sidebar = html.Div(
             ),
             
             dbc.Label("Analysis End Date"),
-            dcc.DatePickerSingle(
+            dbc.Input(
                 id="date-picker-end",
-                date=datetime.now().date(),
-                display_format="YYYY-MM-DD",
-                className="mb-2 d-block dark-datepicker",
-                style={'zIndex': 100},
+                type="date",
+                value=datetime.now().date().isoformat(),
+                className="mb-2 text-dark",
                 persistence=True,
                 persistence_type="local"
             ),
@@ -472,7 +471,7 @@ def render_page_content(pathname):
      Output("data-signal", "data"),
      Output("include-exited-store", "data"),
      Output("tax-strategy-store", "data")],
-    [Input("date-picker-end", "date"),
+    [Input("date-picker-end", "value"),
      Input("benchmark-dropdown", "value"),
      Input("include-exited-radio", "value"),
      Input("tax-strategy-select", "value")],
@@ -491,6 +490,8 @@ def update_global_state(end_date, benchmarks, include_exited, tax_strategy, curr
     dates = {"end": end_date} if end_date else None
     
     bm_map = {}
+    if isinstance(benchmarks, str):
+        benchmarks = [benchmarks]
     if benchmarks:
         for b in benchmarks:
             # Simple label mapping
@@ -513,7 +514,7 @@ def update_global_state(end_date, benchmarks, include_exited, tax_strategy, curr
     [Output("data-signal", "data", allow_duplicate=True),
      Output("refresh-status", "children")],
     [Input("btn-refresh-data", "n_clicks")],
-    [State("date-picker-end", "date")],
+    [State("date-picker-end", "value")],
     prevent_initial_call=True
 )
 def refresh_data_button(n_clicks, end_date):

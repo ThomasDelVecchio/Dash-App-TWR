@@ -120,6 +120,7 @@ TARGET_WEIGHT_PRESET_NAME = "Target Weights (Holdings)"
 
 BENCHMARK_PRESETS = [
     {"name": "S&P 500 (SPY)", "weights": {"SPY": 100}},
+    {"name": "Aggressive Allocation (AOA)", "weights": {"AOA": 100}},
     {"name": "Classic 60/40", "weights": {"VTI": 60, "BND": 40}},
     {"name": "Bogleheads 3-Fund", "weights": {"VTI": 60, "VXUS": 20, "BND": 20}},
     {"name": "Ray Dalio All Weather", "weights": {"VTI": 30, "TLT": 40, "IEF": 15, "GLD": 7.5, "DBC": 7.5}},
