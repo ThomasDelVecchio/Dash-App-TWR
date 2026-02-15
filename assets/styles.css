@@ -33,6 +33,7 @@
     background-color: var(--bg-color); /* Apply background to the container itself */
     color: var(--text-color);          /* Apply text color to the container itself */
     min-height: 100vh;                 /* Ensure it covers full viewport height */
+    color-scheme: dark;                /* Force iOS Safari to render native controls dark */
 }
 
 body {
@@ -577,36 +578,6 @@ body {
     min-height: 1.1em; /* prevent layout shift when empty */
 }
 
-/* Legacy fallback — keep for non-overview pages if needed */
-.kpi-card {
-    text-align: center;
-    padding: 1.5rem;
-    background-color: var(--card-bg);
-    border: none;
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--shadow-sm);
-    color: var(--text-color);
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.kpi-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-hover);
-}
-
-.kpi-label {
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    opacity: 0.7;
-    margin-bottom: 0.5rem;
-}
-
-.kpi-value {
-    font-size: 1.8rem;
-    font-weight: 700;
-}
-
 .card {
     background-color: var(--card-bg);
     color: var(--text-color);
@@ -629,24 +600,8 @@ body {
     line-height: 1.3;
 }
 
-.card-header.section-header,
-.card-title.section-header {
-    font-family: "Inter", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    color: #f8f9fa;
-    font-size: 1.1rem;
-    line-height: 1.3;
-}
-
 .card:hover {
     box-shadow: var(--shadow-md);
-}
-
-/* Card with lift effect (for clickable/interactive cards) */
-.card-interactive:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
 }
 
 /* Plotly overrides */
@@ -871,16 +826,6 @@ mjx-container[display="true"] {
     fill: #f8f9fa !important;
 }
 
-/* Light Mode MathJax */
-[data-theme="light"] mjx-container {
-    color: #212529 !important;
-}
-
-[data-theme="light"] mjx-container svg {
-    color: #212529 !important;
-    fill: #212529 !important;
-}
-
 /* ============================================================
    GLOBAL TOAST STACK (Prevent Overlap)
    ============================================================ */
@@ -957,11 +902,6 @@ mjx-container > svg {
 /* ============================================================
    CUSTOM REPORT BUILDER STYLES
    ============================================================ */
-
-/* Page Header */
-.report-page-header h2 {
-    color: var(--text-color);
-}
 
 /* Report Container - Responsive Full Width */
 .report-container {
@@ -1164,6 +1104,7 @@ mjx-container > svg {
     background-color: #333 !important;
     border-color: #555 !important;
     color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
 }
 
 /* --- Selected value text --- */
@@ -1174,6 +1115,7 @@ mjx-container > svg {
 .dark-dropdown .Select-placeholder,
 .dark-dropdown .Select-input input {
     color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
 }
 
 /* --- Multi-select value tags (the pills/chips) --- */
@@ -1182,11 +1124,13 @@ mjx-container > svg {
     background-color: #4a4a4a !important;
     border-color: #666 !important;
     color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
 }
 
 [data-theme="dark"] .Select--multi .Select-value-label,
 .dark-dropdown .Select--multi .Select-value-label {
     color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
 }
 
 [data-theme="dark"] .Select--multi .Select-value-icon,
@@ -1218,6 +1162,7 @@ mjx-container > svg {
 .dark-dropdown .Select-option {
     background-color: #333 !important;
     color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
 }
 
 /* --- Option hover state --- */
@@ -1260,120 +1205,192 @@ mjx-container > svg {
     color: #888 !important;
 }
 
-/* Mobile compatibility for Dash dropdown internals (side panel + backtesting presets) */
-#benchmark-dropdown [class$="-control"],
-#benchmark-dropdown [class*="__control"],
-#strategy-preset-checklist [class$="-control"],
-#strategy-preset-checklist [class*="__control"],
-#benchmark-dropdown [class$="-singleValue"],
-#benchmark-dropdown [class*="__single-value"],
-#benchmark-dropdown [class$="-placeholder"],
-#benchmark-dropdown [class*="__placeholder"],
-#strategy-preset-checklist [class$="-singleValue"],
-#strategy-preset-checklist [class*="__single-value"],
-#strategy-preset-checklist [class$="-placeholder"],
-#strategy-preset-checklist [class*="__placeholder"],
-#benchmark-dropdown input,
-#strategy-preset-checklist input {
-    background-color: #333 !important;
+/* --- Catch-all for any text inside dark-dropdown (all viewports) --- */
+.dark-dropdown input {
     color: #fff !important;
-    border-color: #555 !important;
     -webkit-text-fill-color: #fff !important;
 }
 
-/* Mobile-only readability fixes for key controls (keep desktop untouched) */
-@media (max-width: 768px) {
-    /* Sidebar benchmark selector + growth selector + strategy presets */
-    #benchmark-dropdown [class$="-control"],
-    #benchmark-dropdown [class*="__control"],
-    #growth-asset-class-filter [class$="-control"],
-    #growth-asset-class-filter [class*="__control"],
-    #strategy-preset-checklist [class$="-control"],
-    #strategy-preset-checklist [class*="__control"] {
+/* ============================================================
+   MOBILE / TABLET DARK-MODE OVERRIDES — iOS Safari forced-dark
+   ============================================================
+   iOS Safari ignores color and uses its own light-mode styling
+   for form controls. We must use -webkit-text-fill-color and
+   -webkit-appearance:none on EVERY text-bearing element.
+   Dash 3.3 uses legacy react-select: actual classes are
+   Select-control, Select-value-label, Select-option, etc.
+   Breakpoint 1024px catches iPad portrait;
+   (hover:none)+(pointer:coarse) catches touch tablets.
+   ============================================================ */
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+
+    /* ---- NUCLEAR: force dark on every element inside .dark-dropdown ---- */
+    .dark-dropdown,
+    .dark-dropdown *,
+    .dark-dropdown *::before,
+    .dark-dropdown *::after {
+        color-scheme: dark !important;
+    }
+
+    .dark-dropdown .Select-control,
+    .dark-dropdown .Select--single > .Select-control,
+    .dark-dropdown .Select--multi > .Select-control {
         background-color: #333 !important;
         border-color: #555 !important;
         color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+        -webkit-appearance: none !important;
     }
 
-    #benchmark-dropdown [class$="-menu"],
-    #benchmark-dropdown [class$="-menu-outer"],
-    #benchmark-dropdown [class*="__menu"],
-    #growth-asset-class-filter [class$="-menu"],
-    #growth-asset-class-filter [class$="-menu-outer"],
-    #growth-asset-class-filter [class*="__menu"],
-    #strategy-preset-checklist [class$="-menu"],
-    #strategy-preset-checklist [class$="-menu-outer"],
-    #strategy-preset-checklist [class*="__menu"] {
-        background-color: #333 !important;
-        border-color: #555 !important;
-        color: #fff !important;
-    }
-
-    #benchmark-dropdown [class$="-option"],
-    #benchmark-dropdown [class*="__option"],
-    #growth-asset-class-filter [class$="-option"],
-    #growth-asset-class-filter [class*="__option"],
-    #strategy-preset-checklist [class$="-option"],
-    #strategy-preset-checklist [class*="__option"] {
-        background-color: #333 !important;
-        color: #fff !important;
-    }
-
-    #benchmark-dropdown [class$="-singleValue"],
-    #benchmark-dropdown [class*="__single-value"],
-    #benchmark-dropdown [class$="-placeholder"],
-    #benchmark-dropdown [class*="__placeholder"],
-    #growth-asset-class-filter [class$="-singleValue"],
-    #growth-asset-class-filter [class*="__single-value"],
-    #growth-asset-class-filter [class$="-placeholder"],
-    #growth-asset-class-filter [class*="__placeholder"],
-    #strategy-preset-checklist [class$="-singleValue"],
-    #strategy-preset-checklist [class*="__single-value"],
-    #strategy-preset-checklist [class$="-placeholder"],
-    #strategy-preset-checklist [class*="__placeholder"],
-    #benchmark-dropdown input,
-    #growth-asset-class-filter input,
-    #strategy-preset-checklist input {
+    .dark-dropdown .Select-value-label,
+    .dark-dropdown .Select-placeholder,
+    .dark-dropdown .Select-value {
         color: #fff !important;
         -webkit-text-fill-color: #fff !important;
     }
 
-    /* 20-year projection sliders + asset allocation simulator sliders */
-    #proj-return-slider .rc-slider-rail,
-    #proj-contrib-slider .rc-slider-rail,
-    #simulator-sliders-container .rc-slider-rail {
+    .dark-dropdown input,
+    .dark-dropdown .Select-input,
+    .dark-dropdown .Select-input input {
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+        -webkit-appearance: none !important;
+        background-color: transparent !important;
+    }
+
+    .dark-dropdown .Select-menu-outer {
+        background-color: #333 !important;
+        border-color: #555 !important;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+    }
+
+    .dark-dropdown .Select-option,
+    .dark-dropdown .VirtualizedSelectOption {
+        background-color: #333 !important;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+    }
+
+    .dark-dropdown .Select-option.is-focused,
+    .dark-dropdown .VirtualizedSelectFocusedOption {
+        background-color: #4a4a4a !important;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+    }
+
+    .dark-dropdown .Select-option.is-selected,
+    .dark-dropdown .VirtualizedSelectSelectedOption {
+        background-color: #0d6efd !important;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+    }
+
+    .dark-dropdown .Select--multi .Select-value {
+        background-color: #4a4a4a !important;
+        border-color: #666 !important;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+    }
+
+    .dark-dropdown .Select--multi .Select-value-label {
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+    }
+
+    .dark-dropdown .Select--multi .Select-value-icon {
+        color: #ccc !important;
+        -webkit-text-fill-color: #ccc !important;
+        border-right-color: #666 !important;
+    }
+
+    .dark-dropdown .Select--multi .Select-value-icon:hover,
+    .dark-dropdown .Select--multi .Select-value-icon:focus {
+        background-color: #d9534f !important;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+    }
+
+    .dark-dropdown .Select-arrow-zone,
+    .dark-dropdown .Select-clear-zone {
+        color: #aaa !important;
+        -webkit-text-fill-color: #aaa !important;
+    }
+
+    .dark-dropdown .Select-arrow {
+        border-color: #aaa transparent transparent !important;
+    }
+
+    .dark-dropdown .Select-noresults {
+        color: #888 !important;
+        -webkit-text-fill-color: #888 !important;
+        background-color: #333 !important;
+    }
+
+    /* ---- rc-slider dark (20-Year Projection + Asset Allocation Simulator) ---- */
+    .rc-slider-rail {
         background-color: #4a4a4a !important;
     }
 
-    #proj-return-slider .rc-slider-track,
-    #proj-contrib-slider .rc-slider-track,
-    #simulator-sliders-container .rc-slider-track {
+    .rc-slider-track {
         background-color: #0d6efd !important;
     }
 
-    #proj-return-slider .rc-slider-handle,
-    #proj-contrib-slider .rc-slider-handle,
-    #simulator-sliders-container .rc-slider-handle {
+    .rc-slider-handle {
         border-color: #0d6efd !important;
         background-color: #0d6efd !important;
         box-shadow: none !important;
+        -webkit-appearance: none !important;
+        opacity: 1 !important;
     }
 
-    #proj-return-slider .rc-slider-mark-text,
-    #proj-contrib-slider .rc-slider-mark-text,
-    #simulator-sliders-container .rc-slider-mark-text {
+    .rc-slider-dot {
+        border-color: #555 !important;
+        background-color: #333 !important;
+    }
+
+    .rc-slider-mark-text {
         color: #d6d6d6 !important;
+        -webkit-text-fill-color: #d6d6d6 !important;
     }
 
+    .rc-slider-tooltip-inner {
+        background-color: #333 !important;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+        border: 1px solid #555 !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
+    }
+
+    .rc-slider-tooltip-placement-top .rc-slider-tooltip-arrow {
+        border-top-color: #555 !important;
+    }
+
+    .rc-slider-tooltip-placement-bottom .rc-slider-tooltip-arrow {
+        border-bottom-color: #555 !important;
+    }
+
+    /* ---- Simulator labels + buttons ---- */
     #simulator-sliders-container label,
     #total-weight-display {
         color: #f8f9fa !important;
+        -webkit-text-fill-color: #f8f9fa !important;
     }
 
     #simulator-sliders-container .btn-outline-secondary {
         color: #f8f9fa !important;
+        -webkit-text-fill-color: #f8f9fa !important;
         border-color: #6c757d !important;
         background-color: #2a2a2a !important;
+    }
+
+    /* ---- Sidebar form controls (selects, date inputs) ---- */
+    .sidebar-controls .form-select,
+    .sidebar-controls .form-control,
+    .sidebar-controls select,
+    .sidebar-controls input {
+        -webkit-text-fill-color: #fff !important;
+        -webkit-appearance: none !important;
     }
 }
 
@@ -1647,21 +1664,6 @@ mjx-container > svg {
         padding-top: 60px;
     }
     
-    /* Stack KPI cards */
-    .kpi-row > [class*="col-"] {
-        flex: 0 0 50%;
-        max-width: 50%;
-        margin-bottom: 0.5rem;
-    }
-    
-    .kpi-card {
-        padding: 1rem;
-    }
-    
-    .kpi-value {
-        font-size: 1.4rem;
-    }
-
     /* Glassmorphism KPI responsive */
     .kpi-glass {
         padding: 0.8rem 0.75rem;
@@ -1673,11 +1675,6 @@ mjx-container > svg {
 
     .kpi-glass .kpi-glass-label {
         font-size: 0.65rem;
-    }
-    
-    /* Chart heights */
-    .chart-container {
-        height: 250px !important;
     }
     
     /* Page header */
@@ -1704,11 +1701,6 @@ mjx-container > svg {
         padding: 1.5rem;
         padding-top: 60px;
     }
-    
-    .kpi-row > [class*="col-"] {
-        flex: 0 0 33.333%;
-        max-width: 33.333%;
-    }
 }
 
 /* Medium (768px - 991px) - Tablet */
@@ -1720,12 +1712,6 @@ mjx-container > svg {
     .content {
         margin-left: 0 !important;
         padding-top: 60px;
-    }
-    
-    /* 3-column KPI on tablet */
-    .kpi-row > [class*="col-"] {
-        flex: 0 0 33.333%;
-        max-width: 33.333%;
     }
 }
 
@@ -2045,28 +2031,6 @@ mjx-container > svg {
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: var(--border-radius-lg);
     overflow: hidden;
-}
-
-/* ============================================================
-   MOBILE TOUCH HINTS
-   ============================================================ */
-
-.swipe-hint {
-    position: fixed;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 4px;
-    height: 60px;
-    background: linear-gradient(180deg, transparent, var(--accent-color), transparent);
-    opacity: 0.3;
-    pointer-events: none;
-    z-index: 999;
-    transition: opacity 0.3s;
-}
-
-.sidebar:not(.hidden):not(.collapsed) ~ .swipe-hint {
-    opacity: 0;
 }
 
 /* ============================================================
