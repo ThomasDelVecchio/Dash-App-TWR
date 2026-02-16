@@ -107,7 +107,7 @@ layout = html.Div([
             html.Li("Simulations: Historical Bootstrapping method uses 10-year realized daily returns. Past performance is not indicative of future results.")
         ], className="small text-muted")
     ], className="mb-4")
-])
+], className="trade-lab-page")
 
 @callback(
     Output("swap-target-container", "is_open"),

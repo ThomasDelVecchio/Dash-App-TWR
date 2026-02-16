@@ -37,7 +37,7 @@ layout = html.Div([
             dcc.Graph(id={'type': 'filter-chart', 'index': 'flows-chart'})
         ]), width=12, className="mb-4"),
     ]),
-])
+], className="flows-page")
 
 @callback(
     [Output('external-flows-table-container', 'children'),

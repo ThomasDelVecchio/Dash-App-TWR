@@ -33,7 +33,7 @@ layout = html.Div([
             dcc.Graph(id={'type': 'filter-chart', 'index': 'ticker-bar-chart'})
         ]), width=6, className="mb-4"),
     ])
-])
+], className="holdings-page")
 
 @callback(
     [Output('holdings-table-container', 'children'),

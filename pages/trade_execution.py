@@ -438,7 +438,7 @@ layout = dbc.Container([
         style={"display": "none"}
     ),
     
-], fluid=True, className="py-4")
+], fluid=True, className="trade-execution-page py-4")
 
 
 # ============================================================

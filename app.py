@@ -225,7 +225,7 @@ sidebar = html.Div(
                 value="FIFO",
                 persistence=True,
                 persistence_type="local",
-                className="mb-2 text-dark"
+                className="mb-2"
             ),
             
             dbc.Label("Analysis End Date"),
@@ -233,7 +233,7 @@ sidebar = html.Div(
                 id="date-picker-end",
                 type="date",
                 value=datetime.now().date().isoformat(),
-                className="mb-2 text-dark",
+                className="mb-2",
                 persistence=True,
                 persistence_type="local"
             ),
@@ -252,7 +252,7 @@ sidebar = html.Div(
                 ],
                 value=["SPY", "VTI", "AOA"],
                 multi=True,
-                className="mb-2 dark-dropdown",
+                className="mb-2",
                 persistence=True,
                 persistence_type="local"
             ),

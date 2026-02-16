@@ -128,7 +128,7 @@ layout = html.Div([
             ])
         ]), width=12, className="mb-4"),
     ]),
-])
+], className="rebalancing-page", style={"padding": "20px"})
 
 
 # ============================================================

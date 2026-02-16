@@ -57,7 +57,7 @@ layout = html.Div([
             dcc.Loading(html.Div(id='si-attribution-container'))
         ]), width=12, className="mb-4"),
     ])
-])
+], className="attribution-page")
 
 # 1. Main Chart Callback
 @callback(

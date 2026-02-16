@@ -69,7 +69,7 @@ layout = html.Div([
             ], className="p-3")
         ]), width=6),
     ]),
-])
+], className="settings-page")
 
 # 1. Sync Store -> Checklist (Load)
 @callback(

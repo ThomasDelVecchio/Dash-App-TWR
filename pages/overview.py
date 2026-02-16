@@ -176,7 +176,7 @@ layout = html.Div([
             dcc.Loading(html.Div(id='flows-table-container'))
         ]), width=12)
     ], className="mb-4")
-])
+], className="overview-page")
 
 # AI Summary Callback (Independent)
 @callback(

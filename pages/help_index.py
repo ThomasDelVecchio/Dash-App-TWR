@@ -32,4 +32,4 @@ layout = dbc.Container([
         for key, topic in HELP_TOPICS.items()
     ])
 
-], fluid=True, className="py-4")
+], fluid=True, className="help-page py-4")

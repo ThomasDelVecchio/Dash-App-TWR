@@ -106,7 +106,7 @@ layout = html.Div([
             dcc.Loading(html.Div(id='growth-table-container'))
         ]), width=12, className="mb-4"),
     ]),
-])
+], className="performance-page")
 
 # Price Source Badge Callback
 @callback(

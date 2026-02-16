@@ -100,7 +100,7 @@ layout = html.Div([
                             {"label": "Max", "value": "MAX"},
                         ],
                         value="MAX",
-                        className="mb-2 text-dark"
+                        className="mb-2"
                     )
                 ], width=3),
                 dbc.Col([

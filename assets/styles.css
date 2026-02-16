@@ -87,12 +87,22 @@ body {
     overflow: hidden;
 }
 
+.sidebar.collapsed .sidebar-brand-text {
+    display: none;
+}
+
 .sidebar.collapsed .sidebar-brand {
+    width: 100%;
+    display: flex;
+    align-items: center;
     justify-content: center;
     flex-direction: column;
 }
 
 .sidebar.collapsed .sidebar-brand-left {
+    width: 100%;
+    display: flex;
+    align-items: center;
     justify-content: center;
 }
 
@@ -101,7 +111,8 @@ body {
 }
 
 .sidebar.collapsed .sidebar-brand-icon {
-    margin-right: 0;
+    display: block;
+    margin: 0 auto;
 }
 
 .sidebar.collapsed .nav-link {
@@ -712,11 +723,6 @@ body {
 .strategy-backtesting-page .strategy-weights-table .ag-center-cols-viewport {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
-}
-
-.strategy-backtesting-page #strategy-lookback,
-.strategy-backtesting-page #strategy-lookback.form-select {
-    color: #000 !important;
 }
 
 @media (max-width: 768px) {
@@ -1384,48 +1390,9 @@ mjx-container > svg {
         background-color: #2a2a2a !important;
     }
 
-    /* ---- Sidebar form controls (selects, date inputs) ---- */
-    .sidebar-controls .form-select,
-    .sidebar-controls .form-control,
-    .sidebar-controls select,
-    .sidebar-controls input {
-        -webkit-text-fill-color: #fff !important;
-        -webkit-appearance: none !important;
-    }
-}
-
-/* ============================================================
-   SIDEBAR SELECT + DATE PICKER (Match Benchmark Selector)
-   ============================================================ */
-
-[data-theme="dark"] .sidebar-controls .form-select,
-[data-theme="dark"] .sidebar-controls .form-control,
-[data-theme="dark"] .sidebar-controls input[type="date"],
-[data-theme="dark"] .sidebar-controls select {
-    background-color: #333 !important;
-    color: #fff !important;
-    border: 1px solid #555 !important;
-    box-shadow: none !important;
-}
-
-[data-theme="dark"] .sidebar-controls .form-select:focus,
-[data-theme="dark"] .sidebar-controls .form-control:focus,
-[data-theme="dark"] .sidebar-controls input[type="date"]:focus,
-[data-theme="dark"] .sidebar-controls select:focus {
-    border-color: #0d6efd !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
-}
-
-[data-theme="dark"] .sidebar-controls input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-    opacity: 0.85;
 }
 
 /* --- Date picker input (dark mode) --- */
-[data-theme="dark"] .sidebar-controls .DateInput_input,
-[data-theme="dark"] .sidebar-controls .DateInput_input_1,
-[data-theme="dark"] .sidebar-controls .SingleDatePickerInput,
-[data-theme="dark"] .sidebar-controls .SingleDatePickerInput__withBorder,
 .dark-datepicker .DateInput_input,
 .dark-datepicker .DateInput_input_1,
 .dark-datepicker .SingleDatePickerInput,
@@ -1438,15 +1405,12 @@ mjx-container > svg {
 }
 
 /* --- Date input placeholder --- */
-[data-theme="dark"] .sidebar-controls .DateInput_input::placeholder,
-[data-theme="dark"] .sidebar-controls .DateInput_input_1::placeholder,
 .dark-datepicker .DateInput_input::placeholder,
 .dark-datepicker .DateInput_input_1::placeholder {
     color: rgba(255, 255, 255, 0.6) !important;
 }
 
 /* --- Date input focused state --- */
-[data-theme="dark"] .sidebar-controls .DateInput_input__focused,
 .dark-datepicker .DateInput_input__focused {
     background-color: #333 !important;
     color: #fff !important;
@@ -1454,13 +1418,11 @@ mjx-container > svg {
 }
 
 /* --- DateInput container background (prevents white flash) --- */
-[data-theme="dark"] .sidebar-controls .DateInput,
 .dark-datepicker .DateInput {
     background-color: #333 !important;
 }
 
 /* --- Calendar icon / arrow --- */
-[data-theme="dark"] .sidebar-controls .SingleDatePickerInput_calendarIcon,
 .dark-datepicker .SingleDatePickerInput_calendarIcon {
     color: #aaa !important;
 }
@@ -2091,3 +2053,1402 @@ mjx-container > svg {
     scrollbar-width: thin;
     scrollbar-color: rgba(255,255,255,0.2) rgba(0,0,0,0.1);
 }
+
+/* ============================================================
+   SIDEBAR REVAMP (DESKTOP + MOBILE + iPAD, DARK-MODE FIRST)
+   ============================================================ */
+
+[data-theme="dark"] {
+    --sidebar-panel-bg: #101419;
+    --sidebar-panel-bg-elevated: #171c23;
+    --sidebar-panel-border: rgba(255, 255, 255, 0.12);
+    --sidebar-text-primary: #f3f6fb;
+    --sidebar-text-secondary: rgba(243, 246, 251, 0.72);
+    --sidebar-field-bg: #1e2530;
+    --sidebar-field-border: rgba(255, 255, 255, 0.16);
+    --sidebar-field-focus: rgba(0, 212, 255, 0.38);
+}
+
+[data-theme="dark"] .sidebar {
+    background: linear-gradient(180deg, var(--sidebar-panel-bg) 0%, #0d1218 100%);
+    border-right: 1px solid var(--sidebar-panel-border);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    padding: 1.25rem 1rem 1.1rem;
+}
+
+[data-theme="dark"] .sidebar .sidebar-brand {
+    margin-bottom: 0.25rem;
+}
+
+[data-theme="dark"] .sidebar .sidebar-brand-text {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--sidebar-text-primary);
+}
+
+[data-theme="dark"] .sidebar .sidebar-subtitle {
+    color: var(--sidebar-text-secondary);
+    font-size: 0.88rem;
+    margin: 0.2rem 0 0.8rem;
+}
+
+[data-theme="dark"] .sidebar hr {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    opacity: 1;
+    margin: 0.9rem 0;
+}
+
+[data-theme="dark"] .sidebar .nav-link {
+    color: var(--sidebar-text-secondary);
+    border: 1px solid transparent;
+    font-size: 0.95rem;
+    line-height: 1.25;
+    min-height: 42px;
+    border-radius: 10px;
+    margin-bottom: 0.18rem;
+}
+
+[data-theme="dark"] .sidebar .nav-link:hover {
+    color: var(--sidebar-text-primary);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .sidebar .nav-link.active {
+    color: #ffffff;
+    border-color: rgba(0, 212, 255, 0.3);
+}
+
+[data-theme="dark"] .sidebar .sidebar-section-label {
+    color: rgba(243, 246, 251, 0.44);
+    font-size: 0.63rem;
+    letter-spacing: 1.5px;
+}
+
+[data-theme="dark"] .sidebar .sidebar-toggle-btn {
+    color: rgba(255, 255, 255, 0.75);
+    min-width: 34px;
+    min-height: 34px;
+    border-radius: 8px;
+}
+
+[data-theme="dark"] .sidebar .sidebar-toggle-btn:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls {
+    background: rgba(23, 28, 35, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+    padding: 0.8rem 0.75rem 0.85rem;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .form-label,
+[data-theme="dark"] .sidebar .sidebar-controls label,
+[data-theme="dark"] .sidebar .sidebar-controls .form-check-label {
+    color: var(--sidebar-text-primary) !important;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    margin-bottom: 0.35rem;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .form-select,
+[data-theme="dark"] .sidebar .sidebar-controls .form-control,
+[data-theme="dark"] .sidebar .sidebar-controls input:not([type="radio"]):not([type="checkbox"]),
+[data-theme="dark"] .sidebar .sidebar-controls select,
+[data-theme="dark"] .sidebar .sidebar-controls .DateInput_input,
+[data-theme="dark"] .sidebar .sidebar-controls .DateInput_input_1 {
+    background-color: var(--sidebar-field-bg) !important;
+    color: var(--sidebar-text-primary) !important;
+    -webkit-text-fill-color: var(--sidebar-text-primary) !important;
+    border: 1px solid var(--sidebar-field-border) !important;
+    border-radius: 10px !important;
+    min-height: 42px;
+    font-size: 0.94rem;
+    font-weight: 500;
+    line-height: 1.25;
+    box-shadow: none !important;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .form-select:focus,
+[data-theme="dark"] .sidebar .sidebar-controls .form-control:focus,
+[data-theme="dark"] .sidebar .sidebar-controls input:not([type="radio"]):not([type="checkbox"]):focus,
+[data-theme="dark"] .sidebar .sidebar-controls select:focus,
+[data-theme="dark"] .sidebar .sidebar-controls .DateInput_input__focused {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 0.2rem var(--sidebar-field-focus) !important;
+    outline: none !important;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls input::placeholder {
+    color: rgba(243, 246, 251, 0.56) !important;
+    -webkit-text-fill-color: rgba(243, 246, 251, 0.56) !important;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(1.7) contrast(1.35);
+    opacity: 1;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls #date-picker-end::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(2.2) contrast(1.5) saturate(0) !important;
+    opacity: 1 !important;
+    cursor: pointer;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls #date-picker-end {
+    color-scheme: dark !important;
+    background-image: none !important;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .Select-control {
+    background-color: var(--sidebar-field-bg) !important;
+    border: 1px solid var(--sidebar-field-border) !important;
+    border-radius: 10px !important;
+    min-height: 42px;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .Select-placeholder,
+[data-theme="dark"] .sidebar .sidebar-controls .Select-value-label,
+[data-theme="dark"] .sidebar .sidebar-controls .Select-value,
+[data-theme="dark"] .sidebar .sidebar-controls .Select-input input,
+[data-theme="dark"] .sidebar .sidebar-controls .Select-arrow-zone,
+[data-theme="dark"] .sidebar .sidebar-controls .Select-clear-zone {
+    color: var(--sidebar-text-primary) !important;
+    -webkit-text-fill-color: var(--sidebar-text-primary) !important;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .Select-menu-outer {
+    background-color: #151c24 !important;
+    border: 1px solid var(--sidebar-field-border) !important;
+    border-radius: 10px !important;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .Select-option,
+[data-theme="dark"] .sidebar .sidebar-controls .VirtualizedSelectOption {
+    background-color: #151c24 !important;
+    color: var(--sidebar-text-primary) !important;
+    -webkit-text-fill-color: var(--sidebar-text-primary) !important;
+    font-size: 0.93rem;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .Select-option.is-focused,
+[data-theme="dark"] .sidebar .sidebar-controls .VirtualizedSelectFocusedOption {
+    background-color: #263141 !important;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .Select-option.is-selected,
+[data-theme="dark"] .sidebar .sidebar-controls .VirtualizedSelectSelectedOption {
+    background-color: rgba(0, 212, 255, 0.28) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .Select--multi .Select-value {
+    background-color: #253040 !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    border-radius: 7px;
+    color: var(--sidebar-text-primary) !important;
+    -webkit-text-fill-color: var(--sidebar-text-primary) !important;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .Select--multi .Select-value-icon {
+    border-right-color: rgba(255, 255, 255, 0.15) !important;
+    color: rgba(243, 246, 251, 0.8) !important;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .Select--multi .Select-value-icon:hover {
+    background-color: rgba(239, 68, 68, 0.35) !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .form-check-input {
+    background-color: #1c2430;
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .form-check-input:checked {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls #include-exited-radio .form-check-input {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    min-height: 18px;
+    border-radius: 4px !important;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background-color: #1c2430;
+    margin-top: 0.18rem;
+    box-shadow: none;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls #include-exited-radio .form-check-input:checked {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    box-shadow: inset 0 0 0 2px #101924;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls #include-exited-radio .form-check {
+    margin-right: 1rem;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls #include-exited-radio .form-check-label {
+    margin-left: 0.32rem;
+}
+
+[data-theme="dark"] .sidebar .sidebar-controls .btn,
+[data-theme="dark"] .sidebar .sidebar-controls button {
+    min-height: 42px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    border-radius: 10px;
+}
+
+[data-theme="dark"] .sidebar .refresh-status {
+    color: rgba(243, 246, 251, 0.72);
+}
+
+[data-theme="dark"] .sidebar.collapsed {
+    width: var(--sidebar-collapsed-width) !important;
+    max-width: var(--sidebar-collapsed-width) !important;
+    padding: 2rem 0.5rem;
+}
+
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+    [data-theme="dark"] .sidebar {
+        width: min(86vw, 360px);
+        max-width: 360px;
+        padding: calc(1rem + env(safe-area-inset-top, 0px)) 0.9rem calc(0.9rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    [data-theme="dark"] .sidebar.collapsed {
+        width: var(--sidebar-collapsed-width) !important;
+        max-width: var(--sidebar-collapsed-width) !important;
+        padding: 2rem 0.5rem;
+    }
+
+    [data-theme="dark"] .sidebar .sidebar-brand-text {
+        font-size: 1.2rem;
+    }
+
+    [data-theme="dark"] .sidebar .sidebar-subtitle {
+        font-size: 0.84rem;
+    }
+
+    [data-theme="dark"] .sidebar .sidebar-controls {
+        padding: 0.78rem 0.68rem 0.8rem;
+    }
+
+    [data-theme="dark"] .sidebar .nav-link {
+        min-height: 44px;
+        font-size: 0.97rem;
+    }
+
+    [data-theme="dark"] .sidebar .sidebar-controls .form-label,
+    [data-theme="dark"] .sidebar .sidebar-controls label,
+    [data-theme="dark"] .sidebar .sidebar-controls .form-check-label {
+        font-size: 0.86rem;
+    }
+
+    [data-theme="dark"] .sidebar .sidebar-controls .form-select,
+    [data-theme="dark"] .sidebar .sidebar-controls .form-control,
+    [data-theme="dark"] .sidebar .sidebar-controls input:not([type="radio"]):not([type="checkbox"]),
+    [data-theme="dark"] .sidebar .sidebar-controls select,
+    [data-theme="dark"] .sidebar .sidebar-controls .DateInput_input,
+    [data-theme="dark"] .sidebar .sidebar-controls .DateInput_input_1,
+    [data-theme="dark"] .sidebar .sidebar-controls .Select-control,
+    [data-theme="dark"] .sidebar .sidebar-controls .Select-input input {
+        min-height: 44px !important;
+        font-size: 16px !important;
+    }
+
+    [data-theme="dark"] .sidebar-open-btn {
+        width: 46px;
+        height: 46px;
+        top: calc(10px + env(safe-area-inset-top, 0px));
+        left: 10px;
+    }
+
+    [data-theme="dark"] .next-page-btn,
+    [data-theme="dark"] .prev-page-btn {
+        width: 44px;
+        height: 44px;
+    }
+}
+
+@media (min-width: 992px) {
+    [data-theme="dark"] .sidebar {
+        width: clamp(17rem, 19vw, 20rem);
+    }
+
+    [data-theme="dark"] .sidebar.collapsed {
+        width: var(--sidebar-collapsed-width) !important;
+        max-width: var(--sidebar-collapsed-width) !important;
+    }
+
+    [data-theme="dark"] .content {
+        margin-left: clamp(17rem, 19vw, 20rem);
+    }
+
+    [data-theme="dark"] .content.sidebar-collapsed {
+        margin-left: var(--sidebar-collapsed-width);
+    }
+}
+
+/* ============================================================
+   RISK PAGE REVAMP (DESKTOP + MOBILE + iPAD, DARK-MODE FIRST)
+   ============================================================ */
+
+
+[data-theme="dark"] .risk-page #simulator-sliders-container {
+    background: rgba(25, 33, 43, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 0.85rem 0.85rem 0.3rem;
+}
+
+[data-theme="dark"] .risk-page #simulator-sliders-container label,
+[data-theme="dark"] .risk-page .form-label,
+[data-theme="dark"] .risk-page label {
+    color: #f3f7ff !important;
+    -webkit-text-fill-color: #f3f7ff !important;
+    font-size: 0.91rem;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+[data-theme="dark"] .risk-page #total-weight-display {
+    background-color: rgba(14, 21, 30, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    color: #f6f9ff !important;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.98rem;
+    letter-spacing: 0.01em;
+}
+
+[data-theme="dark"] .risk-page #btn-recalculate-sim {
+    min-height: 44px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(13, 110, 253, 0.25);
+}
+
+[data-theme="dark"] .risk-page #simulator-sliders-container .btn-outline-secondary {
+    min-width: 40px;
+    min-height: 36px;
+    border-radius: 8px;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    color: #eaf0fb !important;
+    background-color: #1e2632 !important;
+    font-weight: 700;
+}
+
+[data-theme="dark"] .risk-page #simulator-sliders-container .btn-outline-secondary:hover,
+[data-theme="dark"] .risk-page #simulator-sliders-container .btn-outline-secondary:focus {
+    border-color: rgba(0, 212, 255, 0.65) !important;
+    color: #ffffff !important;
+    background-color: #273547 !important;
+    box-shadow: 0 0 0 0.15rem rgba(0, 212, 255, 0.22) !important;
+}
+
+[data-theme="dark"] .risk-page .rc-slider {
+    margin-top: 6px;
+}
+
+[data-theme="dark"] .risk-page .rc-slider-rail {
+    background-color: #364356 !important;
+    height: 7px;
+}
+
+[data-theme="dark"] .risk-page .rc-slider-track {
+    background: linear-gradient(90deg, #1c9abf 0%, #00d4ff 100%) !important;
+    height: 7px;
+}
+
+[data-theme="dark"] .risk-page .rc-slider-handle {
+    width: 18px;
+    height: 18px;
+    margin-top: -5px;
+    border: 2px solid #9fefff !important;
+    background: #00d4ff !important;
+    box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.2) !important;
+    opacity: 1 !important;
+}
+
+[data-theme="dark"] .risk-page .rc-slider-handle:hover,
+[data-theme="dark"] .risk-page .rc-slider-handle:focus,
+[data-theme="dark"] .risk-page .rc-slider-handle:active {
+    border-color: #ffffff !important;
+    box-shadow: 0 0 0 5px rgba(0, 212, 255, 0.28) !important;
+}
+
+[data-theme="dark"] .risk-page .rc-slider-dot {
+    border-color: #4a5a70 !important;
+    background-color: #223043 !important;
+}
+
+[data-theme="dark"] .risk-page .rc-slider-mark-text {
+    color: rgba(233, 237, 244, 0.85) !important;
+    -webkit-text-fill-color: rgba(233, 237, 244, 0.85) !important;
+    font-size: 0.8rem;
+}
+
+[data-theme="dark"] .risk-page .rc-slider-tooltip-inner {
+    background-color: #121923 !important;
+    color: #f5f8ff !important;
+    -webkit-text-fill-color: #f5f8ff !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .risk-page .rc-slider-tooltip-placement-top .rc-slider-tooltip-arrow {
+    border-top-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+[data-theme="dark"] .risk-page .rc-slider-tooltip-placement-bottom .rc-slider-tooltip-arrow {
+    border-bottom-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+[data-theme="dark"] .risk-page .input-group {
+    background: rgba(12, 19, 28, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 0.25rem 0.35rem;
+}
+
+[data-theme="dark"] .risk-page .input-group > .btn {
+    z-index: 2;
+}
+
+[data-theme="dark"] .risk-page ul.small.text-muted li {
+    margin-bottom: 0.25rem;
+    line-height: 1.4;
+}
+
+@media (max-width: 991.98px) {
+    [data-theme="dark"] .risk-page .card .card-body {
+        padding: 0.92rem 0.9rem;
+    }
+
+    [data-theme="dark"] .risk-page .section-header {
+        font-size: 1.04rem;
+        line-height: 1.3;
+    }
+
+    [data-theme="dark"] .risk-page h4.section-header {
+        font-size: 1.12rem;
+    }
+
+    [data-theme="dark"] .risk-page #simulator-sliders-container {
+        padding: 0.75rem 0.72rem 0.2rem;
+    }
+
+    [data-theme="dark"] .risk-page #simulator-sliders-container label,
+    [data-theme="dark"] .risk-page .form-label,
+    [data-theme="dark"] .risk-page label {
+        font-size: 0.9rem;
+    }
+
+    [data-theme="dark"] .risk-page .rc-slider-mark-text {
+        font-size: 0.75rem;
+    }
+
+    [data-theme="dark"] .risk-page .rc-slider-tooltip-inner {
+        font-size: 0.82rem;
+        padding: 5px 7px;
+    }
+}
+
+@media (max-width: 767.98px), (hover: none) and (pointer: coarse) {
+    [data-theme="dark"] .risk-page .card {
+        border-radius: 12px;
+    }
+
+    [data-theme="dark"] .risk-page .section-header {
+        font-size: 0.98rem;
+    }
+
+    [data-theme="dark"] .risk-page #simulator-sliders-container .btn-outline-secondary {
+        min-width: 44px;
+        min-height: 40px;
+        font-size: 0.95rem;
+    }
+
+    [data-theme="dark"] .risk-page .rc-slider-handle {
+        width: 20px;
+        height: 20px;
+        margin-top: -6px;
+    }
+
+    [data-theme="dark"] .risk-page .rc-slider-mark-text {
+        font-size: 0.72rem;
+        transform: translateX(-50%);
+        white-space: nowrap;
+    }
+
+    [data-theme="dark"] .risk-page #total-weight-display {
+        font-size: 0.95rem;
+    }
+
+    [data-theme="dark"] .risk-page .js-plotly-plot {
+        min-height: 260px;
+    }
+}
+
+/* ============================================================
+   STRATEGY BACKTESTING REVAMP (DESKTOP + MOBILE + iPAD)
+   ============================================================ */
+
+[data-theme="dark"] .strategy-backtesting-page .card-header .btn-link {
+    color: #d9e9ff;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .card-header .btn-link:hover,
+[data-theme="dark"] .strategy-backtesting-page .card-header .btn-link:focus {
+    color: #ffffff;
+    text-decoration: none;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .form-label,
+[data-theme="dark"] .strategy-backtesting-page label {
+    color: #f3f7ff !important;
+    -webkit-text-fill-color: #f3f7ff !important;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .form-control,
+[data-theme="dark"] .strategy-backtesting-page .form-select,
+[data-theme="dark"] .strategy-backtesting-page #strategy-lookback,
+[data-theme="dark"] .strategy-backtesting-page #strategy-initial,
+[data-theme="dark"] .strategy-backtesting-page #custom-benchmark-name {
+    background-color: #1f2733 !important;
+    color: #f4f8ff !important;
+    -webkit-text-fill-color: #f4f8ff !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 10px !important;
+    min-height: 42px;
+    font-size: 0.94rem;
+    box-shadow: none !important;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .form-control::placeholder,
+[data-theme="dark"] .strategy-backtesting-page input::placeholder {
+    color: rgba(244, 248, 255, 0.6) !important;
+    -webkit-text-fill-color: rgba(244, 248, 255, 0.6) !important;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .form-control:focus,
+[data-theme="dark"] .strategy-backtesting-page .form-select:focus,
+[data-theme="dark"] .strategy-backtesting-page #strategy-lookback:focus,
+[data-theme="dark"] .strategy-backtesting-page #strategy-initial:focus,
+[data-theme="dark"] .strategy-backtesting-page #custom-benchmark-name:focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.24) !important;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-control,
+[data-theme="dark"] .strategy-backtesting-page #strategy-preset-checklist .Select-control {
+    background-color: #1f2733 !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 10px !important;
+    min-height: 42px;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-value-label,
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-placeholder,
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-input input,
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-arrow-zone,
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-clear-zone {
+    color: #f4f8ff !important;
+    -webkit-text-fill-color: #f4f8ff !important;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-menu-outer {
+    background-color: #16202c !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 10px !important;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-option,
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .VirtualizedSelectOption {
+    background-color: #16202c !important;
+    color: #f4f8ff !important;
+    -webkit-text-fill-color: #f4f8ff !important;
+    font-size: 0.93rem;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-option.is-focused,
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .VirtualizedSelectFocusedOption {
+    background-color: #253345 !important;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-option.is-selected,
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .VirtualizedSelectSelectedOption {
+    background-color: rgba(0, 212, 255, 0.28) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select--multi .Select-value {
+    background-color: #2a3a4e !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    border-radius: 7px;
+    color: #f4f8ff !important;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select--multi .Select-value-icon {
+    border-right-color: rgba(255, 255, 255, 0.15) !important;
+    color: rgba(244, 248, 255, 0.85) !important;
+}
+
+[data-theme="dark"] .strategy-backtesting-page #btn-custom-apply {
+    box-shadow: 0 8px 20px rgba(13, 110, 253, 0.24);
+}
+
+[data-theme="dark"] .strategy-backtesting-page #strategy-backtest-badge {
+    background-color: rgba(0, 212, 255, 0.18) !important;
+    color: #eaf7ff !important;
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    font-weight: 600;
+}
+
+[data-theme="dark"] .strategy-backtesting-page #custom-benchmark-error,
+[data-theme="dark"] .strategy-backtesting-page #strategy-error {
+    color: #ffd166 !important;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .strategy-backtesting-page .strategy-scorecard-flex {
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+    background: rgba(16, 22, 30, 0.6);
+    padding: 0.35rem;
+}
+
+
+[data-theme="dark"] .strategy-backtesting-page .footnote {
+    line-height: 1.45;
+    margin-top: 0.25rem;
+}
+
+@media (max-width: 991.98px) {
+    [data-theme="dark"] .strategy-backtesting-page .form-label,
+    [data-theme="dark"] .strategy-backtesting-page label {
+        font-size: 0.88rem;
+    }
+
+    [data-theme="dark"] .strategy-backtesting-page .form-control,
+    [data-theme="dark"] .strategy-backtesting-page .form-select,
+    [data-theme="dark"] .strategy-backtesting-page #strategy-lookback,
+    [data-theme="dark"] .strategy-backtesting-page #strategy-initial,
+    [data-theme="dark"] .strategy-backtesting-page #custom-benchmark-name,
+    [data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-control,
+    [data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-input input {
+        min-height: 44px !important;
+        font-size: 16px !important;
+    }
+
+    [data-theme="dark"] .strategy-backtesting-page .strategy-scorecard-flex {
+        padding: 0.3rem;
+    }
+}
+
+@media (max-width: 767.98px), (hover: none) and (pointer: coarse) {
+    [data-theme="dark"] .strategy-backtesting-page .strategy-scorecard-full {
+        padding-left: 0.3rem;
+        padding-right: 0.3rem;
+    }
+}
+
+/* ============================================================
+   PAGE REVAMP BASE (Shared for newer page themes)
+   ============================================================ */
+
+[data-theme="dark"] .performance-page,
+[data-theme="dark"] .overview-page,
+[data-theme="dark"] .allocations-page,
+[data-theme="dark"] .attribution-page,
+[data-theme="dark"] .flows-page,
+[data-theme="dark"] .holdings-page,
+[data-theme="dark"] .risk-page,
+[data-theme="dark"] .strategy-backtesting-page {
+    color: #e9edf4;
+}
+
+[data-theme="dark"] .performance-page .section-header,
+[data-theme="dark"] .overview-page .section-header,
+[data-theme="dark"] .allocations-page .section-header,
+[data-theme="dark"] .attribution-page .section-header,
+[data-theme="dark"] .flows-page .section-header,
+[data-theme="dark"] .holdings-page .section-header,
+[data-theme="dark"] .risk-page .section-header,
+[data-theme="dark"] .strategy-backtesting-page .section-header {
+    color: #f6f9ff;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+[data-theme="dark"] .performance-page .card,
+[data-theme="dark"] .overview-page .card,
+[data-theme="dark"] .allocations-page .card,
+[data-theme="dark"] .attribution-page .card,
+[data-theme="dark"] .flows-page .card,
+[data-theme="dark"] .holdings-page .card,
+[data-theme="dark"] .risk-page .card,
+[data-theme="dark"] .strategy-backtesting-page .card,
+[data-theme="dark"] .strategy-backtesting-page .strategy-scorecard-card {
+    background: linear-gradient(180deg, #171c23 0%, #11171f 100%);
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    border-radius: 14px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
+}
+
+[data-theme="dark"] .performance-page .card-body,
+[data-theme="dark"] .overview-page .card-body,
+[data-theme="dark"] .allocations-page .card-body,
+[data-theme="dark"] .attribution-page .card-body,
+[data-theme="dark"] .flows-page .card-body,
+[data-theme="dark"] .holdings-page .card-body,
+[data-theme="dark"] .risk-page .card-body,
+[data-theme="dark"] .risk-page .card .card-body,
+[data-theme="dark"] .strategy-backtesting-page .card-body,
+[data-theme="dark"] .strategy-backtesting-page .strategy-scorecard-body {
+    padding: 1.05rem 1.12rem;
+}
+
+[data-theme="dark"] .performance-page .card-header,
+[data-theme="dark"] .overview-page .card-header,
+[data-theme="dark"] .allocations-page .card-header,
+[data-theme="dark"] .strategy-backtesting-page .card-header {
+    background-color: rgba(21, 28, 37, 0.95);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.11);
+    color: #f2f6ff;
+}
+
+[data-theme="dark"] .performance-page .text-muted,
+[data-theme="dark"] .performance-page small.text-muted,
+[data-theme="dark"] .overview-page .text-muted,
+[data-theme="dark"] .overview-page small.text-muted,
+[data-theme="dark"] .allocations-page .text-muted,
+[data-theme="dark"] .allocations-page small.text-muted,
+[data-theme="dark"] .attribution-page .text-muted,
+[data-theme="dark"] .attribution-page small.text-muted,
+[data-theme="dark"] .flows-page .text-muted,
+[data-theme="dark"] .flows-page small.text-muted,
+[data-theme="dark"] .holdings-page .text-muted,
+[data-theme="dark"] .holdings-page small.text-muted,
+[data-theme="dark"] .risk-page .text-muted,
+[data-theme="dark"] .risk-page .small.text-muted,
+[data-theme="dark"] .risk-page small.text-muted,
+[data-theme="dark"] .strategy-backtesting-page .text-muted,
+[data-theme="dark"] .strategy-backtesting-page .small.text-muted,
+[data-theme="dark"] .strategy-backtesting-page small.text-muted,
+[data-theme="dark"] .performance-page .footnote,
+[data-theme="dark"] .overview-page .footnote,
+[data-theme="dark"] .allocations-page .footnote,
+[data-theme="dark"] .attribution-page .footnote,
+[data-theme="dark"] .flows-page .footnote,
+[data-theme="dark"] .holdings-page .footnote,
+[data-theme="dark"] .strategy-backtesting-page .footnote {
+    color: rgba(233, 237, 244, 0.76) !important;
+}
+
+[data-theme="dark"] .performance-page hr,
+[data-theme="dark"] .overview-page hr,
+[data-theme="dark"] .allocations-page hr,
+[data-theme="dark"] .attribution-page hr,
+[data-theme="dark"] .flows-page hr,
+[data-theme="dark"] .holdings-page hr,
+[data-theme="dark"] .risk-page hr {
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    opacity: 1;
+}
+
+[data-theme="dark"] .performance-page .btn,
+[data-theme="dark"] .overview-page .btn,
+[data-theme="dark"] .allocations-page .btn,
+[data-theme="dark"] .attribution-page .btn,
+[data-theme="dark"] .flows-page .btn,
+[data-theme="dark"] .holdings-page .btn,
+[data-theme="dark"] .strategy-backtesting-page .btn {
+    min-height: 40px;
+    border-radius: 10px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+[data-theme="dark"] .performance-page .btn-secondary,
+[data-theme="dark"] .performance-page .btn-outline-secondary,
+[data-theme="dark"] .overview-page .btn-secondary,
+[data-theme="dark"] .overview-page .btn-outline-secondary,
+[data-theme="dark"] .allocations-page .btn-secondary,
+[data-theme="dark"] .allocations-page .btn-outline-secondary,
+[data-theme="dark"] .attribution-page .btn-outline-secondary,
+[data-theme="dark"] .flows-page .btn-outline-secondary,
+[data-theme="dark"] .holdings-page .btn-outline-secondary,
+[data-theme="dark"] .strategy-backtesting-page .btn-secondary,
+[data-theme="dark"] .strategy-backtesting-page .btn-outline-secondary {
+    background-color: #1f2937;
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #edf3ff;
+}
+
+[data-theme="dark"] .performance-page .btn-secondary:hover,
+[data-theme="dark"] .performance-page .btn-outline-secondary:hover,
+[data-theme="dark"] .overview-page .btn-secondary:hover,
+[data-theme="dark"] .overview-page .btn-outline-secondary:hover,
+[data-theme="dark"] .allocations-page .btn-secondary:hover,
+[data-theme="dark"] .allocations-page .btn-outline-secondary:hover,
+[data-theme="dark"] .attribution-page .btn-outline-secondary:hover,
+[data-theme="dark"] .flows-page .btn-outline-secondary:hover,
+[data-theme="dark"] .holdings-page .btn-outline-secondary:hover,
+[data-theme="dark"] .strategy-backtesting-page .btn-secondary:hover,
+[data-theme="dark"] .strategy-backtesting-page .btn-outline-secondary:hover {
+    background-color: #2a3648;
+    border-color: rgba(0, 212, 255, 0.45);
+    color: #ffffff;
+}
+
+[data-theme="dark"] .performance-page .ag-theme-alpine-dark,
+[data-theme="dark"] .performance-page .ag-theme-alpine,
+[data-theme="dark"] .overview-page .ag-theme-alpine-dark,
+[data-theme="dark"] .overview-page .ag-theme-alpine,
+[data-theme="dark"] .allocations-page .ag-theme-alpine-dark,
+[data-theme="dark"] .allocations-page .ag-theme-alpine,
+[data-theme="dark"] .attribution-page .ag-theme-alpine-dark,
+[data-theme="dark"] .attribution-page .ag-theme-alpine,
+[data-theme="dark"] .flows-page .ag-theme-alpine-dark,
+[data-theme="dark"] .flows-page .ag-theme-alpine,
+[data-theme="dark"] .holdings-page .ag-theme-alpine-dark,
+[data-theme="dark"] .holdings-page .ag-theme-alpine,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine-dark,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine {
+    border-radius: 10px !important;
+    overflow: hidden;
+}
+
+[data-theme="dark"] .performance-page .ag-theme-alpine-dark .ag-header,
+[data-theme="dark"] .performance-page .ag-theme-alpine .ag-header,
+[data-theme="dark"] .overview-page .ag-theme-alpine-dark .ag-header,
+[data-theme="dark"] .overview-page .ag-theme-alpine .ag-header,
+[data-theme="dark"] .allocations-page .ag-theme-alpine-dark .ag-header,
+[data-theme="dark"] .allocations-page .ag-theme-alpine .ag-header,
+[data-theme="dark"] .attribution-page .ag-theme-alpine-dark .ag-header,
+[data-theme="dark"] .attribution-page .ag-theme-alpine .ag-header,
+[data-theme="dark"] .flows-page .ag-theme-alpine-dark .ag-header,
+[data-theme="dark"] .flows-page .ag-theme-alpine .ag-header,
+[data-theme="dark"] .holdings-page .ag-theme-alpine-dark .ag-header,
+[data-theme="dark"] .holdings-page .ag-theme-alpine .ag-header,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine-dark .ag-header,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine .ag-header {
+    background-color: #1f2a37 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+
+[data-theme="dark"] .performance-page .ag-theme-alpine-dark .ag-header-cell,
+[data-theme="dark"] .performance-page .ag-theme-alpine .ag-header-cell,
+[data-theme="dark"] .overview-page .ag-theme-alpine-dark .ag-header-cell,
+[data-theme="dark"] .overview-page .ag-theme-alpine .ag-header-cell,
+[data-theme="dark"] .allocations-page .ag-theme-alpine-dark .ag-header-cell,
+[data-theme="dark"] .allocations-page .ag-theme-alpine .ag-header-cell,
+[data-theme="dark"] .attribution-page .ag-theme-alpine-dark .ag-header-cell,
+[data-theme="dark"] .attribution-page .ag-theme-alpine .ag-header-cell,
+[data-theme="dark"] .flows-page .ag-theme-alpine-dark .ag-header-cell,
+[data-theme="dark"] .flows-page .ag-theme-alpine .ag-header-cell,
+[data-theme="dark"] .holdings-page .ag-theme-alpine-dark .ag-header-cell,
+[data-theme="dark"] .holdings-page .ag-theme-alpine .ag-header-cell,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine-dark .ag-header-cell,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine .ag-header-cell {
+    color: #f2f7ff !important;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .performance-page .ag-theme-alpine-dark .ag-row,
+[data-theme="dark"] .performance-page .ag-theme-alpine .ag-row,
+[data-theme="dark"] .overview-page .ag-theme-alpine-dark .ag-row,
+[data-theme="dark"] .overview-page .ag-theme-alpine .ag-row,
+[data-theme="dark"] .allocations-page .ag-theme-alpine-dark .ag-row,
+[data-theme="dark"] .allocations-page .ag-theme-alpine .ag-row,
+[data-theme="dark"] .attribution-page .ag-theme-alpine-dark .ag-row,
+[data-theme="dark"] .attribution-page .ag-theme-alpine .ag-row,
+[data-theme="dark"] .flows-page .ag-theme-alpine-dark .ag-row,
+[data-theme="dark"] .flows-page .ag-theme-alpine .ag-row,
+[data-theme="dark"] .holdings-page .ag-theme-alpine-dark .ag-row,
+[data-theme="dark"] .holdings-page .ag-theme-alpine .ag-row,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine-dark .ag-row,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine .ag-row {
+    background-color: #18202b !important;
+}
+
+[data-theme="dark"] .performance-page .ag-theme-alpine-dark .ag-row-odd,
+[data-theme="dark"] .performance-page .ag-theme-alpine .ag-row-odd,
+[data-theme="dark"] .overview-page .ag-theme-alpine-dark .ag-row-odd,
+[data-theme="dark"] .overview-page .ag-theme-alpine .ag-row-odd,
+[data-theme="dark"] .allocations-page .ag-theme-alpine-dark .ag-row-odd,
+[data-theme="dark"] .allocations-page .ag-theme-alpine .ag-row-odd,
+[data-theme="dark"] .attribution-page .ag-theme-alpine-dark .ag-row-odd,
+[data-theme="dark"] .attribution-page .ag-theme-alpine .ag-row-odd,
+[data-theme="dark"] .flows-page .ag-theme-alpine-dark .ag-row-odd,
+[data-theme="dark"] .flows-page .ag-theme-alpine .ag-row-odd,
+[data-theme="dark"] .holdings-page .ag-theme-alpine-dark .ag-row-odd,
+[data-theme="dark"] .holdings-page .ag-theme-alpine .ag-row-odd,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine-dark .ag-row-odd,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine .ag-row-odd {
+    background-color: #1d2733 !important;
+}
+
+[data-theme="dark"] .performance-page .ag-theme-alpine-dark .ag-row:hover,
+[data-theme="dark"] .performance-page .ag-theme-alpine .ag-row:hover,
+[data-theme="dark"] .overview-page .ag-theme-alpine-dark .ag-row:hover,
+[data-theme="dark"] .overview-page .ag-theme-alpine .ag-row:hover,
+[data-theme="dark"] .allocations-page .ag-theme-alpine-dark .ag-row:hover,
+[data-theme="dark"] .allocations-page .ag-theme-alpine .ag-row:hover,
+[data-theme="dark"] .attribution-page .ag-theme-alpine-dark .ag-row:hover,
+[data-theme="dark"] .attribution-page .ag-theme-alpine .ag-row:hover,
+[data-theme="dark"] .flows-page .ag-theme-alpine-dark .ag-row:hover,
+[data-theme="dark"] .flows-page .ag-theme-alpine .ag-row:hover,
+[data-theme="dark"] .holdings-page .ag-theme-alpine-dark .ag-row:hover,
+[data-theme="dark"] .holdings-page .ag-theme-alpine .ag-row:hover,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine-dark .ag-row:hover,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine .ag-row:hover {
+    background-color: #2a3647 !important;
+}
+
+[data-theme="dark"] .performance-page .ag-theme-alpine-dark .ag-cell,
+[data-theme="dark"] .performance-page .ag-theme-alpine .ag-cell,
+[data-theme="dark"] .overview-page .ag-theme-alpine-dark .ag-cell,
+[data-theme="dark"] .overview-page .ag-theme-alpine .ag-cell,
+[data-theme="dark"] .allocations-page .ag-theme-alpine-dark .ag-cell,
+[data-theme="dark"] .allocations-page .ag-theme-alpine .ag-cell,
+[data-theme="dark"] .attribution-page .ag-theme-alpine-dark .ag-cell,
+[data-theme="dark"] .attribution-page .ag-theme-alpine .ag-cell,
+[data-theme="dark"] .flows-page .ag-theme-alpine-dark .ag-cell,
+[data-theme="dark"] .flows-page .ag-theme-alpine .ag-cell,
+[data-theme="dark"] .holdings-page .ag-theme-alpine-dark .ag-cell,
+[data-theme="dark"] .holdings-page .ag-theme-alpine .ag-cell,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine-dark .ag-cell,
+[data-theme="dark"] .strategy-backtesting-page .ag-theme-alpine .ag-cell {
+    color: #eaf0fb !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .performance-page .js-plotly-plot .plotly .main-svg,
+[data-theme="dark"] .performance-page .js-plotly-plot .plotly .bg,
+[data-theme="dark"] .overview-page .js-plotly-plot .plotly .main-svg,
+[data-theme="dark"] .overview-page .js-plotly-plot .plotly .bg,
+[data-theme="dark"] .allocations-page .js-plotly-plot .plotly .main-svg,
+[data-theme="dark"] .allocations-page .js-plotly-plot .plotly .bg,
+[data-theme="dark"] .attribution-page .js-plotly-plot .plotly .main-svg,
+[data-theme="dark"] .attribution-page .js-plotly-plot .plotly .bg,
+[data-theme="dark"] .flows-page .js-plotly-plot .plotly .main-svg,
+[data-theme="dark"] .flows-page .js-plotly-plot .plotly .bg,
+[data-theme="dark"] .holdings-page .js-plotly-plot .plotly .main-svg,
+[data-theme="dark"] .holdings-page .js-plotly-plot .plotly .bg,
+[data-theme="dark"] .risk-page .js-plotly-plot .plotly .main-svg,
+[data-theme="dark"] .risk-page .js-plotly-plot .plotly .bg,
+[data-theme="dark"] .strategy-backtesting-page .js-plotly-plot .plotly .main-svg,
+[data-theme="dark"] .strategy-backtesting-page .js-plotly-plot .plotly .bg {
+    border-radius: 10px;
+}
+
+/* ============================================================
+   PERFORMANCE / OVERVIEW / ALLOCATIONS - Specific Overrides
+   ============================================================ */
+
+[data-theme="dark"] .performance-page .form-label,
+[data-theme="dark"] .performance-page label {
+    color: #f3f7ff !important;
+    -webkit-text-fill-color: #f3f7ff !important;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .performance-page .dark-dropdown .Select-control,
+[data-theme="dark"] .performance-page #growth-asset-class-filter .Select-control {
+    background-color: #1f2733 !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 10px !important;
+    min-height: 42px;
+}
+
+[data-theme="dark"] .performance-page .dark-dropdown .Select-value-label,
+[data-theme="dark"] .performance-page .dark-dropdown .Select-placeholder,
+[data-theme="dark"] .performance-page .dark-dropdown .Select-input input,
+[data-theme="dark"] .performance-page .dark-dropdown .Select-arrow-zone,
+[data-theme="dark"] .performance-page .dark-dropdown .Select-clear-zone {
+    color: #f4f8ff !important;
+    -webkit-text-fill-color: #f4f8ff !important;
+}
+
+[data-theme="dark"] .performance-page .dark-dropdown .Select-menu-outer {
+    background-color: #16202c !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 10px !important;
+}
+
+[data-theme="dark"] .performance-page .dark-dropdown .Select-option,
+[data-theme="dark"] .performance-page .dark-dropdown .VirtualizedSelectOption {
+    background-color: #16202c !important;
+    color: #f4f8ff !important;
+    -webkit-text-fill-color: #f4f8ff !important;
+}
+
+[data-theme="dark"] .performance-page .dark-dropdown .Select-option.is-focused,
+[data-theme="dark"] .performance-page .dark-dropdown .VirtualizedSelectFocusedOption {
+    background-color: #253345 !important;
+}
+
+[data-theme="dark"] .performance-page .dark-dropdown .Select-option.is-selected,
+[data-theme="dark"] .performance-page .dark-dropdown .VirtualizedSelectSelectedOption {
+    background-color: rgba(0, 212, 255, 0.28) !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .performance-page .accordion-item {
+    background-color: rgba(17, 23, 31, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .performance-page .accordion-button {
+    background-color: #1d2632 !important;
+    color: #edf3ff !important;
+    font-weight: 600;
+    box-shadow: none !important;
+}
+
+[data-theme="dark"] .performance-page .accordion-button:not(.collapsed) {
+    background-color: #253244 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .performance-page .accordion-button::after {
+    filter: invert(1) brightness(0.9);
+}
+
+[data-theme="dark"] .performance-page #perf-ret-footnote,
+[data-theme="dark"] .performance-page #perf-pl-footnote {
+    color: rgba(233, 237, 244, 0.78) !important;
+}
+
+[data-theme="dark"] .overview-page .border-primary {
+    border-color: rgba(0, 212, 255, 0.35) !important;
+}
+
+[data-theme="dark"] .overview-page #ai-brief-content {
+    color: #eaf1ff;
+    line-height: 1.55;
+    font-size: 0.95rem;
+}
+
+[data-theme="dark"] .overview-page #ai-brief-content h1,
+[data-theme="dark"] .overview-page #ai-brief-content h2,
+[data-theme="dark"] .overview-page #ai-brief-content h3,
+[data-theme="dark"] .overview-page #ai-brief-content strong {
+    color: #f7faff;
+}
+
+[data-theme="dark"] .overview-page .kpi-glass-label {
+    color: rgba(243, 246, 251, 0.82);
+}
+
+[data-theme="dark"] .overview-page .kpi-glass-value {
+    letter-spacing: 0.01em;
+}
+
+[data-theme="dark"] .overview-page .kpi-glass-sub {
+    color: rgba(243, 246, 251, 0.68);
+}
+
+[data-theme="dark"] .allocations-page #alloc-back-btn {
+    min-height: 36px;
+    border-radius: 9px;
+    border-color: rgba(255, 255, 255, 0.22) !important;
+    color: #eaf1ff !important;
+    background-color: #1f2937 !important;
+}
+
+[data-theme="dark"] .allocations-page #alloc-back-btn:hover {
+    background-color: #2a3648 !important;
+    border-color: rgba(0, 212, 255, 0.45) !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .allocations-page p[style*='fontStyle'] {
+    color: rgba(233, 237, 244, 0.72) !important;
+}
+
+/* ============================================================
+   ATTRIBUTION / FLOWS / HOLDINGS - Specific Overrides
+   ============================================================ */
+
+[data-theme="dark"] .holdings-page #holdings-table-container,
+[data-theme="dark"] .flows-page #external-flows-table-container,
+[data-theme="dark"] .flows-page #internal-flows-table-container,
+[data-theme="dark"] .attribution-page #active-strategy-table-container,
+[data-theme="dark"] .attribution-page #attribution-detail-container,
+[data-theme="dark"] .attribution-page #si-attribution-container {
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+    background: rgba(16, 22, 30, 0.52);
+    padding: 0.35rem;
+}
+
+[data-theme="dark"] .holdings-page #holdings-grid .ag-pinned-left-header,
+[data-theme="dark"] .holdings-page #holdings-grid .ag-pinned-left-cols-container {
+    background-color: #1b2532 !important;
+}
+
+[data-theme="dark"] .attribution-page .footnote,
+[data-theme="dark"] .flows-page .footnote,
+[data-theme="dark"] .holdings-page .footnote {
+    line-height: 1.45;
+}
+
+@media (max-width: 991.98px) {
+    [data-theme="dark"] .performance-page .card-body,
+    [data-theme="dark"] .overview-page .card-body,
+    [data-theme="dark"] .allocations-page .card-body,
+    [data-theme="dark"] .attribution-page .card-body,
+    [data-theme="dark"] .flows-page .card-body,
+    [data-theme="dark"] .holdings-page .card-body,
+    [data-theme="dark"] .risk-page .card-body,
+    [data-theme="dark"] .risk-page .card .card-body,
+    [data-theme="dark"] .strategy-backtesting-page .card-body,
+    [data-theme="dark"] .strategy-backtesting-page .strategy-scorecard-body {
+        padding: 0.95rem 0.92rem;
+    }
+
+    [data-theme="dark"] .performance-page .section-header,
+    [data-theme="dark"] .overview-page .section-header,
+    [data-theme="dark"] .allocations-page .section-header,
+    [data-theme="dark"] .attribution-page .section-header,
+    [data-theme="dark"] .flows-page .section-header,
+    [data-theme="dark"] .holdings-page .section-header,
+    [data-theme="dark"] .risk-page .section-header,
+    [data-theme="dark"] .strategy-backtesting-page .section-header {
+        font-size: 1.03rem;
+        line-height: 1.3;
+    }
+
+    [data-theme="dark"] .performance-page .dark-dropdown .Select-control,
+    [data-theme="dark"] .performance-page .dark-dropdown .Select-input input {
+        min-height: 44px !important;
+        font-size: 16px !important;
+    }
+
+    [data-theme="dark"] .overview-page .kpi-glass .kpi-glass-value {
+        font-size: 1.2rem;
+    }
+
+    [data-theme="dark"] .holdings-page #holdings-table-container,
+    [data-theme="dark"] .flows-page #external-flows-table-container,
+    [data-theme="dark"] .flows-page #internal-flows-table-container,
+    [data-theme="dark"] .attribution-page #active-strategy-table-container,
+    [data-theme="dark"] .attribution-page #attribution-detail-container,
+    [data-theme="dark"] .attribution-page #si-attribution-container {
+        padding: 0.28rem;
+    }
+}
+
+@media (max-width: 767.98px), (hover: none) and (pointer: coarse) {
+    [data-theme="dark"] .performance-page .card,
+    [data-theme="dark"] .overview-page .card,
+    [data-theme="dark"] .allocations-page .card,
+    [data-theme="dark"] .attribution-page .card,
+    [data-theme="dark"] .flows-page .card,
+    [data-theme="dark"] .holdings-page .card,
+    [data-theme="dark"] .risk-page .card,
+    [data-theme="dark"] .strategy-backtesting-page .card,
+    [data-theme="dark"] .strategy-backtesting-page .strategy-scorecard-card {
+        border-radius: 12px;
+    }
+
+    [data-theme="dark"] .performance-page .section-header,
+    [data-theme="dark"] .overview-page .section-header,
+    [data-theme="dark"] .allocations-page .section-header,
+    [data-theme="dark"] .attribution-page .section-header,
+    [data-theme="dark"] .flows-page .section-header,
+    [data-theme="dark"] .holdings-page .section-header,
+    [data-theme="dark"] .risk-page .section-header,
+    [data-theme="dark"] .strategy-backtesting-page .section-header {
+        font-size: 0.98rem;
+    }
+
+    [data-theme="dark"] .performance-page .btn,
+    [data-theme="dark"] .overview-page .btn,
+    [data-theme="dark"] .allocations-page .btn,
+    [data-theme="dark"] .attribution-page .btn,
+    [data-theme="dark"] .flows-page .btn,
+    [data-theme="dark"] .holdings-page .btn,
+    [data-theme="dark"] .strategy-backtesting-page .btn {
+        min-height: 44px;
+        font-size: 0.95rem;
+    }
+
+    [data-theme="dark"] .overview-page .kpi-glass {
+        padding: 0.9rem 0.78rem;
+    }
+
+    [data-theme="dark"] .overview-page .kpi-glass .kpi-glass-value {
+        font-size: 1.1rem;
+    }
+
+    [data-theme="dark"] .performance-page .ag-header-cell-label,
+    [data-theme="dark"] .performance-page .ag-cell,
+    [data-theme="dark"] .overview-page .ag-header-cell-label,
+    [data-theme="dark"] .overview-page .ag-cell,
+    [data-theme="dark"] .allocations-page .ag-header-cell-label,
+    [data-theme="dark"] .allocations-page .ag-cell,
+    [data-theme="dark"] .attribution-page .ag-header-cell-label,
+    [data-theme="dark"] .attribution-page .ag-cell,
+    [data-theme="dark"] .flows-page .ag-header-cell-label,
+    [data-theme="dark"] .flows-page .ag-cell,
+    [data-theme="dark"] .holdings-page .ag-header-cell-label,
+    [data-theme="dark"] .holdings-page .ag-cell,
+    [data-theme="dark"] .strategy-backtesting-page .ag-header-cell-label,
+    [data-theme="dark"] .strategy-backtesting-page .ag-cell {
+        font-size: 0.84rem;
+    }
+
+    [data-theme="dark"] .attribution-page .js-plotly-plot,
+    [data-theme="dark"] .flows-page .js-plotly-plot,
+    [data-theme="dark"] .holdings-page .js-plotly-plot {
+        min-height: 250px;
+    }
+}
+
+    /* ============================================================
+       EXTENDED PAGE REVAMP (Trade / Tax / Rebalancing / Settings / Help)
+       ============================================================ */
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) {
+        color: #e9edf4;
+    }
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .section-header {
+        color: #f4f7ff !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        letter-spacing: 0.2px;
+    }
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .card {
+        background: linear-gradient(180deg, rgba(28, 38, 51, 0.92), rgba(21, 29, 39, 0.96));
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.36);
+    }
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .card-header {
+        background: rgba(23, 32, 44, 0.92) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.09) !important;
+        color: #f4f7ff !important;
+    }
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .card-body {
+        background: rgba(17, 24, 33, 0.7);
+    }
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) :is(.text-muted, small.text-muted, .small.text-muted) {
+        color: rgba(233, 237, 244, 0.72) !important;
+    }
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page) :is(.form-control, .form-select, .Select-control) {
+        background: #1f2734 !important;
+        color: #f4f7ff !important;
+        border: 1px solid rgba(255, 255, 255, 0.17) !important;
+        min-height: 40px;
+    }
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page) :is(.form-control, .form-select, .Select-control):focus {
+        border-color: rgba(137, 196, 255, 0.85) !important;
+        box-shadow: 0 0 0 0.22rem rgba(80, 150, 230, 0.24) !important;
+    }
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page) :is(.form-control::placeholder, input::placeholder) {
+        color: rgba(233, 237, 244, 0.58) !important;
+    }
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page) .dark-dropdown .Select-control {
+        background: #1f2734 !important;
+        border: 1px solid rgba(255, 255, 255, 0.17) !important;
+    }
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page) .dark-dropdown :is(.Select-value-label, .Select-placeholder, .Select-input input, .Select-arrow-zone, .Select-clear-zone) {
+        color: #f4f7ff !important;
+    }
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page) :is(.ag-theme-alpine-dark, .ag-theme-alpine) {
+        --ag-background-color: #1b2532;
+        --ag-foreground-color: #edf2fb;
+        --ag-header-background-color: #233244;
+        --ag-header-foreground-color: #f4f7ff;
+        --ag-row-hover-color: rgba(84, 156, 232, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+    }
+
+    [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .js-plotly-plot :is(.main-svg, .bg) {
+        background: transparent !important;
+    }
+
+    [data-theme="dark"] .settings-page :is(#upload-holdings, #upload-cashflows) {
+        border-color: rgba(255, 255, 255, 0.22) !important;
+        background: rgba(28, 38, 51, 0.65);
+        color: #f4f7ff;
+        border-radius: 12px !important;
+    }
+
+    [data-theme="dark"] .help-page .card {
+        border-radius: 14px;
+    }
+
+    [data-theme="dark"] .help-page .card-body :is(p, li, strong, em, code) {
+        color: #e9edf4;
+    }
+
+    @media (max-width: 991.98px) {
+        [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .card-body {
+            padding: 0.95rem 0.92rem;
+        }
+
+        [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .section-header {
+            font-size: 1.03rem;
+            line-height: 1.3;
+        }
+    }
+
+    @media (max-width: 767.98px), (hover: none) and (pointer: coarse) {
+        [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .card {
+            border-radius: 12px;
+        }
+
+        [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .btn {
+            min-height: 44px;
+            font-size: 0.95rem;
+        }
+
+        [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page) :is(.form-control, .form-select, .Select-control, .Select-input input) {
+            min-height: 44px !important;
+            font-size: 16px !important;
+        }
+
+        [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .ag-theme-alpine .ag-cell,
+        [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .ag-theme-alpine .ag-header-cell-label,
+        [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .ag-theme-alpine-dark .ag-cell,
+        [data-theme="dark"] :is(.trade-lab-page, .taxes-page, .rebalancing-page, .trade-execution-page, .settings-page, .help-page) .ag-theme-alpine-dark .ag-header-cell-label {
+            font-size: 0.84rem;
+        }
+    }

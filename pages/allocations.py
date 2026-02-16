@@ -53,7 +53,7 @@ layout = html.Div([
             dcc.Loading(dcc.Graph(id='history-chart'))
         ]), width=12, className="mb-4"),
     ]),
-])
+], className="allocations-page")
 
 @callback(
     [Output({'type': 'filter-chart', 'index': 'asset-bar-chart'}, 'figure'),

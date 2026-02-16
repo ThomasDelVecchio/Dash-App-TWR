@@ -147,7 +147,7 @@ layout = html.Div([
             html.Li("Risk Metrics: Based on realized historical performance (Trailing 12-Month Return, 10-Year Volatility). Past performance is not indicative of future results.")
         ], className="small text-muted")
     ], className="mb-4")
-])
+], className="risk-page")
 
 # --- CALLBACKS ---
 

@@ -125,7 +125,7 @@ layout = html.Div([
             ])
         ]), width=12),
     ]),
-])
+], className="taxes-page", style={"padding": "20px"})
 
 # ============================================================
 # CALLBACKS
