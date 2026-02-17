@@ -252,7 +252,7 @@ sidebar = html.Div(
                 ],
                 value=["SPY", "VTI", "AOA"],
                 multi=True,
-                className="mb-2",
+                className="mb-2 dark-dropdown",
                 persistence=True,
                 persistence_type="local"
             ),

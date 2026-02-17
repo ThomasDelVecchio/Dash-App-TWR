@@ -1228,7 +1228,7 @@ mjx-container > svg {
    Breakpoint 1024px catches iPad portrait;
    (hover:none)+(pointer:coarse) catches touch tablets.
    ============================================================ */
-@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+@media (max-width: 1400px), (hover: none) and (pointer: coarse) {
 
     /* ---- NUCLEAR: force dark on every element inside .dark-dropdown ---- */
     .dark-dropdown,
@@ -2321,7 +2321,7 @@ mjx-container > svg {
     padding: 2rem 0.5rem;
 }
 
-@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+@media (max-width: 1400px), (hover: none) and (pointer: coarse) {
     [data-theme="dark"] .sidebar {
         width: min(86vw, 360px);
         max-width: 360px;
@@ -2367,6 +2367,104 @@ mjx-container > svg {
     [data-theme="dark"] .sidebar .sidebar-controls .Select-input input {
         min-height: 44px !important;
         font-size: 16px !important;
+    }
+
+    [data-theme="dark"] .sidebar .sidebar-controls .Select--multi > .Select-control {
+        background-color: var(--sidebar-field-bg) !important;
+        border: 1px solid var(--sidebar-field-border) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        box-shadow: none !important;
+    }
+
+    [data-theme="dark"] .sidebar .sidebar-controls .Select--multi .Select-multi-value-wrapper,
+    [data-theme="dark"] .sidebar .sidebar-controls .Select--multi .Select-placeholder,
+    [data-theme="dark"] .sidebar .sidebar-controls .Select--multi .Select-input input,
+    [data-theme="dark"] .sidebar .sidebar-controls .Select--multi .Select-value-label,
+    [data-theme="dark"] .sidebar .sidebar-controls .Select--multi .Select-clear-zone,
+    [data-theme="dark"] .sidebar .sidebar-controls .Select--multi .Select-arrow-zone {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        -webkit-appearance: none !important;
+        appearance: none !important;
+    }
+
+    [data-theme="dark"] .sidebar .sidebar-controls .Select--multi .Select-input input {
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    [data-theme="dark"] .sidebar .sidebar-controls .Select--multi .Select-value {
+        background-color: rgba(255, 255, 255, 0.10) !important;
+        border: 1px solid rgba(255, 255, 255, 0.16) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    [data-theme="dark"] .sidebar .sidebar-controls .Select--multi .Select-value-icon {
+        border-right-color: rgba(255, 255, 255, 0.18) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    [data-theme="dark"] #benchmark-dropdown,
+    [data-theme="dark"] #benchmark-dropdown * {
+        color-scheme: dark !important;
+    }
+
+    [data-theme="dark"] #benchmark-dropdown :is(.Select-control, .Select-menu-outer, .Select-option, .VirtualizedSelectOption, .VirtualizedSelectFocusedOption, .VirtualizedSelectSelectedOption, .Select-noresults) {
+        background-color: #151c24 !important;
+        border-color: rgba(255, 255, 255, 0.16) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        -webkit-appearance: none !important;
+        appearance: none !important;
+    }
+
+    [data-theme="dark"] #benchmark-dropdown :is(.Select-placeholder, .Select-value-label, .Select-value, .Select-input input, .Select-arrow-zone, .Select-clear-zone, .Select-multi-value-wrapper) {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        background-color: transparent !important;
+    }
+
+    [data-theme="dark"] #benchmark-dropdown .Select--multi .Select-value {
+        background-color: rgba(255, 255, 255, 0.10) !important;
+        border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    }
+
+    [data-theme="dark"] #benchmark-dropdown .Select--multi .Select-value-icon {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-right-color: rgba(255, 255, 255, 0.18) !important;
+        background-color: transparent !important;
+    }
+
+    [data-theme="dark"] .sidebar .sidebar-controls #benchmark-dropdown :is([role="combobox"], [role="listbox"], [role="option"], input[type="search"], input[role="combobox"], [class*="control"], [class*="menu"], [class*="option"], [class*="singleValue"], [class*="multiValue"], [class*="placeholder"], [class*="indicator"], [class*="valueContainer"]) {
+        background-color: #151c24 !important;
+        border-color: rgba(255, 255, 255, 0.16) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        box-shadow: none !important;
+    }
+
+    [data-theme="dark"] :is([role="listbox"], [class*="menu"], [class*="Menu"]) :is([role="option"], [class*="option"], [class*="Option"]) {
+        background-color: #151c24 !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    [data-theme="dark"] :is(.Select-menu-outer, .VirtualizedSelectOption, .VirtualizedSelectFocusedOption, .VirtualizedSelectSelectedOption, .Select-option, .Select-option.is-focused, .Select-option.is-selected, .Select-noresults) {
+        background-color: #151c24 !important;
+        border-color: rgba(255, 255, 255, 0.16) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
     }
 
     [data-theme="dark"] .sidebar-open-btn {

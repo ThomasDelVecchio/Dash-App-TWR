@@ -1,10 +1,22 @@
 ticker,shares,asset_class,target_pct
-VTV,710.0735999999999,US Large Cap Value,25
-VIG,469.7697,US Dividend Growth,20
-VWO,1563.1949,Emerging Markets,15
-XLE,924.8346999999999,Energy Sector,10
-SMH,168.28289999999998,Semiconductors,10
-TLT,655.5559000000001,Long-Term Treasuries,10
-COST,26.4162,US Consumer Staples,5
-GLD,80.623,Gold / Precious Metals,5
-CASH,42460.0,CASH,0
+AVDV,20.0,International Equity,5
+VXUS,77.0,International Equity,15
+VOO,23.0,US Large Cap,35
+SPMO,43.0,US Large Cap,12
+GLD,12.0,Gold / Precious Metals,5
+FBTC,17.0,Digital Assets,0
+AVUV,49.0,US Small Cap,13
+XMHQ,19.0,US Mid Cap,10
+CASH,6462.11,CASH,0
+AMZN,0.0,US Growth,0
+BND,0.0,Fixed Income,0
+COST,0.0,US Consumer Staples,5
+MSBNK,0.0,Unknown,0
+NDAQ,0.0,US Growth,0
+SCHG,0.0,US Growth,0
+SMH,0.0,Semiconductors,10
+TLT,0.0,Long-Term Treasuries,10
+VIG,0.0,US Dividend Growth,20
+VTV,0.0,US Large Cap Value,25
+VWO,0.0,Emerging Markets,15
+XLE,0.0,Energy Sector,10

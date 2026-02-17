@@ -2424,6 +2424,7 @@ def get_drawdown_chart(data, theme="light"):
         mode='lines',
         fill='tozeroy',
         name='Drawdown',
+        showlegend=False,
         line=dict(color=GLOBAL_PALETTE[2], width=1.5, shape='spline'),
         fillgradient=dict(
             type="vertical",
@@ -2540,7 +2541,16 @@ def get_projections_chart(data, theme="light", rate_pct=None, monthly_contrib=No
         yaxis_title="Portfolio Value ($)",
         template="plotly_dark",
         hovermode="x unified",
-        height=450
+        height=450,
+        margin=dict(l=40, r=20, t=40, b=95),
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.22,
+            xanchor="center",
+            x=0.5
+        )
     )
     return fig
 

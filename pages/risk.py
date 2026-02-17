@@ -70,7 +70,7 @@ layout = html.Div([
                             id='proj-return-slider',
                             min=2, max=30, step=0.5, value=7,
                             marks={i: f'{i}%' for i in range(5, 31, 5)},
-                            tooltip={"placement": "bottom", "always_visible": True},
+                            tooltip={"placement": "bottom", "always_visible": False},
                             persistence=True,
                             persistence_type='local'
                         )
@@ -81,7 +81,7 @@ layout = html.Div([
                             id='proj-contrib-slider',
                             min=0, max=5000, step=100, value=TARGET_MONTHLY_CONTRIBUTION,
                             marks={0: '$0', 1000: '$1k', 2500: '$2.5k', 5000: '$5k'},
-                            tooltip={"placement": "bottom", "always_visible": True},
+                            tooltip={"placement": "bottom", "always_visible": False},
                             persistence=True,
                             persistence_type='local'
                         )
@@ -114,15 +114,15 @@ layout = html.Div([
                 html.Div(id='total-weight-display', className="text-center fw-bold mb-3"),
                 dbc.Button("Recalculate Profile", id="btn-recalculate-sim", color="primary", className="w-100")
             ])
-        ]), width=6),
+        ]), lg=6, md=12),
         dbc.Col([
             dbc.Row([
                 dbc.Col([
                     dcc.Loading(dcc.Graph(id='sim-expected-return-gauge', config={'displayModeBar': False}))
-                ], width=6),
+                ], lg=6, md=12),
                 dbc.Col([
                     dcc.Loading(dcc.Graph(id='sim-volatility-gauge', config={'displayModeBar': False}))
-                ], width=6)
+                ], lg=6, md=12)
             ]),
             html.Div(
                 html.Small(
@@ -131,7 +131,7 @@ layout = html.Div([
                     className="text-muted fst-italic"
                 ), className="mt-2 text-center"
             )
-        ], width=6)
+        ], lg=6, md=12)
     ], className="mb-4"),
     
     # DISCLOSURE FOOTER
