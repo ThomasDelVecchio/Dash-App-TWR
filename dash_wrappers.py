@@ -4069,8 +4069,13 @@ def fetch_audit_details(request_data):
     # TYPE 5: TWR AUDIT (Snapshot Return Columns)
     # ------------------------------------------------
     if "snapshot-grid" in str(grid_id) and col_id == "Return":
-        horizon = row_data.get("Horizon")
-        if not horizon: return request_data
+        horizon_label = row_data.get("Horizon")
+        if not horizon_label:
+            return request_data
+
+        horizon = str(horizon_label).strip()
+        if horizon.endswith(" (Ann.)"):
+            horizon = horizon[:-7]
         
         # Map Display Label to Engine Code
         if horizon == "Since Inception":
@@ -4082,6 +4087,13 @@ def fetch_audit_details(request_data):
         cf_ext = data["cf_ext"]
         inception_date = data["inception_date"]
         
+        # Preserve row meta values for audit table display even if monthly schedule is unavailable
+        request_data["meta_Return_start"] = row_data.get("meta_Return_start")
+        request_data["meta_Return_end"] = row_data.get("meta_Return_end")
+        request_data["meta_Return_flow"] = row_data.get("meta_Return_flow")
+        request_data["meta_Return_is_annualized"] = row_data.get("meta_Return_is_annualized")
+        request_data["meta_Return_days"] = row_data.get("meta_Return_days")
+
         # Calculate Start/End
         start = get_portfolio_horizon_start(pv, inception_date, horizon)
         end = pv.index.max()
@@ -4089,6 +4101,8 @@ def fetch_audit_details(request_data):
         # Handle Insufficient Data (Enforce TWR View)
         if start is None: 
             request_data["twr_monthly_breakdown"] = []
+            request_data["meta_Return_start_date"] = row_data.get("meta_Return_start_date")
+            request_data["meta_Return_end_date"] = row_data.get("meta_Return_end_date")
             return request_data
         
         # Re-calculate Daily TWR Series using TRUSTED financial_math logic

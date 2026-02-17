@@ -787,6 +787,7 @@ def handle_perf_grid_clicks(cell_clicks, right_clicks, current_data):
     request = {
         'gridId': trigger_id,
         'colId': click_data.get('colId'),
+        'value': click_data.get('value'),
         'rowData': click_data.get('data'),
         'rowIndex': click_data.get('rowIndex'),
         'timestamp': pd.Timestamp.now().isoformat()

@@ -970,6 +970,7 @@ def get_audit_modal_content(request_data):
         
         # Summary Values
         horizon = row_data.get("Horizon", "Period")
+        horizon_display = str(horizon).replace(" (Ann.)", "")
         
         # Get start/end/flow from meta if available, else from row
         v_start = request_data.get("meta_Return_start", 0.0)
@@ -978,6 +979,7 @@ def get_audit_modal_content(request_data):
         
         # Check for Annualization
         is_annualized = request_data.get("meta_Return_is_annualized", False)
+        title_suffix = " (Annualized)" if is_annualized else period_label
         
         # Calculate Cumulative Return from monthly factors
         cum_factor = 1.0
@@ -999,7 +1001,7 @@ def get_audit_modal_content(request_data):
         """
         
         content = []
-        content.append(html.H4(f"Audit: Portfolio Return ({horizon}){period_label}", className="mb-3"))
+        content.append(html.H4(f"Audit: Portfolio Return ({horizon_display}){title_suffix}", className="mb-3"))
         if date_str: content.append(html.Div(date_str, className="text-muted small mb-3"))
         content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
         
@@ -1220,13 +1222,13 @@ def get_audit_modal_content(request_data):
                  html.Td("Period Return (Cumulative)"), 
                  html.Td(f"{cum_ret:+.2f}%", className="text-end")
              ]))
-             
-             final_ret = row_data.get(col_id, 0.0)
-             final_ret_pct = final_ret * 100 if isinstance(final_ret, (int, float)) else 0.0
-             
+
+             final_ret = request_data.get('value', row_data.get(col_id, 'N/A'))
+             final_ret_display = _fmt_value(final_ret, pct=True)
+
              rows.append(html.Tr([
                  html.Td("Annualized Return (CAGR)", className="fw-bold text-info"), 
-                 html.Td(f"{final_ret_pct:+.2f}%", className="text-end fw-bold text-info")
+                 html.Td(final_ret_display, className="text-end fw-bold text-info")
              ]))
         else:
              rows.append(html.Tr([
