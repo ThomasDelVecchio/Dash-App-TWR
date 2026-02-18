@@ -16,7 +16,7 @@ layout = html.Div([
         icon="bi-shield-exclamation",
         subtitle="Volatility, correlation, drawdown analysis, and projections"
     ),
-    
+
     # 1. RISK & CORRELATION ROW
     dbc.Row([
         dbc.Col(dbc.Card([
@@ -69,7 +69,10 @@ layout = html.Div([
                         dcc.Slider(
                             id='proj-return-slider',
                             min=2, max=30, step=0.5, value=7,
-                            marks={i: f'{i}%' for i in range(5, 31, 5)},
+                            marks={
+                                i: {'label': f'{i}%', 'style': {'color': '#f8fafc'}}
+                                for i in range(5, 31, 5)
+                            },
                             tooltip={"placement": "bottom", "always_visible": False},
                             persistence=True,
                             persistence_type='local'
@@ -80,7 +83,12 @@ layout = html.Div([
                         dcc.Slider(
                             id='proj-contrib-slider',
                             min=0, max=5000, step=100, value=TARGET_MONTHLY_CONTRIBUTION,
-                            marks={0: '$0', 1000: '$1k', 2500: '$2.5k', 5000: '$5k'},
+                            marks={
+                                0: {'label': '$0', 'style': {'color': '#f8fafc'}},
+                                1000: {'label': '$1k', 'style': {'color': '#f8fafc'}},
+                                2500: {'label': '$2.5k', 'style': {'color': '#f8fafc'}},
+                                5000: {'label': '$5k', 'style': {'color': '#f8fafc'}},
+                            },
                             tooltip={"placement": "bottom", "always_visible": False},
                             persistence=True,
                             persistence_type='local'
@@ -114,16 +122,28 @@ layout = html.Div([
                 html.Div(id='total-weight-display', className="text-center fw-bold mb-3"),
                 dbc.Button("Recalculate Profile", id="btn-recalculate-sim", color="primary", className="w-100")
             ])
-        ]), lg=6, md=12),
+        ]), xxl=5, xl=5, lg=5, md=12),
         dbc.Col([
             dbc.Row([
                 dbc.Col([
-                    dcc.Loading(dcc.Graph(id='sim-expected-return-gauge', config={'displayModeBar': False}))
-                ], lg=6, md=12),
+                    dcc.Loading(
+                        dcc.Graph(
+                            id='sim-expected-return-gauge',
+                            config={'displayModeBar': False, 'responsive': True},
+                            style={'width': '100%', 'height': '300px'}
+                        )
+                    )
+                ], xxl=6, xl=6, lg=6, md=6, sm=6),
                 dbc.Col([
-                    dcc.Loading(dcc.Graph(id='sim-volatility-gauge', config={'displayModeBar': False}))
-                ], lg=6, md=12)
-            ]),
+                    dcc.Loading(
+                        dcc.Graph(
+                            id='sim-volatility-gauge',
+                            config={'displayModeBar': False, 'responsive': True},
+                            style={'width': '100%', 'height': '300px'}
+                        )
+                    )
+                ], xxl=6, xl=6, lg=6, md=6, sm=6)
+            ], className="g-1"),
             html.Div(
                 html.Small(
                     "Estimates impact of rebalancing on risk profile. "
@@ -131,7 +151,7 @@ layout = html.Div([
                     className="text-muted fst-italic"
                 ), className="mt-2 text-center"
             )
-        ], lg=6, md=12)
+        ], xxl=7, xl=7, lg=7, md=12)
     ], className="mb-4"),
     
     # DISCLOSURE FOOTER
@@ -351,12 +371,13 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal):
     
     return_gauge = go.Figure(go.Indicator(
         mode="gauge+number+delta",
+        domain={'x': [0.06, 0.94], 'y': [0, 1]},
         value=sim_return,
         number={'valueformat': '.2f'},
         delta={'reference': current_return, 'suffix': '%', 'valueformat': '.2f'},
-        title={'text': "Expected Return (TTM) %"},
+        title={'text': "Expected Return<br>(TTM) %", 'font': {'size': 24}},
         gauge={
-            'axis': {'range': [0, max_ret_range]},
+            'axis': {'range': [0, max_ret_range], 'tickfont': {'size': 12}},
             'bar': {'color': GLOBAL_PALETTE[0]},
             'steps': [
                 {'range': [0, max_ret_range*0.33], 'color': dw._hex_to_rgba(GLOBAL_PALETTE[2], 0.3)},
@@ -366,16 +387,17 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal):
             'threshold': {'line': {'color': GLOBAL_PALETTE[2], 'width': 4}, 'thickness': 0.75, 'value': current_return}
         }
     ))
-    return_gauge.update_layout(template=template, height=300, margin=dict(l=20, r=20, t=50, b=20))
+    return_gauge.update_layout(template=template, height=300, margin=dict(l=18, r=18, t=68, b=20))
     
     vol_gauge = go.Figure(go.Indicator(
         mode="gauge+number+delta",
+        domain={'x': [0.06, 0.94], 'y': [0, 1]},
         value=sim_vol,
         number={'valueformat': '.2f'},
         delta={'reference': current_vol, 'suffix': '%', 'valueformat': '.2f'},
-        title={'text': "Volatility (%)"},
+        title={'text': "Volatility (%)", 'font': {'size': 24}},
         gauge={
-            'axis': {'range': [0, 30]},
+            'axis': {'range': [0, 30], 'tickfont': {'size': 12}},
             'bar': {'color': GLOBAL_PALETTE[6]},
             'steps': [
                 {'range': [0, 10], 'color': dw._hex_to_rgba(GLOBAL_PALETTE[4], 0.3)},
@@ -385,7 +407,7 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal):
             'threshold': {'line': {'color': GLOBAL_PALETTE[2], 'width': 4}, 'thickness': 0.75, 'value': current_vol}
         }
     ))
-    vol_gauge.update_layout(template=template, height=300, margin=dict(l=20, r=20, t=50, b=20))
+    vol_gauge.update_layout(template=template, height=300, margin=dict(l=18, r=18, t=68, b=20))
     
     return return_gauge, vol_gauge, total_display, labels
 

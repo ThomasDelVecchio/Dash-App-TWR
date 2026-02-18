@@ -24,7 +24,8 @@
 
     const roots = [
       document.getElementById('benchmark-dropdown'),
-      document.getElementById('strategy-preset-checklist')
+      document.getElementById('strategy-preset-checklist'),
+      document.getElementById('growth-asset-class-filter')
     ].filter(Boolean);
     if (!roots.length) return;
 

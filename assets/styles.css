@@ -2701,6 +2701,43 @@ mjx-container > svg {
     [data-theme="dark"] .risk-page .js-plotly-plot {
         min-height: 260px;
     }
+
+    [data-theme="dark"] .risk-page #simulator-sliders-container .rc-slider-tooltip,
+    [data-theme="dark"] .risk-page #simulator-sliders-container .rc-tooltip,
+    [data-theme="dark"] .risk-page #simulator-sliders-container .rc-slider-tooltip-content,
+    [data-theme="dark"] .risk-page #simulator-sliders-container .rc-tooltip-content,
+    [data-theme="dark"] .risk-page #simulator-sliders-container .rc-slider-tooltip-inner,
+    [data-theme="dark"] .risk-page #simulator-sliders-container .rc-tooltip-inner,
+    [data-theme="dark"] .risk-page #simulator-sliders-container .rc-slider-tooltip-arrow,
+    [data-theme="dark"] .risk-page #simulator-sliders-container .rc-tooltip-arrow,
+    [data-theme="dark"] .risk-page #simulator-sliders-container input[type="number"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+    }
+}
+
+@media (max-width: 1199.98px), (hover: none) and (pointer: coarse) {
+    [data-theme="dark"] .risk-page #sim-expected-return-gauge,
+    [data-theme="dark"] .risk-page #sim-volatility-gauge {
+        width: 100% !important;
+    }
+
+    [data-theme="dark"] .risk-page #sim-expected-return-gauge .js-plotly-plot,
+    [data-theme="dark"] .risk-page #sim-volatility-gauge .js-plotly-plot,
+    [data-theme="dark"] .risk-page #sim-expected-return-gauge .plot-container,
+    [data-theme="dark"] .risk-page #sim-volatility-gauge .plot-container,
+    [data-theme="dark"] .risk-page #sim-expected-return-gauge .svg-container,
+    [data-theme="dark"] .risk-page #sim-volatility-gauge .svg-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: visible !important;
+    }
+
+    [data-theme="dark"] .risk-page #sim-expected-return-gauge .main-svg,
+    [data-theme="dark"] .risk-page #sim-volatility-gauge .main-svg {
+        overflow: visible !important;
+    }
 }
 
 /* ============================================================
