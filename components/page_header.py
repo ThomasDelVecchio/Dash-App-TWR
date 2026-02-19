@@ -9,7 +9,6 @@ Provides a consistent header component for all pages with:
 """
 
 from dash import html
-import dash_bootstrap_components as dbc
 
 
 def page_header(
@@ -92,55 +91,3 @@ def page_header(
         header_content,
         className="page-header d-flex align-items-start justify-content-between"
     )
-
-
-def create_skeleton_loader(type: str = "card", count: int = 1):
-    """
-    Creates skeleton loading placeholders.
-    
-    Args:
-        type: "card", "chart", "table", "text", "kpi"
-        count: Number of skeleton elements to create
-    
-    Returns:
-        html.Div or list of skeleton elements
-    """
-    skeletons = []
-    
-    for _ in range(count):
-        if type == "card":
-            skeletons.append(
-                html.Div(className="skeleton skeleton-card mb-3")
-            )
-        elif type == "chart":
-            skeletons.append(
-                html.Div(className="skeleton skeleton-chart mb-3")
-            )
-        elif type == "table":
-            skeletons.append(
-                html.Div(className="skeleton skeleton-table mb-3")
-            )
-        elif type == "text":
-            skeletons.append(
-                html.Div([
-                    html.Div(className="skeleton skeleton-text"),
-                    html.Div(className="skeleton skeleton-text"),
-                    html.Div(className="skeleton skeleton-text-sm"),
-                ], className="mb-3")
-            )
-        elif type == "kpi":
-            skeletons.append(
-                dbc.Card(
-                    dbc.CardBody([
-                        html.Div(className="skeleton skeleton-text-sm mb-2", style={"width": "60%"}),
-                        html.Div(className="skeleton skeleton-title", style={"width": "80%"}),
-                        html.Div(className="skeleton skeleton-text-sm", style={"width": "40%"}),
-                    ], className="p-2"),
-                    className="shadow-sm"
-                )
-            )
-    
-    if count == 1:
-        return skeletons[0]
-    
-    return html.Div(skeletons)

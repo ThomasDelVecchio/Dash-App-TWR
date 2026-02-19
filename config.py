@@ -50,7 +50,7 @@ ETRADE_AUTO_SYNC = os.environ.get("ETRADE_AUTO_SYNC", "true").lower() == "true"
 def _detect_colab():
     """Detect if running in Google Colab."""
     try:
-        import google.colab
+        importlib.import_module("google.colab")
         return True
     except ImportError:
         return False

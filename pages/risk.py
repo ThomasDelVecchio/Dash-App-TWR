@@ -283,7 +283,7 @@ def populate_simulator_sliders(signal, saved_state):
      Input({'type': 'sim-btn-plus', 'index': MATCH}, 'n_clicks')],
     [State({'type': 'sim-slider', 'index': MATCH}, 'value')]
 )
-def update_slider_value(n_minus, n_plus, current_val):
+def update_slider_value(_n_minus, _n_plus, current_val):
     if current_val is None: return 0
     ctx = dash.callback_context
     if not ctx.triggered: return current_val

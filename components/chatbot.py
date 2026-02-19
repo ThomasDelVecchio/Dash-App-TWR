@@ -7,7 +7,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import dash_wrappers as dw
-import config
 from data_loader import fetch_price_history
 from financial_math import annualize_return
 from pages.help_content import HELP_TOPICS

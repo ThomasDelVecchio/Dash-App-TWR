@@ -705,7 +705,7 @@ def track_toast_dismiss(is_open, toast_state):
      Input("btn-clear-global", "n_clicks")],
     [State("filter-store", "data")]
 )
-def update_filter_store(all_charts_click, clear_btn, current_filters):
+def update_filter_store(all_charts_click, _clear_btn, current_filters):
     
     ctx = callback_context
     if not ctx.triggered:
@@ -789,7 +789,7 @@ def update_filter_store(all_charts_click, clear_btn, current_filters):
     [State("sidebar", "className"),
      State("page-content", "className")]
 )
-def toggle_sidebar(n_close, n_open, sidebar_class, content_class):
+def toggle_sidebar(_n_close, _n_open, sidebar_class, content_class):
     ctx = callback_context
     
     # Style for hidden floating button

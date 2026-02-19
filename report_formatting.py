@@ -2,7 +2,6 @@ import pandas as pd
 from docx import Document
 from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from io import BytesIO
 import plotly.graph_objects as go
@@ -107,9 +106,6 @@ def fmt_number_clean(x):
         return f"{float(x):,.2f}"
     except:
         return "N/A"
-
-def safe(x):
-    return "N/A" if x is None or pd.isna(x) else x
 
 # =====================================================================
 # Document Styling Helpers

@@ -692,7 +692,7 @@ def update_growth_analysis(signal, dates, selected_ac, chat_cmd, _filters):
      Input("btn-ret-collapse", "n_clicks")],
     [State("perf-ret-accordion", "children")]
 )
-def toggle_ret_accordion(n_exp, n_col, children):
+def toggle_ret_accordion(_n_exp, _n_col, children):
     ctx = dash.callback_context
     if not ctx.triggered: return dash.no_update
     
@@ -725,7 +725,7 @@ def toggle_ret_accordion(n_exp, n_col, children):
      Input("btn-pl-collapse", "n_clicks")],
     [State("perf-pl-accordion", "children")]
 )
-def toggle_pl_accordion(n_exp, n_col, children):
+def toggle_pl_accordion(_n_exp, _n_col, children):
     ctx = dash.callback_context
     if not ctx.triggered: return dash.no_update
     

@@ -112,7 +112,7 @@
                 <div style="opacity: 0.8;">Executive Integrity Dashboard</div>
             </div>
             <div class="meta">
-                <div>Date: 2026-02-14 15:41:35</div>
+                <div>Date: 2026-02-19 12:26:43</div>
                 <div>Version: 3.0 (Modular Opus Suite)</div>
             </div>
         </header>
@@ -290,12 +290,12 @@ Loading live data via Analytics Engine...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
 [PRICE] FMP success: 7/7, yfinance fallback: 0
 Data loaded.
-[PASS] [1W] Match! Port: -231.80 | Sum: -231.79 | Gap: -0.00
-[PASS] [1M] Match! Port: -696.54 | Sum: -696.54 | Gap: -0.00
-[PASS] [MTD] Match! Port: -642.20 | Sum: -642.20 | Gap: -0.00
-[PASS] [YTD] Match! Port: 334.94 | Sum: 334.94 | Gap: 0.00
+[PASS] [1W] Match! Port: 302.68 | Sum: 302.68 | Gap: -0.00
+[PASS] [1M] Match! Port: -844.90 | Sum: -844.90 | Gap: -0.00
+[PASS] [MTD] Match! Port: -654.24 | Sum: -654.24 | Gap: -0.00
+[PASS] [YTD] Match! Port: 322.90 | Sum: 322.90 | Gap: -0.00
 [1Y] Insufficient data for Portfolio P/L.
-[PASS] [SI] Match! Port: 1,531.13 | Sum: 1,531.13 | Gap: -0.00
+[PASS] [SI] Match! Port: 1,519.09 | Sum: 1,519.09 | Gap: -0.00
 
 --- Dividend Integrity Check ---
 Checking Dividend: CASH on 2025-11-28 for $0.08
@@ -328,8 +328,8 @@ Checking Correlation Matrix...
 [PASS] Correlation Matrix is Symmetric
 [PASS] Correlation Values within [-1, 1]
 Checking Active Metrics (Beta/TE)...
-[PASS] Beta vs SPY calculated: 0.7335
-[PASS] Tracking Error calculated: 6.1678%
+[PASS] Beta vs SPY calculated: 0.7328
+[PASS] Tracking Error calculated: 6.1269%
 Checking Drawdown Logic...
 [PASS] Max Drawdown (-4.26%) matches Minimum of Series
 [PASS] Drawdown Series is always <= 0.0
@@ -357,15 +357,15 @@ Loading live data...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
 [PRICE] FMP success: 7/7, yfinance fallback: 0
 Checking Snapshot vs Chart...
-[PASS] Cumulative SI TWR (0.0324) matches Chart Final Value (0.0324)
+[PASS] Cumulative SI TWR (0.0322) matches Chart Final Value (0.0322)
 Checking Snapshot vs Horizon Table...
-[PASS] Snapshot SI P/L (1,531.13) matches Horizon Table (1,531.13)
+[PASS] Snapshot SI P/L (1,519.09) matches Horizon Table (1,519.09)
 Checking Growth Table vs P/L...
-[PASS] Growth Table Total (1,531.13) matches SI P/L (1,531.13)
+[PASS] Growth Table Total (1,519.09) matches SI P/L (1,519.09)
 Checking Attribution vs SI TWR...
-[PASS] Attribution Sum (3.24%) matches SI TWR (3.24%)
+[PASS] Attribution Sum (3.22%) matches SI TWR (3.22%)
 Checking Risk Chart vs Horizon Table...
-Risk Chart US Large Cap Return: 13.03%
+Risk Chart US Large Cap Return: 12.85%
 [PASS] Risk Data exists.
 
 [SUCCESS] audit_05_consistency_matrix.py passed.
@@ -630,7 +630,7 @@ Final GIPS Score: 5/5
   Passed:       199
   Failed:       0
   Pass Rate:    100.0%
-  Duration:     0.22s
+  Duration:     0.30s
 ======================================================================
 
 📝 Appended new Frontend Stress section to report.
@@ -653,11 +653,11 @@ Final GIPS Score: 5/5
 Running Live Engine...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
 [PRICE] FMP success: 17/17, yfinance fallback: 0
-Time Machine Target: 2026-01-30
+Time Machine Target: 2026-02-05
 Running Historical Engine...
 
 Checking PV Consistency...
-[PASS] PV Matches: History=49343.70 vs Live=49343.71
+[PASS] PV Matches: History=48029.18 vs Live=48029.18
 
 Checking Future Leakage (Transactions)...
 [PASS] No future tickers detected in historical view.
@@ -685,11 +685,11 @@ Loading Live Data...
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (15yr)
 [PRICE] FMP success: 7/7, yfinance fallback: 0
 
-Scanning Last 30 Days (2026-01-14 to 2026-02-13)...
-[PASS] Last 30 Days: Match! Slice=-0.015536 vs Rigorous=-0.015536
+Scanning Last 30 Days (2026-01-20 to 2026-02-19)...
+[PASS] Last 30 Days: Match! Slice=-0.002597 vs Rigorous=-0.002597
 
-Scanning Middle 20 Days (2025-12-24 to 2026-01-13)...
-[PASS] Middle 20 Days: Match! Slice=0.010225 vs Rigorous=0.010225
+Scanning Middle 20 Days (2025-12-27 to 2026-01-16)...
+[PASS] Middle 20 Days: Match! Slice=0.010629 vs Rigorous=0.010629
 
 [SUCCESS] audit_09_custom_report.py passed.
 </div>
@@ -930,7 +930,7 @@ Current Configuration:
 [PASS]: yfinance ticker list populated
         Count: 2
 [PASS]: Date coverage > 85%
-        729 days (99.9%) from 2024-02-15 to 2026-02-13
+        730 days (100.0%) from 2024-02-20 to 2026-02-19
 
 ======================================================================
  Test 3: Hybrid Mode Structure
@@ -941,9 +941,9 @@ Current Configuration:
 [PASS]: Source marked as 'hybrid'
         Got: 'hybrid'
 [PASS]: FMP range tracked
-        Range: (Timestamp('2021-02-15 00:00:00'), Timestamp('2026-02-14 00:00:00'))
+        Range: (Timestamp('2021-02-20 00:00:00'), Timestamp('2026-02-19 00:00:00'))
 [PASS]: yfinance range tracked
-        Range: (Timestamp('2016-02-17 00:00:00'), Timestamp('2021-02-15 00:00:00'))
+        Range: (Timestamp('2016-02-22 00:00:00'), Timestamp('2021-02-20 00:00:00'))
         FMP success count: 1
         yfinance fallback count: 0
 
@@ -955,18 +955,19 @@ Current Configuration:
 [PASS]: SPY data available
         2514 rows
 [PASS]: Stitch date identified
-        2021-02-15
+        2021-02-20
 [PASS]: Sufficient data around stitch
         14 days
 [PASS]: Price continuity (no >5% jump)
-        Max daily change: 2.41%
+        Max daily change: 2.42%
 [PASS]: No NaN gaps around stitch
 
         Prices around stitch boundary:
-          2021-02-12: $392.64
-          2021-02-16: $392.30
           2021-02-17: $392.39
           2021-02-18: $390.72
+          2021-02-19: $390.03
+          2021-02-22: $387.03
+          2021-02-23: $387.50
 
 ======================================================================
  Test 5: FMP Single Ticker Fetch
@@ -974,7 +975,7 @@ Current Configuration:
 [PASS]: FMP fetch executed
 [PASS]: Returns DataFrame
 [PASS]: Data returned
-        21 rows
+        22 rows
 [PASS]: 'Close' column present
         Columns: ['Close']
 [PASS]: DatetimeIndex
@@ -1004,11 +1005,11 @@ Current Configuration:
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (-4yr)
 [PRICE] FMP success: 1/1, yfinance fallback: 0
 [PASS]: Both price sets available
-        Close: 1256 rows, Adj: 1256 rows
+        Close: 1255 rows, Adj: 1255 rows
 [PASS]: Close and Adj Close have data
-        Close: $681.75, Adj: $681.75, Diff: 0.00%
+        Close: $684.05, Adj: $684.05, Diff: 0.00%
 [PASS]: Difference is reasonable (<5%)
-        Historical divergence: Close $392.30, Adj $366.22, Diff: 6.65%
+        Historical divergence: Close $387.03, Adj $361.30, Diff: 6.65%
 
 ======================================================================
  Test 8: Multi-Ticker Fetch Consistency
@@ -1016,14 +1017,14 @@ Current Configuration:
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (-2yr)
 [PRICE] FMP success: 5/5, yfinance fallback: 0
 [PASS]: Multi-ticker fetch successful
-        1256 rows
+        1255 rows
 [PASS]: All tickers present
         All 5 tickers
-        SPY: 1256 valid prices, 2021-02-16 to 2026-02-13
-        QQQ: 1256 valid prices, 2021-02-16 to 2026-02-13
-        VTI: 1256 valid prices, 2021-02-16 to 2026-02-13
-        BND: 1256 valid prices, 2021-02-16 to 2026-02-13
-        GLD: 1256 valid prices, 2021-02-16 to 2026-02-13
+        SPY: 1255 valid prices, 2021-02-22 to 2026-02-19
+        QQQ: 1255 valid prices, 2021-02-22 to 2026-02-19
+        VTI: 1255 valid prices, 2021-02-22 to 2026-02-19
+        BND: 1255 valid prices, 2021-02-22 to 2026-02-19
+        GLD: 1255 valid prices, 2021-02-22 to 2026-02-19
 [PASS]: SPY (default benchmark) present
 
 ======================================================================
@@ -1032,19 +1033,19 @@ Current Configuration:
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (-4yr)
 [PRICE] FMP success: 1/1, yfinance fallback: 0
 [PASS]: 1Y coverage >= 85%
-        1823 days (499.5%), 2021-02-16 to 2026-02-13
+        1823 days (499.5%), 2021-02-22 to 2026-02-19
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (-2yr)
 [PRICE] FMP success: 1/1, yfinance fallback: 0
 [PASS]: 3Y coverage >= 85%
-        1823 days (166.5%), 2021-02-16 to 2026-02-13
+        1823 days (166.5%), 2021-02-22 to 2026-02-19
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (0yr)
 [PRICE] FMP success: 1/1, yfinance fallback: 0
 [PASS]: 5Y coverage >= 85%
-        1823 days (99.9%), 2021-02-16 to 2026-02-13
+        1823 days (99.9%), 2021-02-22 to 2026-02-19
 [PRICE] Hybrid mode: FMP (5yr) + yfinance (5yr)
 [PRICE] FMP success: 1/1, yfinance fallback: 0
 [PASS]: 10Y coverage >= 80%
-        3649 days (100.0%), 2016-02-17 to 2026-02-13
+        3650 days (100.0%), 2016-02-22 to 2026-02-19
 
 ======================================================================
  Test 10: Error Tracking Attributes
@@ -1109,6 +1110,1240 @@ Current Configuration:
             Generated by Automated Forensic Audit Suite v3.0
         </footer>
     </div>
+
+<section id="frontend-stress" class="audit-section">
+    <h2>🎯 Audit 16: Frontend Stress Testing</h2>
+    
+    <div class="summary-box">
+        <h3>Summary</h3>
+        <p><strong>Total Tests:</strong> 199</p>
+        <p><strong>Passed:</strong> <span class="success">199</span></p>
+        <p><strong>Failed:</strong> <span class="danger">0</span></p>
+        <p><strong>Pass Rate:</strong> 100.0%</p>
+    </div>
+    
+    <h3>Test Results</h3>
+    <table class="results-table">
+        <thead>
+            <tr>
+                <th>Component</th>
+                <th>Attack Vector</th>
+                <th>Status</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            
+        <tr>
+            <td>overview-kpi-cards</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty KPI handled</td>
+        </tr>
+        <tr>
+            <td>overview-kpi-cards</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>overview-kpi-cards</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>overview-kpi-cards</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>overview-flows-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>overview-flows-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>overview-flows-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>overview-flows-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>snapshot-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>snapshot-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>snapshot-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>snapshot-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>perf-ac-ret-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>perf-ac-ret-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>perf-ac-ret-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>perf-ac-ret-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>cum-ret-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>cum-ret-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>cum-ret-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>cum-ret-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>excess-ret-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>excess-ret-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>excess-ret-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>excess-ret-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>growth-capital-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>growth-capital-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>growth-capital-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>growth-capital-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>asset-pie-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>asset-pie-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>asset-pie-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>asset-pie-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>asset-bar-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>asset-bar-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>asset-bar-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>asset-bar-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>sector-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>sector-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>sector-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>sector-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>allocation-history-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>allocation-history-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>allocation-history-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>allocation-history-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>active-strategy-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>active-strategy-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>active-strategy-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>active-strategy-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>attribution-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>attribution-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>attribution-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>attribution-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>si-attribution-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>si-attribution-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>si-attribution-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>si-attribution-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>holdings-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>holdings-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>holdings-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>holdings-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>ticker-pie-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>ticker-pie-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>ticker-pie-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>ticker-pie-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>ticker-bar-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>ticker-bar-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>ticker-bar-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>ticker-bar-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>risk-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>risk-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>risk-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>risk-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>correlation-heatmap</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>correlation-heatmap</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>correlation-heatmap</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>correlation-heatmap</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>drawdown-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>drawdown-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>drawdown-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>drawdown-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>projections-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>projections-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>projections-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>projections-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>flows-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>flows-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>flows-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>flows-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>tax-lots-open-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>tax-lots-open-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>tax-lots-open-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>tax-lots-open-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>tax-lots-realized-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>tax-lots-realized-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>tax-lots-realized-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>tax-lots-realized-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>cliff-watch-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>cliff-watch-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>cliff-watch-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>cliff-watch-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>harvest-radar-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>harvest-radar-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>harvest-radar-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>harvest-radar-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>tax-sunburst-chart</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>tax-sunburst-chart</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>tax-sunburst-chart</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>tax-sunburst-chart</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>tax-tactical-radar</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty data path tested</td>
+        </tr>
+        <tr>
+            <td>tax-tactical-radar</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>tax-tactical-radar</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>No required columns to test</td>
+        </tr>
+        <tr>
+            <td>tax-tactical-radar</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>rebalancing-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>rebalancing-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>rebalancing-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>rebalancing-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>ac-allocation-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>ac-allocation-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>ac-allocation-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>ac-allocation-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>monthly-contrib-grid</td>
+            <td>Empty Data</td>
+            <td class="success">PASS</td>
+            <td>Empty DataFrame handled</td>
+        </tr>
+        <tr>
+            <td>monthly-contrib-grid</td>
+            <td>NaN/Inf Injection</td>
+            <td class="success">PASS</td>
+            <td>NaN/Inf handled gracefully</td>
+        </tr>
+        <tr>
+            <td>monthly-contrib-grid</td>
+            <td>Missing Column (KeyError)</td>
+            <td class="success">PASS</td>
+            <td>KeyError correctly raised for missing columns</td>
+        </tr>
+        <tr>
+            <td>monthly-contrib-grid</td>
+            <td>Scale Breaker</td>
+            <td class="success">PASS</td>
+            <td>Extreme values formatted</td>
+        </tr>
+        <tr>
+            <td>Leap Day TWR</td>
+            <td>Calculation</td>
+            <td class="success">PASS</td>
+            <td>TWR = 0.0200</td>
+        </tr>
+        <tr>
+            <td>Year-End Crossing</td>
+            <td>TWR Calculation</td>
+            <td class="success">PASS</td>
+            <td>TWR = -0.0769</td>
+        </tr>
+        <tr>
+            <td>Single Day Horizon</td>
+            <td>Edge Case</td>
+            <td class="success">PASS</td>
+            <td>Handled gracefully</td>
+        </tr>
+        <tr>
+            <td>Negative Denominator</td>
+            <td>Edge Case</td>
+            <td class="success">PASS</td>
+            <td>Result: nan</td>
+        </tr>
+        <tr>
+            <td>Annualization Gate</td>
+            <td>< 1 Year</td>
+            <td class="success">PASS</td>
+            <td>Correctly kept cumulative</td>
+        </tr>
+        <tr>
+            <td>Annualization Gate</td>
+            <td>> 1 Year</td>
+            <td class="success">PASS</td>
+            <td>Correctly annualized: 0.0999</td>
+        </tr>
+        <tr>
+            <td>Modified Dietz</td>
+            <td>Zero Denominator</td>
+            <td class="success">PASS</td>
+            <td>Returned NaN as expected</td>
+        </tr>
+        <tr>
+            <td>Market Holiday</td>
+            <td>Detection</td>
+            <td class="success">PASS</td>
+            <td>All cases correct</td>
+        </tr>
+        <tr>
+            <td>100% Loss</td>
+            <td>Annualization</td>
+            <td class="success">PASS</td>
+            <td>Handled correctly</td>
+        </tr>
+        <tr>
+            <td>Horizon Target</td>
+            <td>YTD on Jan 1</td>
+            <td class="success">PASS</td>
+            <td>Target: 2023-12-31 00:00:00</td>
+        </tr>
+        <tr>
+            <td>Horizon Target</td>
+            <td>MTD on 1st</td>
+            <td class="success">PASS</td>
+            <td>Target: 2024-02-29 00:00:00</td>
+        </tr>
+        <tr>
+            <td>Empty Holdings</td>
+            <td>Handling</td>
+            <td class="success">PASS</td>
+            <td>Would raise ValueError (expected)</td>
+        </tr>
+        <tr>
+            <td>Single Position</td>
+            <td>Portfolio</td>
+            <td class="success">PASS</td>
+            <td>Single row holdings valid</td>
+        </tr>
+        <tr>
+            <td>Duplicate Tickers</td>
+            <td>Aggregation</td>
+            <td class="success">PASS</td>
+            <td>Correctly summed</td>
+        </tr>
+        <tr>
+            <td>Unicode Tickers</td>
+            <td>Handling</td>
+            <td class="success">PASS</td>
+            <td>No encoding errors</td>
+        </tr>
+        <tr>
+            <td>Zero Shares</td>
+            <td>Detection</td>
+            <td class="success">PASS</td>
+            <td>Correctly identified</td>
+        </tr>
+        <tr>
+            <td>Negative Shares</td>
+            <td>Short Position</td>
+            <td class="success">PASS</td>
+            <td>Detected short</td>
+        </tr>
+        <tr>
+            <td>Same-Day Trades</td>
+            <td>Net Calculation</td>
+            <td class="success">PASS</td>
+            <td>Correctly netted</td>
+        </tr>
+        <tr>
+            <td>Future Dates</td>
+            <td>Detection</td>
+            <td class="success">PASS</td>
+            <td>Found 1 future tx</td>
+        </tr>
+        <tr>
+            <td>Weekend Trades</td>
+            <td>Detection</td>
+            <td class="success">PASS</td>
+            <td>Found 2 weekend trades</td>
+        </tr>
+        <tr>
+            <td>Price Gaps</td>
+            <td>Forward Fill</td>
+            <td class="success">PASS</td>
+            <td>Filled 78 gaps</td>
+        </tr>
+        <tr>
+            <td>Zero Prices</td>
+            <td>Detection</td>
+            <td class="success">PASS</td>
+            <td>Found 20 zero prices</td>
+        </tr>
+        <tr>
+            <td>Negative Prices</td>
+            <td>Detection</td>
+            <td class="success">PASS</td>
+            <td>Found 1 negative prices</td>
+        </tr>
+        <tr>
+            <td>Extreme Volatility</td>
+            <td>Detection</td>
+            <td class="success">PASS</td>
+            <td>Max: 192.64%, Min: -162.06%</td>
+        </tr>
+        <tr>
+            <td>Tax Lot Cliff</td>
+            <td>Detection</td>
+            <td class="success">PASS</td>
+            <td>Found 4 cliff-edge lots</td>
+        </tr>
+        <tr>
+            <td>All-Loss Portfolio</td>
+            <td>Detection</td>
+            <td class="success">PASS</td>
+            <td>Total P/L: $-4,200.00</td>
+        </tr>
+        <tr>
+            <td>Wash Sale Risk</td>
+            <td>Detection</td>
+            <td class="success">PASS</td>
+            <td>Found 2 risky lots</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>Zero</td>
+            <td class="success">PASS</td>
+            <td>'$0.00'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>Zero Float</td>
+            <td class="success">PASS</td>
+            <td>'$0.00'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>Negative Zero</td>
+            <td class="success">PASS</td>
+            <td>'$-0.00'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>Near Zero</td>
+            <td class="success">PASS</td>
+            <td>'$0.00'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>Very Large</td>
+            <td class="success">PASS</td>
+            <td>'$1,000,000,000,000,000.00'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>Very Large Negative</td>
+            <td class="success">PASS</td>
+            <td>'$-1,000,000,000,000,000.00'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>NaN</td>
+            <td class="success">PASS</td>
+            <td>'N/A'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>Infinity</td>
+            <td class="success">PASS</td>
+            <td>'$inf'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>Negative Infinity</td>
+            <td class="success">PASS</td>
+            <td>'$-inf'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>None</td>
+            <td class="success">PASS</td>
+            <td>'N/A'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>Python NaN</td>
+            <td class="success">PASS</td>
+            <td>'N/A'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>Many Decimals</td>
+            <td class="success">PASS</td>
+            <td>'$0.12'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>Near -100%</td>
+            <td class="success">PASS</td>
+            <td>'$-1.00'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>Near +100%</td>
+            <td class="success">PASS</td>
+            <td>'$1.00'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>100%</td>
+            <td class="success">PASS</td>
+            <td>'$100.00'</td>
+        </tr>
+        <tr>
+            <td>fmt_dollar_clean</td>
+            <td>-100%</td>
+            <td class="success">PASS</td>
+            <td>'$-100.00'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>Zero</td>
+            <td class="success">PASS</td>
+            <td>'0.00%'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>Zero Float</td>
+            <td class="success">PASS</td>
+            <td>'0.00%'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>Negative Zero</td>
+            <td class="success">PASS</td>
+            <td>'-0.00%'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>Near Zero</td>
+            <td class="success">PASS</td>
+            <td>'0.00%'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>Very Large</td>
+            <td class="success">PASS</td>
+            <td>'100000000000000000.00%'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>Very Large Negative</td>
+            <td class="success">PASS</td>
+            <td>'-100000000000000000.00%'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>NaN</td>
+            <td class="success">PASS</td>
+            <td>'N/A'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>Infinity</td>
+            <td class="success">PASS</td>
+            <td>'inf%'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>Negative Infinity</td>
+            <td class="success">PASS</td>
+            <td>'-inf%'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>None</td>
+            <td class="success">PASS</td>
+            <td>'N/A'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>Python NaN</td>
+            <td class="success">PASS</td>
+            <td>'N/A'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>Many Decimals</td>
+            <td class="success">PASS</td>
+            <td>'12.35%'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>Near -100%</td>
+            <td class="success">PASS</td>
+            <td>'-100.00%'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>Near +100%</td>
+            <td class="success">PASS</td>
+            <td>'100.00%'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>100%</td>
+            <td class="success">PASS</td>
+            <td>'10000.00%'</td>
+        </tr>
+        <tr>
+            <td>fmt_pct_clean</td>
+            <td>-100%</td>
+            <td class="success">PASS</td>
+            <td>'-10000.00%'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>Zero</td>
+            <td class="success">PASS</td>
+            <td>'0'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>Zero Float</td>
+            <td class="success">PASS</td>
+            <td>'0.0'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>Negative Zero</td>
+            <td class="success">PASS</td>
+            <td>'-0.0'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>Near Zero</td>
+            <td class="success">PASS</td>
+            <td>'1e-15'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>Very Large</td>
+            <td class="success">PASS</td>
+            <td>'1000000000000000.0'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>Very Large Negative</td>
+            <td class="success">PASS</td>
+            <td>'-1000000000000000.0'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>NaN</td>
+            <td class="success">PASS</td>
+            <td>'N/A'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>Infinity</td>
+            <td class="success">PASS</td>
+            <td>'inf'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>Negative Infinity</td>
+            <td class="success">PASS</td>
+            <td>'-inf'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>None</td>
+            <td class="success">PASS</td>
+            <td>'N/A'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>Python NaN</td>
+            <td class="success">PASS</td>
+            <td>'N/A'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>Many Decimals</td>
+            <td class="success">PASS</td>
+            <td>'0.123456789'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>Near -100%</td>
+            <td class="success">PASS</td>
+            <td>'-0.999999'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>Near +100%</td>
+            <td class="success">PASS</td>
+            <td>'1.000001'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>100%</td>
+            <td class="success">PASS</td>
+            <td>'100.0'</td>
+        </tr>
+        <tr>
+            <td>safe()</td>
+            <td>-100%</td>
+            <td class="success">PASS</td>
+            <td>'-100.0'</td>
+        </tr>
+        </tbody>
+    </table>
+    
+    <div class="methodology-box">
+        <h4>Methodology</h4>
+        <ul>
+            <li><strong>Empty Data Attack:</strong> Tests handling of empty DataFrames/Series</li>
+            <li><strong>NaN/Inf Injection:</strong> Tests handling of NaN, Inf, -Inf, NaT values</li>
+            <li><strong>Missing Column Attack:</strong> Tests KeyError handling for missing columns</li>
+            <li><strong>Scale Breaker:</strong> Tests extreme values ($1e-12 to $1e15)</li>
+            <li><strong>Financial Math Edge Cases:</strong> Leap day, year-end crossing, negative dividends, etc.</li>
+            <li><strong>Portfolio Engine Edge Cases:</strong> Duplicate tickers, zero shares, wash sales, etc.</li>
+        </ul>
+    </div>
+</section>
+
 </body>
 </html>
     

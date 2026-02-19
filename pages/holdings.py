@@ -7,7 +7,6 @@ import pandas as pd
 from data_loader import fetch_etf_sectors
 from report_formatting import fmt_pct_clean, fmt_dollar_clean, fmt_number_clean
 from components.page_header import page_header
-import config
 
 layout = html.Div([
     # --- HEADER ---

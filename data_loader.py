@@ -31,25 +31,6 @@ _REPORTED_MISSING = set()
 # Price Cache Management (Persistent)
 # ------------------------------------------------------------
 
-def load_price_cache_from_disk():
-    global _PRICE_CACHE
-    if os.path.exists(PRICE_CACHE_FILE):
-        try:
-            # Check expiry
-            modified_time = datetime.fromtimestamp(os.path.getmtime(PRICE_CACHE_FILE))
-            age = datetime.now() - modified_time
-            if age > timedelta(hours=PRICE_CACHE_EXPIRY_HOURS):
-                 print(f"[CACHE] Price cache expired ({age}). Refreshing from API...")
-                 _PRICE_CACHE = {}
-                 return
-
-            with open(PRICE_CACHE_FILE, "rb") as f:
-                _PRICE_CACHE = pickle.load(f)
-            print(f"[CACHE] Loaded {len(_PRICE_CACHE)} price entries from disk.")
-        except Exception as e:
-            print(f"[CACHE] Error loading price cache: {e}")
-            _PRICE_CACHE = {}
-
 def save_price_cache_to_disk():
     try:
         with open(PRICE_CACHE_FILE, "wb") as f:
@@ -85,7 +66,6 @@ def save_metadata_cache():
 
 # Initialize cache on module load
 load_metadata_cache()
-# load_price_cache_from_disk()
 
 # ------------------------------------------------------------
 # Sector Loading Logic (FMP -> YF -> Equity)
@@ -393,30 +373,6 @@ def load_holdings(path: str = HOLDINGS_FILE) -> pd.DataFrame:
                 df = pd.concat([df, ext_new], ignore_index=True)
 
     return df
-
-# ------------------------------------------------------------
-# Load Composite Mappings
-# ------------------------------------------------------------
-
-def load_composite_mappings(path: str = COMPOSITE_MAPPING_FILE) -> pd.DataFrame:
-    if not os.path.exists(path):
-        return pd.DataFrame(columns=["composite_name", "ticker"])
-        
-    df = pd.read_csv(path)
-    df.columns = [c.lower().replace(" ", "_") for c in df.columns]
-    
-    # Expected columns: composite_name, ticker
-    required = {"composite_name", "ticker"}
-    if not required.issubset(df.columns):
-        # Fallback if names are slightly different but order is correct? 
-        # Or just return empty to avoid crashing
-        return pd.DataFrame(columns=["composite_name", "ticker"])
-        
-    df["composite_name"] = df["composite_name"].astype(str)
-    df["ticker"] = df["ticker"].astype(str).str.upper()
-    
-    return df
-
 
 # ------------------------------------------------------------
 # Load cashflows for PORTFOLIO TWR (external flows only)

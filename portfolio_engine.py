@@ -24,7 +24,6 @@ from financial_math import (
     compute_cash_yield,
     get_effective_anchor_date,
     HORIZONS,
-    ANNUALIZE_HORIZONS,
 )
 
 

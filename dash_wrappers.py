@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
-from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 from collections import defaultdict
 import io
@@ -43,7 +42,6 @@ from financial_math import (
 )
 from tax_engine import calculate_tax_optimized_sales
 from report_formatting import fmt_pct_clean, fmt_dollar_clean
-import config
 from config import TARGET_MONTHLY_CONTRIBUTION, GLOBAL_PALETTE, RISK_FREE_RATE, TAX_RATE_LT, TAX_RATE_ST
 from components.backtest_engine import (
     get_strategy_backtest_results,
@@ -1167,33 +1165,6 @@ def get_asset_class_pl(data, asset_class, horizon, return_components=False):
         return_components=return_components,
         effective_as_of=data.get("effective_as_of")
     )
-
-def get_projections_data(data):
-    """
-    Calculates projection scenarios.
-    """
-    pv = data["pv"]
-    if pv.empty: return pd.DataFrame()
-    
-    initial_value = float(pv.iloc[-1])
-    monthly_contrib = TARGET_MONTHLY_CONTRIBUTION
-    rates = [0.05, 0.07, 0.09]
-    years = list(range(21))
-    
-    results = []
-    for yr in years:
-        row = {"Year": yr}
-        for r in rates:
-            # Lump sum only
-            lump_val = fv_lump(initial_value, r, yr)
-            row[f"Lump {int(r*100)}%"] = lump_val
-            
-            # With Contributions
-            contrib_val = lump_val + fv_contrib(monthly_contrib, r, yr)
-            row[f"Contrib {int(r*100)}%"] = contrib_val
-        results.append(row)
-        
-    return pd.DataFrame(results)
 
 def get_rolling_correlations(data, window=90):
     """
