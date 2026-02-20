@@ -8,6 +8,11 @@ import pandas as pd
 from components.ai_brief import generate_ai_summary
 from components.data_source_badge import create_price_source_badge
 from components.page_header import page_header
+from components.storytelling_cards import (
+    build_performance_story_card,
+    build_risk_story_card,
+    build_flows_story_card,
+)
 
 def create_kpi_card(title, value, subtext=None, is_positive=None, accent=None):
     """
@@ -111,7 +116,7 @@ layout = html.Div([
     # Price Source Badge (Fixed position below data status)
     html.Div(id='price-source-badge-container', style={'position': 'fixed', 'top': '30px', 'right': '75px', 'zIndex': 1999}),
 
-    # Morning Brief AI Card (NEW)
+    # Morning Brief AI Card
     dbc.Row([
         dbc.Col(dbc.Card([
             dbc.CardHeader([
@@ -124,58 +129,32 @@ layout = html.Div([
         ], className="mb-4 shadow-sm border-primary"), width=12)
     ]),
 
-    # Single Unified KPI Row
-    dbc.Row([
-        # Value
-        dbc.Col(html.Div(id='kpi-val-card', style={'height': '100%'}), width=2),
-        
-        # TWR
-        dbc.Col(html.Div(id='kpi-twr-card', style={'height': '100%'}), width=2),
-        
-        # P/L
-        dbc.Col(html.Div(id='kpi-pl-card', style={'height': '100%'}), width=2),
-        
-        # Alpha vs S&P 500 (Since Inception)
-        dbc.Col(html.Div(id='kpi-alpha-card', style={'height': '100%'}), width=2),
+    # ── STICKY KPI RIBBON ──
+    html.Div([
+        dbc.Row([
+            dbc.Col(html.Div(id='kpi-val-card', style={'height': '100%'}), xs=6, sm=4, md=2),
+            dbc.Col(html.Div(id='kpi-twr-card', style={'height': '100%'}), xs=6, sm=4, md=2),
+            dbc.Col(html.Div(id='kpi-pl-card', style={'height': '100%'}), xs=6, sm=4, md=2),
+            dbc.Col(html.Div(id='kpi-alpha-card', style={'height': '100%'}), xs=6, sm=4, md=2),
+            dbc.Col(html.Div(id='kpi-mtd-card', style={'height': '100%'}), xs=6, sm=4, md=2),
+            dbc.Col(html.Div(id='kpi-cashdrag-card', style={'height': '100%'}), xs=6, sm=4, md=2),
+        ], className="g-2"),
+    ], className="kpi-ribbon"),
 
-        # MTD
-        dbc.Col(html.Div(id='kpi-mtd-card', style={'height': '100%'}), width=2),
-
-        # Cash Drag
-        dbc.Col(html.Div(id='kpi-cashdrag-card', style={'height': '100%'}), width=2),
-    ], className="mb-4 g-2"),
-
-    # Chart & Snapshot Row
+    # ── HERO CHART + CONTEXT PANEL ──
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5("Portfolio Value (Since Inception %)", className="card-title section-header p-2"),
             dcc.Graph(id='pv-chart', style={'height': '428px'})
-        ]), width=7),
+        ], className="hero-chart-card"), xs=12, lg=7),
         dbc.Col(dbc.Card([
             html.H5("Portfolio Snapshot", className="card-title section-header p-2"),
             dcc.Loading(html.Div(id='snapshot-table-container', style={'height': '428px'}))
-        ]), width=5)
-    ], className="mb-4"),
+        ], className="context-panel"), xs=12, lg=5)
+    ], className="mb-4 command-center-row"),
     
-    # Highlights & Risk Row
-    dbc.Row([
-        dbc.Col(dbc.Card([
-            html.H5("Performance Highlights", className="card-title section-header p-2"),
-            dcc.Loading(html.Div(id='highlights-table-container'))
-        ]), width=6),
-        dbc.Col(dbc.Card([
-            html.H5("Risk & Diversification", className="card-title section-header p-2"),
-            dcc.Loading(html.Div(id='risk-table-container'))
-        ]), width=6)
-    ], className="mb-4"),
-    
-    # Flows Row
-    dbc.Row([
-        dbc.Col(dbc.Card([
-            html.H5("Flows Summary (YTD)", className="card-title section-header p-2"),
-            dcc.Loading(html.Div(id='flows-table-container'))
-        ]), width=12)
-    ], className="mb-4")
+    # Highlights & Risk Row → Phase 3 Storytelling Cards
+    html.Div(id='story-cards-container', className="story-card-row"),
 ], className="overview-page")
 
 # AI Summary Callback (Independent)
@@ -199,9 +178,7 @@ def update_ai_brief(signal):
      Output('kpi-mtd-card', 'children'),
      Output('pv-chart', 'figure'),
      Output('snapshot-table-container', 'children'),
-     Output('highlights-table-container', 'children'),
-     Output('risk-table-container', 'children'),
-     Output('flows-table-container', 'children'),
+     Output('story-cards-container', 'children'),
      Output('kpi-cashdrag-card', 'children')],
     [Input('data-signal', 'data'),
      Input('chatbot-command', 'data'),
@@ -210,7 +187,7 @@ def update_ai_brief(signal):
 def update_overview(signal, chat_cmd, _filters):
     data = dw.get_data()
     if not data:
-        return None, None, "...", "...", "...", None, "...", {}, "Loading...", "Loading...", "Loading...", "Loading...", None
+        return None, None, "...", "...", "...", None, "...", {}, "Loading...", "Loading...", None
     
     # Price Source Badge
     price_source_meta = dw.get_price_source_summary(data)
@@ -306,80 +283,11 @@ def update_overview(signal, chat_cmd, _filters):
         style={"height": "428px"}
     )
     
-    # 2. Highlights Table
-    high_df = dw.get_performance_highlights(data)
-    is_high_target = "highlight" in chat_target
-    
-    high_column_defs = []
-    for col in ["Metric", "Value"]:
-        col_def = {"field": col, "headerName": "", "flex": 1, "minWidth": 150, "wrapText": True, "autoHeight": True}
-        if col == "Value":
-            col_def["comparator"] = {"function": "MoneyComparator"}
-            
-        if chat_action == "SORT" and is_high_target:
-             target_col = chat_cmd["params"].get("column", "").lower()
-             if col.lower() == target_col or target_col in col.lower():
-                 col_def["sort"] = chat_cmd["params"].get("direction", "desc")
-        high_column_defs.append(col_def)
-
-    high_table = dag.AgGrid(
-        id="overview-highlights-grid",
-        rowData=high_df.to_dict('records'),
-        columnDefs=high_column_defs,
-        defaultColDef={"sortable": True, "filter": True, "resizable": True},
-        className="ag-theme-alpine-dark audit-target",
-        dashGridOptions={"domLayout": "autoHeight", "headerHeight": 0}
-    )
-    
-    # 3. Risk Table
-    risk_df = dw.get_risk_diversification(data)
-    is_risk_target = "risk" in chat_target or "diversification" in chat_target
-    
-    risk_column_defs = []
-    for col in ["Metric", "Value"]:
-        col_def = {"field": col, "headerName": "", "flex": 1, "minWidth": 150, "wrapText": True, "autoHeight": True}
-        if col == "Value":
-            col_def["comparator"] = {"function": "MoneyComparator"}
-            
-        if chat_action == "SORT" and is_risk_target:
-             target_col = chat_cmd["params"].get("column", "").lower()
-             if col.lower() == target_col or target_col in col.lower():
-                 col_def["sort"] = chat_cmd["params"].get("direction", "desc")
-        risk_column_defs.append(col_def)
-
-    risk_table = dag.AgGrid(
-        id="overview-risk-grid",
-        rowData=risk_df.to_dict('records'),
-        columnDefs=risk_column_defs,
-        defaultColDef={"sortable": True, "filter": True, "resizable": True},
-        className="ag-theme-alpine-dark audit-target",
-        dashGridOptions={"domLayout": "autoHeight", "headerHeight": 0}
-    )
-    
-    # 4. Flows Table
-    flows_df = dw.get_flows_summary_ytd(data)
-    is_flow_target = "flow" in chat_target
-    
-    flows_column_defs = []
-    for col in ["Metric", "Value"]:
-        col_def = {"field": col, "headerName": "", "flex": 1, "minWidth": 150, "wrapText": True, "autoHeight": True}
-        if col == "Value":
-            col_def["comparator"] = {"function": "MoneyComparator"}
-            
-        if chat_action == "SORT" and is_flow_target:
-             target_col = chat_cmd["params"].get("column", "").lower()
-             if col.lower() == target_col or target_col in col.lower():
-                 col_def["sort"] = chat_cmd["params"].get("direction", "desc")
-        flows_column_defs.append(col_def)
-
-    flows_table = dag.AgGrid(
-        id="overview-flows-grid",
-        rowData=flows_df.to_dict('records'),
-        columnDefs=flows_column_defs,
-        defaultColDef={"sortable": True, "filter": True, "resizable": True},
-        className="ag-theme-alpine-dark audit-target",
-        dashGridOptions={"domLayout": "autoHeight", "headerHeight": 0}
-    )
+    # ── Phase 3: Storytelling Cards ──
+    perf_card = build_performance_story_card(data, metrics, fmt_pct_clean, fmt_dollar_clean)
+    risk_card = build_risk_story_card(data, metrics, fmt_pct_clean, fmt_dollar_clean)
+    flows_card = build_flows_story_card(data, fmt_dollar_clean)
+    story_cards = [perf_card, risk_card, flows_card]
 
     # Alpha vs S&P 500 (Since Inception)
     import numpy as np
@@ -404,4 +312,4 @@ def update_overview(signal, chat_cmd, _filters):
         cash_pos = False  # red glow — high cash drag
     alpha_card_cash = create_kpi_card("Cash Drag", cash_str, subtext="% of portfolio in cash", is_positive=cash_pos)
 
-    return status_note, price_badge, val_card, twr_card, pl_card, alpha_card, mtd_card, fig, snap_table, high_table, risk_table, flows_table, alpha_card_cash
+    return status_note, price_badge, val_card, twr_card, pl_card, alpha_card, mtd_card, fig, snap_table, story_cards, alpha_card_cash

@@ -21,11 +21,12 @@ layout = html.Div([
     # Price Source Badge (Fixed position)
     html.Div(id='perf-price-source-badge-container', style={'position': 'fixed', 'top': '30px', 'right': '75px', 'zIndex': 1999}),
 
+    # ── HERO: Cumulative Return Chart ──
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5("Cumulative Return vs Benchmarks", className="card-title section-header p-2"),
             dcc.Graph(id='cum-ret-chart')
-        ]), width=12, className="mb-4"),
+        ], className="hero-chart-card"), width=12, className="mb-4"),
     ]),
     
     dbc.Row([

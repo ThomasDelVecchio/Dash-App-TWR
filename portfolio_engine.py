@@ -1104,3 +1104,156 @@ def compute_drawdown_series(twr_series):
         recovery_days = (twr_series.index.max() - trough_date).days
         
     return drawdown * 100.0, max_dd * 100.0, recovery_days
+
+
+# ==============================================================
+# SANKEY CASH-FLOW DATA BUILDER
+# ==============================================================
+
+def build_sankey_data(data: dict) -> dict:
+    """
+    Build node/link data for a Cash-Flow Sankey diagram.
+
+    Sources (left)  →  Available Cash (centre)  →  Deployments (right)
+
+    Sources:
+      • External Deposits   (FLOW, amount > 0)
+      • Dividend Income      (DIVIDEND rows)
+      • Interest Income       (INTEREST rows)
+      • Sell Proceeds          (TRADE, amount > 0, grouped by asset class)
+
+    Deployments:
+      • Buys by Asset Class   (TRADE, amount < 0, grouped by asset class)
+      • External Withdrawals  (FLOW, amount < 0)
+
+    Returns dict with keys: labels, colors, sources, targets, values, link_colors
+    """
+    cf_ext = data.get("cf_ext", pd.DataFrame())
+    tx_raw = data.get("tx_raw", pd.DataFrame())
+    dividends = data.get("dividends", pd.DataFrame())
+    holdings = data.get("holdings", pd.DataFrame())
+
+    # Build asset-class map from holdings
+    ac_map = {}
+    if not holdings.empty and "ticker" in holdings.columns and "asset_class" in holdings.columns:
+        ac_map = holdings.set_index("ticker")["asset_class"].to_dict()
+
+    # ----- Aggregate sources -----
+    deposits = 0.0
+    withdrawals = 0.0
+    if not cf_ext.empty:
+        deposits = cf_ext.loc[cf_ext["amount"] > 0, "amount"].sum()
+        withdrawals = abs(cf_ext.loc[cf_ext["amount"] < 0, "amount"].sum())
+
+    div_income = 0.0
+    int_income = 0.0
+    if not dividends.empty:
+        if "type" in dividends.columns:
+            div_mask = dividends["type"].str.upper() == "DIVIDEND"
+            int_mask = dividends["type"].str.upper() == "INTEREST"
+            div_income = dividends.loc[div_mask, "amount"].sum()
+            int_income = dividends.loc[int_mask, "amount"].sum()
+        else:
+            div_income = dividends["amount"].sum()
+
+    # Sells & Buys by asset class
+    sells_by_ac = {}
+    buys_by_ac = {}
+    if not tx_raw.empty:
+        tx = tx_raw.copy()
+        tx["asset_class"] = tx["ticker"].map(ac_map).fillna("Other")
+        # Sells: amount > 0 (cash coming IN from selling)
+        sells = tx[tx["amount"] > 0].groupby("asset_class")["amount"].sum()
+        for ac, amt in sells.items():
+            if amt > 0.01:
+                sells_by_ac[ac] = amt
+        # Buys: amount < 0 (cash going OUT to purchase)
+        buys = tx[tx["amount"] < 0].groupby("asset_class")["amount"].sum()
+        for ac, amt in buys.items():
+            if abs(amt) > 0.01:
+                buys_by_ac[ac] = abs(amt)
+
+    # ----- Build nodes -----
+    # Index 0 is always "Available Cash" (centre node)
+    labels = ["Available Cash"]
+    node_colors = ["#4FC3F7"]  # light blue
+
+    source_indices = []
+    target_indices = []
+    values = []
+    link_colors = []
+
+    # Palette for asset classes
+    ac_palette = [
+        "#4C6A92", "#8C9CB1", "#C0504D", "#D79E9C", "#9BBB59",
+        "#C5D6A4", "#8064A2", "#B1A0C7", "#4F81BD", "#A5B5CF",
+    ]
+    ac_color_map = {}
+    ac_idx_counter = [0]
+
+    def _ac_color(ac_name):
+        if ac_name not in ac_color_map:
+            ac_color_map[ac_name] = ac_palette[ac_idx_counter[0] % len(ac_palette)]
+            ac_idx_counter[0] += 1
+        return ac_color_map[ac_name]
+
+    def _add_node(label, color):
+        idx = len(labels)
+        labels.append(label)
+        node_colors.append(color)
+        return idx
+
+    # ----- Source nodes → Available Cash -----
+    if deposits > 0.01:
+        idx = _add_node("External Deposits", "#22c55e")
+        source_indices.append(idx)
+        target_indices.append(0)
+        values.append(round(deposits, 2))
+        link_colors.append("rgba(34,197,94,0.35)")
+
+    if div_income > 0.01:
+        idx = _add_node("Dividend Income", "#facc15")
+        source_indices.append(idx)
+        target_indices.append(0)
+        values.append(round(div_income, 2))
+        link_colors.append("rgba(250,204,21,0.35)")
+
+    if int_income > 0.01:
+        idx = _add_node("Interest Income", "#fb923c")
+        source_indices.append(idx)
+        target_indices.append(0)
+        values.append(round(int_income, 2))
+        link_colors.append("rgba(251,146,60,0.35)")
+
+    for ac, amt in sorted(sells_by_ac.items()):
+        c = _ac_color(ac)
+        idx = _add_node(f"Sell: {ac}", c)
+        source_indices.append(idx)
+        target_indices.append(0)
+        values.append(round(amt, 2))
+        link_colors.append(c.replace(")", ",0.30)").replace("rgb", "rgba") if "rgb" in c else f"rgba(128,128,128,0.30)")
+
+    # ----- Available Cash → Deployment nodes -----
+    for ac, amt in sorted(buys_by_ac.items()):
+        c = _ac_color(ac)
+        idx = _add_node(f"Buy: {ac}", c)
+        source_indices.append(0)
+        target_indices.append(idx)
+        values.append(round(amt, 2))
+        link_colors.append(c.replace(")", ",0.30)").replace("rgb", "rgba") if "rgb" in c else f"rgba(128,128,128,0.30)")
+
+    if withdrawals > 0.01:
+        idx = _add_node("External Withdrawals", "#ef4444")
+        source_indices.append(0)
+        target_indices.append(idx)
+        values.append(round(withdrawals, 2))
+        link_colors.append("rgba(239,68,68,0.35)")
+
+    return {
+        "labels": labels,
+        "node_colors": node_colors,
+        "sources": source_indices,
+        "targets": target_indices,
+        "values": values,
+        "link_colors": link_colors,
+    }

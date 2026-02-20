@@ -21,6 +21,70 @@
     --success-color: #22c55e;
     --danger-color: #ef4444;
     --warning-color: #ffc107;
+
+    /* ── Typography Scale ── */
+    --font-family: "Inter", "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+    --fs-page-title: 1.75rem;
+    --fs-section-header: 1.05rem;
+    --fs-kpi-label: 0.68rem;
+    --fs-kpi-value: 1.35rem;
+    --fs-body: 0.92rem;
+    --fs-helper: 0.78rem;
+    --fs-table: 0.85rem;
+    --lh-tight: 1.2;
+    --lh-normal: 1.5;
+    --fw-regular: 400;
+    --fw-medium: 500;
+    --fw-semibold: 600;
+    --fw-bold: 700;
+
+    /* ── Spacing Rhythm (4px base) ── */
+    --sp-1: 0.25rem;   /* 4px */
+    --sp-2: 0.5rem;    /* 8px */
+    --sp-3: 0.75rem;   /* 12px */
+    --sp-4: 1rem;      /* 16px */
+    --sp-5: 1.25rem;   /* 20px */
+    --sp-6: 1.5rem;    /* 24px */
+    --sp-8: 2rem;      /* 32px */
+
+    /* ── Semantic Colors ── */
+    --clr-positive: #22c55e;
+    --clr-positive-muted: rgba(34, 197, 94, 0.14);
+    --clr-negative: #ef4444;
+    --clr-negative-muted: rgba(239, 68, 68, 0.14);
+    --clr-neutral: #94a3b8;
+    --clr-neutral-muted: rgba(148, 163, 184, 0.12);
+    --clr-caution: #f59e0b;
+    --clr-caution-muted: rgba(245, 158, 11, 0.12);
+    --clr-accent-glow: rgba(0, 212, 255, 0.18);
+
+    /* ══════════════════════════════════════════════════════════
+       PHASE 2 — Motion & Interaction Tokens
+       ══════════════════════════════════════════════════════════ */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --dur-instant: 80ms;
+    --dur-fast: 150ms;
+    --dur-normal: 250ms;
+    --dur-reveal: 400ms;
+    --dur-shimmer: 1.8s;
+
+    /* ── Glass / Depth Elevation Tiers ── */
+    --glass-blur-sm: 8px;
+    --glass-blur-md: 16px;
+    --glass-blur-lg: 24px;
+    --glass-bg-surface: rgba(30, 30, 30, 0.55);
+    --glass-bg-elevated: rgba(24, 28, 36, 0.72);
+    --glass-bg-overlay: rgba(14, 18, 24, 0.88);
+    --glass-border-subtle: rgba(255, 255, 255, 0.07);
+    --glass-border-medium: rgba(255, 255, 255, 0.12);
+    --glass-border-strong: rgba(255, 255, 255, 0.18);
+    --elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+    --elevation-2: 0 4px 14px rgba(0,0,0,0.22), 0 2px 4px rgba(0,0,0,0.08);
+    --elevation-3: 0 10px 32px rgba(0,0,0,0.32), 0 4px 8px rgba(0,0,0,0.10);
+    --elevation-4: 0 20px 48px rgba(0,0,0,0.42), 0 8px 16px rgba(0,0,0,0.14);
 }
 
 [data-theme="dark"] {
@@ -3587,3 +3651,1089 @@ mjx-container > svg {
             font-size: 0.84rem;
         }
     }
+
+/* ============================================================
+   PHASE 1: PREMIUM TYPOGRAPHY & SPACING
+   ============================================================ */
+
+/* Global font family */
+body,
+.content,
+.card,
+.page-header {
+    font-family: var(--font-family);
+}
+
+/* Page titles */
+.page-header h2 {
+    font-size: var(--fs-page-title);
+    font-weight: var(--fw-bold);
+    letter-spacing: -0.02em;
+    line-height: var(--lh-tight);
+}
+
+/* Section headers inside cards */
+.section-header {
+    font-size: var(--fs-section-header) !important;
+    font-weight: var(--fw-semibold) !important;
+    letter-spacing: 0.01em;
+    line-height: var(--lh-tight);
+}
+
+/* KPI token overrides */
+.kpi-glass .kpi-glass-label {
+    font-size: var(--fs-kpi-label);
+    font-weight: var(--fw-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.kpi-glass .kpi-glass-value {
+    font-size: var(--fs-kpi-value);
+    font-weight: var(--fw-bold);
+    font-family: var(--font-family);
+    font-variant-numeric: tabular-nums;
+    line-height: var(--lh-tight);
+}
+
+/* Helper / muted text */
+.text-muted,
+small.text-muted,
+.footnote,
+.helper-text {
+    font-size: var(--fs-helper);
+    line-height: var(--lh-normal);
+}
+
+/* Tighter card spacing rhythm */
+.card {
+    margin-bottom: var(--sp-4);
+}
+
+.card-body {
+    padding: var(--sp-4) var(--sp-5);
+}
+
+.card .section-header.p-2 {
+    padding: var(--sp-3) var(--sp-4) !important;
+}
+
+/* ============================================================
+   PHASE 1: SEMANTIC ACCENT STYLES
+   ============================================================ */
+
+/* Positive values (green) */
+.val-positive {
+    color: var(--clr-positive) !important;
+}
+.val-positive-bg {
+    background-color: var(--clr-positive-muted);
+    color: var(--clr-positive) !important;
+    border-radius: var(--border-radius-sm);
+    padding: 2px 6px;
+}
+
+/* Negative values (red) */
+.val-negative {
+    color: var(--clr-negative) !important;
+}
+.val-negative-bg {
+    background-color: var(--clr-negative-muted);
+    color: var(--clr-negative) !important;
+    border-radius: var(--border-radius-sm);
+    padding: 2px 6px;
+}
+
+/* Neutral values */
+.val-neutral {
+    color: var(--clr-neutral) !important;
+}
+
+/* Caution / warning state */
+.val-caution {
+    color: var(--clr-caution) !important;
+}
+.val-caution-bg {
+    background-color: var(--clr-caution-muted);
+    color: var(--clr-caution) !important;
+    border-radius: var(--border-radius-sm);
+    padding: 2px 6px;
+}
+
+/* ============================================================
+   PHASE 1: COMMAND CENTER — STICKY KPI RIBBON
+   ============================================================ */
+
+.kpi-ribbon {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: linear-gradient(180deg, rgba(17, 23, 31, 0.97) 0%, rgba(17, 23, 31, 0.92) 100%);
+    -webkit-backdrop-filter: blur(12px) saturate(130%);
+    backdrop-filter: blur(12px) saturate(130%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: var(--sp-3) 0;
+    margin: 0 calc(-1 * var(--sp-5)) var(--sp-5);
+    padding-left: var(--sp-5);
+    padding-right: var(--sp-5);
+}
+
+[data-theme="dark"] .kpi-ribbon {
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* Mobile: scrollable KPI ribbon */
+@media (max-width: 991.98px) {
+    .kpi-ribbon {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: var(--sp-2) var(--sp-3);
+        margin: 0 calc(-1 * var(--sp-3)) var(--sp-4);
+    }
+    .kpi-ribbon::-webkit-scrollbar {
+        display: none;
+    }
+    .kpi-ribbon .row {
+        flex-wrap: nowrap !important;
+        min-width: max-content;
+    }
+    .kpi-ribbon .row > [class*="col"] {
+        flex: 0 0 auto;
+        width: auto;
+        min-width: 140px;
+        max-width: 180px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .kpi-ribbon .row > [class*="col"] {
+        min-width: 125px;
+        max-width: 155px;
+    }
+    .kpi-ribbon .kpi-glass {
+        padding: var(--sp-2) var(--sp-2);
+    }
+    .kpi-ribbon .kpi-glass .kpi-glass-value {
+        font-size: 1.1rem;
+    }
+    .kpi-ribbon .kpi-glass .kpi-glass-label {
+        font-size: 0.6rem;
+    }
+}
+
+/* ============================================================
+   PHASE 1: HERO CHART ELEVATION
+   ============================================================ */
+
+.hero-chart-card {
+    border: 1px solid rgba(0, 212, 255, 0.12) !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 212, 255, 0.06) !important;
+}
+
+[data-theme="dark"] .hero-chart-card {
+    background: linear-gradient(180deg, #171c23 0%, #0f1319 100%) !important;
+}
+
+/* Context panel styling */
+.context-panel .card {
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ============================================================
+   PHASE 1: IN-CELL DATA BARS (AG Grid)
+   ============================================================ */
+
+.data-bar-cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 0 8px;
+    z-index: 1;
+}
+
+.data-bar-fill {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    border-radius: 3px;
+    z-index: 0;
+    opacity: 0.55;
+    transition: width 0.3s ease;
+}
+
+.data-bar-fill--positive {
+    left: 0;
+    background: linear-gradient(90deg, var(--clr-positive) 0%, rgba(34, 197, 94, 0.05) 100%);
+}
+
+.data-bar-fill--negative {
+    right: 0;
+    background: linear-gradient(270deg, var(--clr-negative) 0%, rgba(239, 68, 68, 0.05) 100%);
+}
+
+.data-bar-fill--neutral {
+    left: 0;
+    background: linear-gradient(90deg, rgba(148, 163, 184, 0.3) 0%, rgba(148, 163, 184, 0.02) 100%);
+}
+
+.data-bar-fill--accent {
+    left: 0;
+    background: linear-gradient(90deg, rgba(76, 106, 146, 0.70) 0%, rgba(76, 106, 146, 0.05) 100%);
+}
+
+.data-bar-text--accent {
+    color: #93b3d4;
+}
+
+.data-bar-text {
+    position: relative;
+    z-index: 2;
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--fw-medium);
+    font-size: var(--fs-table);
+    white-space: nowrap;
+}
+
+/* Data bar text colors for semantic clarity */
+.data-bar-text--positive {
+    color: var(--clr-positive);
+}
+.data-bar-text--negative {
+    color: var(--clr-negative);
+}
+.data-bar-text--neutral {
+    color: var(--clr-neutral);
+}
+
+/* ============================================================
+   PHASE 1: MOBILE LAYOUT — STACKED PANELS
+   ============================================================ */
+
+@media (max-width: 991.98px) {
+    /* Stack hero + context panels vertically */
+    .command-center-row > [class*="col-lg"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    /* Ensure content padding is tighter */
+    .content {
+        padding-left: var(--sp-3) !important;
+        padding-right: var(--sp-3) !important;
+    }
+
+    /* Card spacing tighter on mobile */
+    .card {
+        margin-bottom: var(--sp-3);
+    }
+}
+
+@media (max-width: 575.98px) {
+    .page-header {
+        padding: var(--sp-4) 0 var(--sp-3) 0;
+        margin-bottom: var(--sp-3);
+    }
+    .page-header h2 {
+        font-size: 1.4rem;
+    }
+    .page-header .subtitle {
+        font-size: 0.82rem;
+    }
+}
+
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║          PHASE 2 — MICRO-INTERACTION LANGUAGE               ║
+   ║  Intentional, subtle, premium motion across all surfaces     ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* ── 2.1 Card Hover / Press ── */
+.card {
+    transition:
+        transform var(--dur-normal) var(--ease-out-expo),
+        box-shadow var(--dur-normal) var(--ease-out-expo),
+        border-color var(--dur-fast) ease;
+}
+
+@media (hover: hover) {
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--elevation-2);
+    }
+}
+
+.card:active {
+    transform: translateY(0) scale(0.995);
+    transition-duration: var(--dur-instant);
+}
+
+/* Hero chart card: elevated hover state */
+@media (hover: hover) {
+    .hero-chart-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--elevation-3), 0 0 0 1px rgba(0, 212, 255, 0.10);
+    }
+}
+
+/* ── 2.2 KPI Glass Wrapper: refine hover with motion tokens ── */
+.kpi-glass-wrapper {
+    transition:
+        transform var(--dur-normal) var(--ease-out-expo),
+        box-shadow var(--dur-normal) var(--ease-out-expo);
+}
+
+@media (hover: hover) {
+    .kpi-glass-wrapper:hover {
+        transform: translateY(-3px) scale(1.01);
+        box-shadow: var(--elevation-3), 0 0 24px rgba(0, 212, 255, 0.12);
+    }
+}
+
+.kpi-glass-wrapper:active {
+    transform: translateY(0) scale(0.98);
+    transition-duration: var(--dur-instant);
+}
+
+/* ── 2.3 Button Press Feedback ── */
+.btn {
+    transition:
+        transform var(--dur-fast) var(--ease-out-quart),
+        box-shadow var(--dur-fast) ease,
+        background-color var(--dur-fast) ease,
+        border-color var(--dur-fast) ease,
+        color var(--dur-fast) ease;
+}
+
+@media (hover: hover) {
+    .btn:hover {
+        transform: translateY(-1px);
+    }
+}
+
+.btn:active {
+    transform: translateY(0) scale(0.96);
+    transition-duration: var(--dur-instant);
+}
+
+/* ── 2.4 Sidebar Nav Link: spring press on mobile ── */
+@media (hover: none) {
+    .nav-link:active {
+        transform: scale(0.97);
+        transition-duration: var(--dur-instant);
+    }
+    .nav-link:active::before {
+        background-color: rgba(255, 255, 255, 0.12);
+        opacity: 1;
+        transform: scaleX(1) scaleY(1);
+    }
+}
+
+/* ── 2.5 Filter / Dropdown Transition ── */
+.Select-menu-outer,
+.dark-dropdown .Select-menu-outer {
+    animation: dropdownReveal var(--dur-reveal) var(--ease-out-expo);
+    transform-origin: top center;
+}
+
+@keyframes dropdownReveal {
+    from {
+        opacity: 0;
+        transform: scaleY(0.92) translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: scaleY(1) translateY(0);
+    }
+}
+
+/* ── 2.6 Chart Reveal Animation ── */
+.js-plotly-plot {
+    animation: chartReveal var(--dur-reveal) var(--ease-out-expo) backwards;
+}
+
+@keyframes chartReveal {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── 2.7 Loading-State Shimmer (enhanced) ── */
+@keyframes shimmerPremium {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.skeleton,
+._dash-loading-callback {
+    background: linear-gradient(
+        105deg,
+        rgba(255,255,255,0.04) 0%,
+        rgba(255,255,255,0.08) 40%,
+        rgba(0,212,255,0.06) 50%,
+        rgba(255,255,255,0.08) 60%,
+        rgba(255,255,255,0.04) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmerPremium var(--dur-shimmer) ease infinite;
+}
+
+/* ── 2.8 Accordion Expand/Collapse ── */
+.accordion-collapse {
+    transition: max-height var(--dur-reveal) var(--ease-out-expo);
+}
+
+.accordion-button {
+    transition:
+        background-color var(--dur-fast) ease,
+        color var(--dur-fast) ease;
+}
+
+.accordion-button::after {
+    transition: transform var(--dur-normal) var(--ease-out-expo);
+}
+
+/* ── 2.9 Modal Refined Entry ── */
+.modal.show .modal-dialog {
+    animation: modalEntryPhase2 var(--dur-reveal) var(--ease-out-expo);
+}
+
+@keyframes modalEntryPhase2 {
+    from {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-backdrop.show {
+    transition: opacity var(--dur-normal) ease;
+}
+
+/* ── 2.10 Toast Slide In ── */
+.toast-stack .toast-stack-item {
+    animation: toastSlideIn var(--dur-reveal) var(--ease-out-expo);
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+/* ── 2.11 AG Grid Row Hover (desktop) ── */
+@media (hover: hover) {
+    [data-theme="dark"] .ag-row {
+        transition: background-color var(--dur-fast) ease;
+    }
+}
+
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║      PHASE 2 — ADVANCED GLASS + DEPTH SYSTEM                ║
+   ║  Elevation tiers, translucent surfaces, controlled blur      ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* ── Elevation Tier 1: Cards (default surface) ── */
+[data-theme="dark"] .card {
+    background: var(--glass-bg-surface);
+    border: 1px solid var(--glass-border-subtle);
+    box-shadow: var(--elevation-1);
+}
+
+/* ── Elevation Tier 2: Hero cards, KPI ribbon ── */
+[data-theme="dark"] .hero-chart-card,
+[data-theme="dark"] .kpi-ribbon {
+    background: var(--glass-bg-elevated);
+    -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(140%);
+    backdrop-filter: blur(var(--glass-blur-md)) saturate(140%);
+    border: 1px solid var(--glass-border-medium);
+    box-shadow: var(--elevation-2);
+}
+
+/* ── Elevation Tier 3: Modals, tooltips ── */
+[data-theme="dark"] .modal-content {
+    background: var(--glass-bg-overlay);
+    -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(160%);
+    backdrop-filter: blur(var(--glass-blur-lg)) saturate(160%);
+    border: 1px solid var(--glass-border-strong);
+    box-shadow: var(--elevation-4);
+}
+
+/* ── Elevation Tier 3: Tooltips / Popovers ── */
+[data-theme="dark"] .tooltip-inner,
+[data-theme="dark"] .popover {
+    background: var(--glass-bg-overlay);
+    -webkit-backdrop-filter: blur(var(--glass-blur-md));
+    backdrop-filter: blur(var(--glass-blur-md));
+    border: 1px solid var(--glass-border-medium);
+    box-shadow: var(--elevation-3);
+}
+
+/* ── Elevation Tier 2: Dropdown menus ── */
+[data-theme="dark"] .Select-menu-outer,
+[data-theme="dark"] .dark-dropdown .Select-menu-outer {
+    -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(130%);
+    backdrop-filter: blur(var(--glass-blur-md)) saturate(130%);
+    box-shadow: var(--elevation-3);
+    border: 1px solid var(--glass-border-medium);
+}
+
+/* ── Glass Surface: Context panel cards ── */
+[data-theme="dark"] .context-panel {
+    background: var(--glass-bg-elevated);
+    -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(120%);
+    backdrop-filter: blur(var(--glass-blur-sm)) saturate(120%);
+    border: 1px solid var(--glass-border-subtle);
+    box-shadow: var(--elevation-2);
+}
+
+/* ── Depth Ring: subtle inset shadow on elevated cards ── */
+[data-theme="dark"] .hero-chart-card::after,
+[data-theme="dark"] .context-panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    pointer-events: none;
+}
+
+/* ── Toast glass treatment ── */
+[data-theme="dark"] .toast-stack .toast-stack-item .toast,
+[data-theme="dark"] .toast-stack .toast-stack-item {
+    background: var(--glass-bg-overlay);
+    -webkit-backdrop-filter: blur(var(--glass-blur-md));
+    backdrop-filter: blur(var(--glass-blur-md));
+    border: 1px solid var(--glass-border-medium);
+    box-shadow: var(--elevation-3);
+}
+
+/* ── Page revamp cards: inherit glass properly ── */
+[data-theme="dark"] .performance-page .card,
+[data-theme="dark"] .overview-page .card,
+[data-theme="dark"] .allocations-page .card,
+[data-theme="dark"] .attribution-page .card,
+[data-theme="dark"] .flows-page .card,
+[data-theme="dark"] .holdings-page .card,
+[data-theme="dark"] .risk-page .card,
+[data-theme="dark"] .strategy-backtesting-page .card {
+    -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+    backdrop-filter: blur(var(--glass-blur-sm));
+}
+
+/* ── Mobile: reduce expensive blur for performance ── */
+@media (max-width: 767.98px), (hover: none) and (pointer: coarse) {
+    [data-theme="dark"] .card,
+    [data-theme="dark"] .hero-chart-card,
+    [data-theme="dark"] .context-panel,
+    [data-theme="dark"] .kpi-ribbon {
+        -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(110%);
+        backdrop-filter: blur(var(--glass-blur-sm)) saturate(110%);
+    }
+
+    [data-theme="dark"] .modal-content {
+        -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(130%);
+        backdrop-filter: blur(var(--glass-blur-md)) saturate(130%);
+    }
+
+    /* Reduce card hover lift on touch */
+    .card:active {
+        transform: scale(0.99);
+    }
+
+    /* Lighter shadows on mobile */
+    [data-theme="dark"] .card {
+        box-shadow: var(--elevation-1);
+    }
+
+    [data-theme="dark"] .hero-chart-card {
+        box-shadow: var(--elevation-2);
+    }
+}
+
+/* ── Reduced motion: respect user preference ── */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║  PHASE 2 — PLOTLY RANGE SELECTOR DARK-THEME STYLING         ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* Range selector buttons: blend into dark theme */
+[data-theme="dark"] .js-plotly-plot .rangeselector {
+    background: transparent !important;
+}
+
+[data-theme="dark"] .js-plotly-plot .rangeselector .button rect {
+    fill: rgba(255, 255, 255, 0.06) !important;
+    stroke: rgba(255, 255, 255, 0.12) !important;
+    stroke-width: 1px !important;
+    rx: 5 !important;
+    ry: 5 !important;
+    transition: fill var(--dur-fast) ease;
+}
+
+[data-theme="dark"] .js-plotly-plot .rangeselector .button:hover rect {
+    fill: rgba(0, 212, 255, 0.12) !important;
+    stroke: rgba(0, 212, 255, 0.30) !important;
+}
+
+[data-theme="dark"] .js-plotly-plot .rangeselector .button text {
+    fill: rgba(255, 255, 255, 0.70) !important;
+    font-size: 11px !important;
+    font-family: var(--font-family) !important;
+    font-weight: 500 !important;
+}
+
+[data-theme="dark"] .js-plotly-plot .rangeselector .button:hover text {
+    fill: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Active / selected state */
+[data-theme="dark"] .js-plotly-plot .rangeselector .button.active rect {
+    fill: rgba(0, 212, 255, 0.18) !important;
+    stroke: var(--accent-color) !important;
+}
+
+[data-theme="dark"] .js-plotly-plot .rangeselector .button.active text {
+    fill: #ffffff !important;
+}
+
+/* Mobile: slightly larger tap targets */
+@media (max-width: 767.98px) {
+    [data-theme="dark"] .js-plotly-plot .rangeselector .button rect {
+        height: 28px !important;
+    }
+    [data-theme="dark"] .js-plotly-plot .rangeselector .button text {
+        font-size: 10px !important;
+    }
+}
+
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║  PHASE 2 — CROSSHAIR / SPIKELINE DARK STYLING               ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* Spike lines: crisp and legible in dark mode */
+[data-theme="dark"] .js-plotly-plot .xspikelayer line,
+[data-theme="dark"] .js-plotly-plot .yspikelayer line {
+    stroke: rgba(0, 212, 255, 0.35) !important;
+    stroke-width: 1px !important;
+}
+
+/* Spike label text readability */
+[data-theme="dark"] .js-plotly-plot .spikedtext {
+    fill: #ffffff !important;
+    font-size: 11px !important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║  PHASE 3 — STORYTELLING CARDS                                 ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* ── Card Surface ────────────────────────────────────────────── */
+.story-card {
+    background: var(--glass-bg-surface, rgba(30, 30, 30, 0.55));
+    backdrop-filter: blur(var(--glass-blur-md, 16px));
+    -webkit-backdrop-filter: blur(var(--glass-blur-md, 16px));
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--border-radius-lg, 12px);
+    padding: var(--sp-5, 1.25rem) var(--sp-6, 1.5rem);
+    position: relative;
+    overflow: hidden;
+    transition: transform var(--dur-normal, 250ms) var(--ease-out-expo),
+                box-shadow var(--dur-normal, 250ms) var(--ease-out-expo);
+}
+
+.story-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+/* Polarity accent glow — left edge bar */
+.story-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 3px 0 0 3px;
+    background: var(--clr-neutral, #94a3b8);
+    transition: background var(--dur-fast, 150ms);
+}
+
+.story-card--positive::before { background: var(--clr-positive, #22c55e); }
+.story-card--negative::before { background: var(--clr-negative, #ef4444); }
+.story-card--accent::before   { background: var(--accent-color, #00d4ff); }
+
+/* ── Header ──────────────────────────────────────────────────── */
+.story-card-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--sp-3, 0.75rem);
+}
+
+.story-card-title {
+    font-family: var(--font-family);
+    font-size: var(--fs-section-header, 1.05rem);
+    font-weight: var(--fw-semibold, 600);
+    color: rgba(255, 255, 255, 0.85);
+    letter-spacing: 0.01em;
+}
+
+/* ── Hero metric ─────────────────────────────────────────────── */
+.story-hero {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    margin-bottom: var(--sp-1, 0.25rem);
+}
+
+.story-hero-arrow {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.story-hero-value {
+    font-family: var(--font-mono, monospace);
+    font-size: 1.65rem;
+    font-weight: var(--fw-bold, 700);
+    line-height: var(--lh-tight, 1.2);
+    letter-spacing: -0.02em;
+}
+
+.story-hero-sub {
+    font-size: var(--fs-helper, 0.78rem);
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: var(--sp-3, 0.75rem);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+/* ── Mini trend (inline sparkline) ───────────────────────────── */
+.story-trend-block {
+    margin: var(--sp-3, 0.75rem) 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: var(--sp-2, 0.5rem);
+}
+
+.story-mini-trend-graph .js-plotly-plot {
+    border-radius: 4px;
+}
+
+.story-trend-label {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+}
+
+/* ── Extra metric rows ───────────────────────────────────────── */
+.story-extra-section {
+    margin: var(--sp-2, 0.5rem) 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1, 0.25rem);
+}
+
+.story-extra-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--sp-1, 0.25rem) 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.story-extra-row:last-child {
+    border-bottom: none;
+}
+
+.story-extra-label {
+    font-size: var(--fs-helper, 0.78rem);
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.story-extra-value {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--fs-body, 0.92rem);
+    font-weight: var(--fw-medium, 500);
+}
+
+/* ── Narrative zone ──────────────────────────────────────────── */
+.story-narrative-block {
+    margin-top: var(--sp-3, 0.75rem);
+}
+
+.story-narrative-rule {
+    height: 1px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent 80%);
+    margin-bottom: var(--sp-2, 0.5rem);
+}
+
+.story-narrative {
+    font-size: var(--fs-helper, 0.78rem);
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.55;
+    margin: 0;
+    font-style: italic;
+}
+
+/* ── Context chips / badges ──────────────────────────────────── */
+.story-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2, 0.5rem);
+    margin-top: var(--sp-3, 0.75rem);
+}
+
+.story-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    font-size: 0.7rem;
+    font-weight: var(--fw-medium, 500);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1px solid;
+    border-radius: 100px;
+    background: transparent;
+}
+
+/* ── Desktop asymmetric layout ───────────────────────────────── */
+.story-card-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--sp-4, 1rem);
+    margin-bottom: var(--sp-4, 1rem);
+    align-items: stretch;
+}
+
+.story-card-row > * {
+    display: flex;
+}
+
+.story-card-row .story-card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.story-card-row .story-card .story-chips {
+    margin-top: auto;
+    padding-top: var(--sp-3, 0.75rem);
+}
+
+/* ── Mobile: stacked cards with collapsible details ──────────── */
+@media (max-width: 991.98px) {
+    .story-card-row {
+        grid-template-columns: 1fr;
+    }
+
+    /* Hide extras behind a tap-to-expand on mobile */
+    .story-extra-section,
+    .story-narrative-block,
+    .story-trend-block {
+        display: none;
+    }
+
+    .story-card.story-card--expanded .story-extra-section,
+    .story-card.story-card--expanded .story-narrative-block,
+    .story-card.story-card--expanded .story-trend-block {
+        display: block;
+    }
+
+    /* Tap hint */
+    .story-card::after {
+        content: "Tap for details";
+        position: absolute;
+        bottom: 6px;
+        right: 12px;
+        font-size: 0.6rem;
+        color: rgba(255, 255, 255, 0.2);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        pointer-events: none;
+        transition: opacity var(--dur-fast, 150ms);
+    }
+
+    .story-card.story-card--expanded::after {
+        opacity: 0;
+    }
+}
+
+/* Touch devices: bigger tap targets */
+@media (hover: none) and (pointer: coarse) {
+    .story-card {
+        padding: var(--sp-5, 1.25rem);
+    }
+
+    .story-chip {
+        padding: 4px 12px;
+        font-size: 0.72rem;
+    }
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║  PHASE 3 — AG GRID IN-CELL SPARKLINES                        ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* Sparkline cell container */
+.sparkline-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 2px 4px;
+}
+
+.sparkline-cell svg {
+    display: block;
+}
+
+/* No-data placeholder */
+.sparkline-nodata {
+    color: rgba(255, 255, 255, 0.18);
+    font-size: 0.7rem;
+    text-align: center;
+    width: 100%;
+}
+
+/* Ensure sparkline column doesn't interfere with sort indicators */
+.ag-theme-alpine-dark .ag-header-cell[col-id="trend"] .ag-sort-indicator-container {
+    display: none;
+}
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║  PHASE 3 — STORYTELLING CARD ENHANCEMENTS                    ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* ── Count-up animation (fade + slide up) ────────────────────── */
+.story-countup {
+    animation: storyCountUp 0.6s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+@keyframes storyCountUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Stagger entrance for each card */
+.story-card-row > :nth-child(1) .story-countup { animation-delay: 0.05s; }
+.story-card-row > :nth-child(2) .story-countup { animation-delay: 0.15s; }
+.story-card-row > :nth-child(3) .story-countup { animation-delay: 0.25s; }
+
+/* ── Delta badge ─────────────────────────────────────────────── */
+.story-delta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    font-size: 0.72rem;
+    font-family: var(--font-mono, monospace);
+    padding: 2px 8px;
+    margin-bottom: var(--sp-2, 0.5rem);
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 100px;
+    width: fit-content;
+}
+
+/* ── Warning chip (pulsing icon) ─────────────────────────────── */
+.story-chip--warning {
+    background: rgba(245, 158, 11, 0.08) !important;
+    animation: warningPulse 2s ease-in-out infinite;
+}
+
+.story-chip--warning .bi {
+    font-size: 0.65rem;
+}
+
+@keyframes warningPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* ── Drill-through arrow ─────────────────────────────────────── */
+.story-drill-arrow {
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.2);
+    transition: transform var(--dur-fast, 150ms) var(--ease-out-expo),
+                color var(--dur-fast, 150ms);
+}
+
+.story-card:hover .story-drill-arrow {
+    color: var(--accent-color, #00d4ff);
+    transform: translateX(3px);
+}
+
+/* ── Click-to-drill link wrapper ─────────────────────────────── */
+.story-card-link {
+    text-decoration: none !important;
+    color: inherit !important;
+    display: flex;
+    width: 100%;
+}
+
+.story-card-link:hover {
+    text-decoration: none !important;
+}
+
+/* ── Card entrance stagger ───────────────────────────────────── */
+.story-card-row > * {
+    animation: storyCardIn 0.5s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+.story-card-row > :nth-child(1) { animation-delay: 0s; }
+.story-card-row > :nth-child(2) { animation-delay: 0.08s; }
+.story-card-row > :nth-child(3) { animation-delay: 0.16s; }
+
+@keyframes storyCardIn {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .story-countup,
+    .story-card-row > *,
+    .story-chip--warning {
+        animation: none !important;
+    }
+}

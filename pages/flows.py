@@ -37,12 +37,21 @@ layout = html.Div([
             dcc.Graph(id={'type': 'filter-chart', 'index': 'flows-chart'})
         ]), width=12, className="mb-4"),
     ]),
+
+    # Cash Flow Sankey Diagram
+    dbc.Row([
+        dbc.Col(dbc.Card([
+            html.H5("Cash Flow Plumbing (Sankey)", className="card-title section-header p-2"),
+            dcc.Loading(dcc.Graph(id='sankey-chart'))
+        ]), width=12, className="mb-4"),
+    ]),
 ], className="flows-page")
 
 @callback(
     [Output('external-flows-table-container', 'children'),
      Output('internal-flows-table-container', 'children'),
-     Output({'type': 'filter-chart', 'index': 'flows-chart'}, 'figure')],
+     Output({'type': 'filter-chart', 'index': 'flows-chart'}, 'figure'),
+     Output('sankey-chart', 'figure')],
     [Input('data-signal', 'data'),
      Input('chatbot-command', 'data'),
      Input('filter-store', 'data'),
@@ -50,7 +59,7 @@ layout = html.Div([
 )
 def update_flows(signal, chat_cmd, _filters, include_exited):
     data = dw.get_data()
-    if not data: return "Loading...", "Loading...", {}
+    if not data: return "Loading...", "Loading...", {}, {}
 
     ctx = dash.callback_context
     if ctx.triggered_id == "filter-store" and not _filters:
@@ -229,4 +238,7 @@ def update_flows(signal, chat_cmd, _filters, include_exited):
     # Chart
     fig = dw.get_flows_chart(data, "dark")
     
-    return ext_table, int_table, fig
+    # Sankey Diagram
+    sankey_fig = dw.get_sankey_chart(data, "dark")
+    
+    return ext_table, int_table, fig, sankey_fig

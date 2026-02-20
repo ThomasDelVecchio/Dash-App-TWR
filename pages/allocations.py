@@ -109,6 +109,15 @@ def update_allocations(signal, chat_cmd, _filters):
             # Add numerical comparator for value columns
             if any(k in col for k in ["Value", "%", "$"]):
                 col_def["comparator"] = {"function": "MoneyComparator"}
+
+            # ── DATA BARS for weight/drift columns ──
+            if col == "Actual %":
+                col_def["cellRenderer"] = "DataBarRenderer"
+                col_def["cellRendererParams"] = {"maxVal": 60, "colorMode": "accent"}
+            elif col == "Delta %":
+                col_def["cellRenderer"] = "DataBarRenderer"
+                col_def["cellRendererParams"] = {"maxVal": 15}
+
             asset_class_column_defs.append(col_def)
             
         asset_class_table = dag.AgGrid(

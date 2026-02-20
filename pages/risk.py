@@ -73,7 +73,7 @@ layout = html.Div([
                                 i: {'label': f'{i}%', 'style': {'color': '#f8fafc'}}
                                 for i in range(5, 31, 5)
                             },
-                            tooltip={"placement": "bottom", "always_visible": False},
+                            tooltip={"placement": "bottom", "always_visible": True, "template": "{value}%"},
                             persistence=True,
                             persistence_type='local'
                         )
@@ -89,7 +89,7 @@ layout = html.Div([
                                 2500: {'label': '$2.5k', 'style': {'color': '#f8fafc'}},
                                 5000: {'label': '$5k', 'style': {'color': '#f8fafc'}},
                             },
-                            tooltip={"placement": "bottom", "always_visible": False},
+                            tooltip={"placement": "bottom", "always_visible": True, "template": "${value}"},
                             persistence=True,
                             persistence_type='local'
                         )
@@ -122,7 +122,7 @@ layout = html.Div([
                 html.Div(id='total-weight-display', className="text-center fw-bold mb-3"),
                 dbc.Button("Recalculate Profile", id="btn-recalculate-sim", color="primary", className="w-100")
             ])
-        ]), xxl=5, xl=5, lg=5, md=12),
+        ]), xxl=4, xl=4, lg=4, md=12),
         dbc.Col([
             dbc.Row([
                 dbc.Col([
@@ -130,7 +130,7 @@ layout = html.Div([
                         dcc.Graph(
                             id='sim-expected-return-gauge',
                             config={'displayModeBar': False, 'responsive': True},
-                            style={'width': '100%', 'height': '300px'}
+                            style={'width': '100%', 'height': '260px'}
                         )
                     )
                 ], xxl=6, xl=6, lg=6, md=6, sm=6),
@@ -139,7 +139,7 @@ layout = html.Div([
                         dcc.Graph(
                             id='sim-volatility-gauge',
                             config={'displayModeBar': False, 'responsive': True},
-                            style={'width': '100%', 'height': '300px'}
+                            style={'width': '100%', 'height': '260px'}
                         )
                     )
                 ], xxl=6, xl=6, lg=6, md=6, sm=6)
@@ -151,7 +151,7 @@ layout = html.Div([
                     className="text-muted fst-italic"
                 ), className="mt-2 text-center"
             )
-        ], xxl=7, xl=7, lg=7, md=12)
+        ], xxl=8, xl=8, lg=8, md=12)
     ], className="mb-4"),
     
     # DISCLOSURE FOOTER
@@ -375,7 +375,7 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal):
         value=sim_return,
         number={'valueformat': '.2f'},
         delta={'reference': current_return, 'suffix': '%', 'valueformat': '.2f'},
-        title={'text': "Expected Return<br>(TTM) %", 'font': {'size': 24}},
+        title={'text': "Expected Return (TTM) %", 'font': {'size': 18}},
         gauge={
             'axis': {'range': [0, max_ret_range], 'tickfont': {'size': 12}},
             'bar': {'color': GLOBAL_PALETTE[0]},
@@ -387,7 +387,7 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal):
             'threshold': {'line': {'color': GLOBAL_PALETTE[2], 'width': 4}, 'thickness': 0.75, 'value': current_return}
         }
     ))
-    return_gauge.update_layout(template=template, height=300, margin=dict(l=18, r=18, t=68, b=20))
+    return_gauge.update_layout(template=template, height=260, margin=dict(l=18, r=18, t=50, b=10))
     
     vol_gauge = go.Figure(go.Indicator(
         mode="gauge+number+delta",
@@ -395,7 +395,7 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal):
         value=sim_vol,
         number={'valueformat': '.2f'},
         delta={'reference': current_vol, 'suffix': '%', 'valueformat': '.2f'},
-        title={'text': "Volatility (%)", 'font': {'size': 24}},
+        title={'text': "Volatility (%)", 'font': {'size': 18}},
         gauge={
             'axis': {'range': [0, 30], 'tickfont': {'size': 12}},
             'bar': {'color': GLOBAL_PALETTE[6]},
@@ -407,7 +407,7 @@ def update_simulator(n_clicks, slider_values, slider_ids, signal):
             'threshold': {'line': {'color': GLOBAL_PALETTE[2], 'width': 4}, 'thickness': 0.75, 'value': current_vol}
         }
     ))
-    vol_gauge.update_layout(template=template, height=300, margin=dict(l=18, r=18, t=68, b=20))
+    vol_gauge.update_layout(template=template, height=260, margin=dict(l=18, r=18, t=50, b=10))
     
     return return_gauge, vol_gauge, total_display, labels
 

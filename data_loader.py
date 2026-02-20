@@ -904,3 +904,229 @@ def fetch_price_history(tickers, years_back: int = PRICE_LOOKBACK_YEARS, use_adj
     res = prices.copy()
     res.attrs = prices.attrs
     return res
+
+
+# ==============================================================
+# DIVIDEND CALENDAR — FMP fetch, cache, frequency inference
+# ==============================================================
+
+_DIVIDEND_CACHE_FILE = "dividend_calendar_cache.json"
+_DIVIDEND_CACHE: dict = {}
+_DIVIDEND_CACHE_TTL_HOURS = 24  # Re-fetch once per day
+
+
+def _load_dividend_cache():
+    global _DIVIDEND_CACHE
+    if os.path.exists(_DIVIDEND_CACHE_FILE):
+        try:
+            with open(_DIVIDEND_CACHE_FILE, "r") as f:
+                _DIVIDEND_CACHE = json.load(f)
+        except Exception:
+            _DIVIDEND_CACHE = {}
+
+
+def _save_dividend_cache():
+    try:
+        with open(_DIVIDEND_CACHE_FILE, "w") as f:
+            json.dump(_DIVIDEND_CACHE, f, indent=2)
+    except Exception:
+        pass
+
+
+_load_dividend_cache()
+
+
+def _fetch_fmp_dividends(ticker: str) -> list:
+    """
+    Fetch historical dividend data from FMP.
+    Returns list of dicts: [{"date": "YYYY-MM-DD", "dividend": float}, ...]
+    sorted ascending by date.
+    """
+    if not FMP_API_KEY or FMP_API_KEY == "demo":
+        return []
+
+    try:
+        url = (
+            f"https://financialmodelingprep.com/stable/historical-price-eod/dividend"
+            f"?symbol={ticker}&apikey={FMP_API_KEY}"
+        )
+        resp = requests.get(url, timeout=10)
+        if resp.status_code != 200:
+            return []
+
+        raw = resp.json()
+        if not isinstance(raw, list):
+            return []
+
+        results = []
+        for item in raw:
+            d = item.get("date") or item.get("paymentDate") or item.get("recordDate")
+            amt = item.get("dividend") or item.get("adjDividend") or item.get("amount", 0)
+            if d and amt:
+                try:
+                    results.append({"date": str(d)[:10], "dividend": float(amt)})
+                except (ValueError, TypeError):
+                    continue
+
+        results.sort(key=lambda x: x["date"])
+        return results
+
+    except requests.exceptions.Timeout:
+        print(f"[DIV] FMP timeout for {ticker}")
+    except Exception as e:
+        print(f"[DIV] FMP error for {ticker}: {e}")
+
+    return []
+
+
+def _infer_frequency(dates: list) -> tuple:
+    """
+    Given a sorted list of payment pd.Timestamps, infer payout frequency.
+    Returns (frequency_label, approx_days_between_payments).
+    """
+    if len(dates) < 2:
+        return ("Annual", 365)
+
+    # Calculate gaps (in days) between consecutive dividends
+    gaps = [(dates[i] - dates[i - 1]).days for i in range(1, len(dates))]
+    median_gap = sorted(gaps)[len(gaps) // 2]
+
+    if median_gap <= 45:
+        return ("Monthly", 30)
+    elif median_gap <= 110:
+        return ("Quarterly", 91)
+    elif median_gap <= 200:
+        return ("Semi-Annual", 182)
+    else:
+        return ("Annual", 365)
+
+
+def _detect_special_dividends(records: list) -> list:
+    """
+    Flag dividends that are likely specials (> 2× the median).
+    Returns list of booleans aligned with records.
+    """
+    amounts = [r["dividend"] for r in records]
+    if not amounts:
+        return []
+    median_amt = sorted(amounts)[len(amounts) // 2]
+    threshold = median_amt * 2.5 if median_amt > 0 else float("inf")
+    return [a > threshold for a in amounts]
+
+
+def fetch_dividend_calendar(ticker: str) -> dict | None:
+    """
+    Return a dividend projection calendar for *ticker*.
+
+    Returns dict:
+      {
+        "ticker": str,
+        "frequency": str,          # Monthly / Quarterly / Semi-Annual / Annual
+        "last_dividend": float,     # Most recent adjusted div per share
+        "history": [...],           # Raw records
+        "projected": [(Timestamp, amount), ...],   # Next 12-month projections
+      }
+    Returns None if no data available.
+    """
+    ticker = ticker.upper()
+
+    # --- Check cache ---
+    cached = _DIVIDEND_CACHE.get(ticker)
+    if cached:
+        ts = cached.get("fetched_at", "")
+        if ts:
+            try:
+                fetched = datetime.fromisoformat(ts)
+                if (datetime.now() - fetched).total_seconds() < _DIVIDEND_CACHE_TTL_HOURS * 3600:
+                    # Rebuild projected as Timestamps
+                    projected = []
+                    for p in cached.get("projected_raw", []):
+                        projected.append((pd.Timestamp(p[0]), p[1]))
+                    return {
+                        "ticker": ticker,
+                        "frequency": cached["frequency"],
+                        "last_dividend": cached["last_dividend"],
+                        "history": cached.get("history", []),
+                        "projected": projected,
+                    }
+            except Exception:
+                pass
+
+    # --- Fetch from FMP ---
+    records = _fetch_fmp_dividends(ticker)
+    if not records:
+        # Fallback: try yfinance dividends
+        records = _fetch_yf_dividends(ticker)
+
+    if not records:
+        return None
+
+    # Filter out specials for frequency estimation
+    special_flags = _detect_special_dividends(records)
+    regular = [r for r, is_special in zip(records, special_flags) if not is_special]
+
+    if not regular:
+        regular = records  # all were "special" — use them anyway
+
+    dates = [pd.Timestamp(r["date"]) for r in regular]
+    freq_label, freq_days = _infer_frequency(dates)
+
+    # Use the most recent regular dividend for projection
+    last_div = regular[-1]["dividend"]
+
+    # --- Project forward 12 months ---
+    today = pd.Timestamp.now().normalize()
+    end_horizon = today + pd.DateOffset(months=12)
+    last_pay = dates[-1]
+
+    projected = []
+    next_pay = last_pay + pd.Timedelta(days=freq_days)
+    # Walk forward from last known payment
+    while next_pay <= end_horizon:
+        if next_pay >= today:
+            projected.append((next_pay, last_div))
+        next_pay += pd.Timedelta(days=freq_days)
+
+    # Edge case: if no projections landed in the window, add one at next expected date
+    if not projected and last_div > 0:
+        while next_pay < today:
+            next_pay += pd.Timedelta(days=freq_days)
+        if next_pay <= end_horizon:
+            projected.append((next_pay, last_div))
+
+    # --- Cache result ---
+    projected_raw = [(p[0].isoformat(), p[1]) for p in projected]
+    _DIVIDEND_CACHE[ticker] = {
+        "frequency": freq_label,
+        "last_dividend": last_div,
+        "history": records[-20:],  # keep last 20 for auditability
+        "projected_raw": projected_raw,
+        "fetched_at": datetime.now().isoformat(),
+    }
+    _save_dividend_cache()
+
+    return {
+        "ticker": ticker,
+        "frequency": freq_label,
+        "last_dividend": last_div,
+        "history": records,
+        "projected": projected,
+    }
+
+
+def _fetch_yf_dividends(ticker: str) -> list:
+    """
+    Fallback: fetch dividend history from yfinance when FMP is unavailable.
+    """
+    try:
+        tk = yf.Ticker(ticker)
+        divs = tk.dividends
+        if divs is None or divs.empty:
+            return []
+        records = []
+        for dt, amt in divs.items():
+            records.append({"date": dt.strftime("%Y-%m-%d"), "dividend": float(amt)})
+        records.sort(key=lambda x: x["date"])
+        return records
+    except Exception:
+        return []

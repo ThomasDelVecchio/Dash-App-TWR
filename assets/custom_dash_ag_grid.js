@@ -1,6 +1,128 @@
 var dagfuncs = window.dashAgGridFunctions = window.dashAgGridFunctions || {};
+var dagcomponentfuncs = window.dashAgGridComponentFunctions = window.dashAgGridComponentFunctions || {};
 
-// Helper for parsing currency/percent strings
+// ============================================================
+// SPARKLINE CELL RENDERER (Phase 3 — In-Cell 30-Day Trends)
+// ============================================================
+dagcomponentfuncs.SparklineRenderer = function (props) {
+    var h = window.React.createElement;
+
+    // props.value is a JSON-encoded array of normalised [0..1] values
+    var raw = props.value;
+    var points;
+
+    if (!raw || raw === '[]' || raw === '') {
+        return h('div', {className: 'sparkline-nodata'}, '—');
+    }
+
+    try {
+        points = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch (e) {
+        return h('div', {className: 'sparkline-nodata'}, '—');
+    }
+
+    if (!Array.isArray(points) || points.length < 2) {
+        return h('div', {className: 'sparkline-nodata'}, '—');
+    }
+
+    // SVG dimensions
+    var W = 100, H = 28, PAD = 1;
+    var n = points.length;
+    var xStep = (W - 2 * PAD) / (n - 1);
+
+    // Build polyline string (Y is inverted: 0 = top)
+    var polyPoints = points.map(function(v, i) {
+        var x = PAD + i * xStep;
+        var y = PAD + (1 - v) * (H - 2 * PAD);
+        return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+
+    // Determine colour based on trend direction
+    var first = points[0], last = points[points.length - 1];
+    var lineColor = last >= first ? '#22c55e' : '#ef4444';
+    var fillColor = last >= first ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)';
+
+    // Fill polygon: polyline + bottom-right + bottom-left
+    var firstX = PAD, lastX = PAD + (n - 1) * xStep;
+    var fillPoints = polyPoints + ' ' + lastX.toFixed(1) + ',' + H + ' ' + firstX.toFixed(1) + ',' + H;
+
+    return h('div', {className: 'sparkline-cell'},
+        h('svg', {
+            width: W,
+            height: H,
+            viewBox: '0 0 ' + W + ' ' + H,
+            style: {display: 'block'}
+        },
+            // Fill area
+            h('polygon', {
+                points: fillPoints,
+                fill: fillColor,
+                stroke: 'none'
+            }),
+            // Line
+            h('polyline', {
+                points: polyPoints,
+                fill: 'none',
+                stroke: lineColor,
+                strokeWidth: '1.5',
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round'
+            }),
+            // End dot
+            h('circle', {
+                cx: (PAD + (n - 1) * xStep).toFixed(1),
+                cy: (PAD + (1 - last) * (H - 2 * PAD)).toFixed(1),
+                r: '2',
+                fill: lineColor
+            })
+        )
+    );
+};
+
+// ============================================================
+// DATA BAR CELL RENDERER (Phase 1 — In-Cell Bars)
+// ============================================================
+dagcomponentfuncs.DataBarRenderer = function (props) {
+    // Expects: props.value = formatted string like "12.34%" or "-2.50%"
+    //          props.colDef.cellRendererParams.maxVal (optional, default 100)
+    //          props.colDef.cellRendererParams.field  (optional raw numeric field)
+    var rawVal;
+    var displayVal = props.value;
+
+    // Try to get raw numeric from a meta field first (more accurate)
+    var rendererParams = props.colDef.cellRendererParams || {};
+    var metaField = rendererParams.field;
+    if (metaField && props.data && props.data[metaField] !== undefined) {
+        rawVal = parseFloat(props.data[metaField]);
+    }
+    if (isNaN(rawVal) || rawVal === undefined || rawVal === null) {
+        rawVal = parseValue(displayVal);
+    }
+    if (rawVal === -Infinity || isNaN(rawVal)) rawVal = 0;
+
+    var maxVal = rendererParams.maxVal || 100;
+    var pct = Math.min(Math.abs(rawVal) / maxVal * 100, 100);
+
+    // colorMode: "accent" = neutral blue bar (for weights), "semantic" = green/red (for deltas)
+    var colorMode = rendererParams.colorMode || 'semantic';
+    var fillClass, textClass;
+    if (colorMode === 'accent') {
+        fillClass = 'data-bar-fill--accent';
+        textClass = 'data-bar-text--accent';
+    } else {
+        var isNeg = rawVal < -0.005;
+        var isPos = rawVal > 0.005;
+        fillClass = isNeg ? 'data-bar-fill--negative' : (isPos ? 'data-bar-fill--positive' : 'data-bar-fill--neutral');
+        textClass = isNeg ? 'data-bar-text--negative' : (isPos ? 'data-bar-text--positive' : 'data-bar-text--neutral');
+    }
+
+    // Build React elements
+    var h = window.React.createElement;
+    return h('div', {className: 'data-bar-cell'}, 
+        h('div', {className: 'data-bar-fill ' + fillClass, style: {width: pct + '%'}}),
+        h('span', {className: 'data-bar-text ' + textClass}, displayVal || '0.00%')
+    );
+};
 function parseValue(v) {
     if (typeof v === 'number') return v;
     if (v === null || v === undefined) return -Infinity;

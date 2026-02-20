@@ -16,7 +16,8 @@ from portfolio_engine import (
     calculate_horizon_pl,
     calculate_ticker_pl,
     calculate_asset_class_pl,
-    compute_drawdown_series
+    compute_drawdown_series,
+    build_sankey_data,
 )
 from data_loader import (
     load_holdings, 
@@ -371,7 +372,57 @@ def run_analytics_engine(end_date=None):
     base_data["ticker_pl_cache"] = ticker_pl_cache
     base_data["asset_class_pl_cache"] = asset_class_pl_cache
 
+    # Precompute 30-day sparkline data for holdings grid
+    base_data["sparkline_cache"] = _precompute_sparkline_data(prices_cached, sec_table_current)
+
     return base_data
+
+
+# ============================================================
+# SPARKLINE DATA PIPELINE
+# ============================================================
+def _precompute_sparkline_data(prices: pd.DataFrame, sec_table: pd.DataFrame, lookback: int = 30) -> dict:
+    """
+    Precompute 30-day closing price arrays per ticker for in-cell sparklines.
+
+    Returns:
+        dict  {ticker: list[float]}  — normalised to 0..1 for SVG rendering,
+              or empty list if insufficient data.
+
+    Performance: Called once per engine refresh, not per callback.
+    """
+    result = {}
+    if prices is None or prices.empty or sec_table is None or sec_table.empty:
+        return result
+
+    tickers = sec_table[sec_table["ticker"] != "CASH"]["ticker"].unique()
+
+    for ticker in tickers:
+        if ticker not in prices.columns:
+            result[ticker] = []
+            continue
+
+        series = prices[ticker].dropna().tail(lookback)
+        if len(series) < 2:
+            result[ticker] = []
+            continue
+
+        # Normalise to 0..1 range for compact SVG rendering
+        vals = series.values.astype(float)
+        lo, hi = float(vals.min()), float(vals.max())
+        span = hi - lo
+        if span < 1e-9:
+            # Flat line — store mid-values
+            result[ticker] = [0.5] * len(vals)
+        else:
+            result[ticker] = [round(float((v - lo) / span), 4) for v in vals]
+
+    return result
+
+
+def get_sparkline_cache(data: dict) -> dict:
+    """Public accessor for sparkline data (avoids re-fetching prices)."""
+    return data.get("sparkline_cache", {})
 
 def _prepare_sector_df(sec_table):
     """Internal helper to build sector allocation dataframe from Dynamic Fetcher."""
@@ -1432,6 +1483,59 @@ def _hex_to_rgba(hex_code, alpha=0.2):
     hex_code = hex_code.lstrip('#')
     return f"rgba({int(hex_code[0:2], 16)}, {int(hex_code[2:4], 16)}, {int(hex_code[4:6], 16)}, {alpha})"
 
+
+# ── Phase 2 Chart Utilities ──────────────────────────────────
+
+def _apply_crosshairs(fig, show_x=True, show_y=True):
+    """
+    Apply terminal-style crosshair / spikeline behavior to a Plotly figure.
+    Snaps cleanly to axes and stays legible in dark mode.
+    """
+    spike_kwargs = dict(
+        spikecolor="rgba(0, 212, 255, 0.35)",
+        spikethickness=1,
+        spikedash="solid",
+        spikemode="across",
+        spikesnap="cursor",
+    )
+    if show_x:
+        fig.update_xaxes(
+            showspikes=True,
+            **spike_kwargs,
+        )
+    if show_y:
+        fig.update_yaxes(
+            showspikes=True,
+            **spike_kwargs,
+        )
+    return fig
+
+
+def _apply_range_selector(fig):
+    """
+    Add native Plotly inline range selector buttons (1M, 6M, YTD, 1Y, Max)
+    to a time-series figure.  Styled for dark theme with minimal chrome.
+    """
+    fig.update_xaxes(
+        rangeselector=dict(
+            buttons=[
+                dict(count=1, label="1M", step="month", stepmode="backward"),
+                dict(count=6, label="6M", step="month", stepmode="backward"),
+                dict(count=1, label="YTD", step="year", stepmode="todate"),
+                dict(count=1, label="1Y", step="year", stepmode="backward"),
+                dict(label="Max", step="all"),
+            ],
+            bgcolor="rgba(255,255,255,0.04)",
+            activecolor="rgba(0,212,255,0.18)",
+            bordercolor="rgba(255,255,255,0.10)",
+            borderwidth=1,
+            font=dict(color="rgba(255,255,255,0.70)", size=11),
+            x=0,
+            y=1.08,
+        ),
+    )
+    return fig
+
 def get_pv_mountain_chart(data, theme="light"):
     """Generates interactive PV Mountain chart using GIPS-compliant TWR."""
     pv = data["pv"]
@@ -1482,11 +1586,13 @@ def get_pv_mountain_chart(data, theme="light"):
         
         yaxis_title="Return (%)",
         template="plotly_dark",
-        margin=dict(l=40, r=20, t=40, b=40),
+        margin=dict(l=40, r=20, t=55, b=40),
         hovermode="x unified",
         height=428,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
+    _apply_range_selector(fig)
+    _apply_crosshairs(fig)
     return fig
 
 def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, theme="light"):
@@ -1518,28 +1624,38 @@ def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, t
     twr_plot = (twr_window - 1.0) * 100
     
     fig = go.Figure()
-    # Glow trace (wider, semi-transparent for neon effect)
+    # Outer glow trace (wide, very soft — cinematic depth)
     fig.add_trace(go.Scatter(
         x=twr_plot.index,
         y=twr_plot.values,
         mode='lines',
-        line=dict(color=_hex_to_rgba(GLOBAL_PALETTE[0], 0.2), width=10, shape='spline'),
+        line=dict(color=_hex_to_rgba(GLOBAL_PALETTE[0], 0.10), width=16, shape='spline'),
         hoverinfo='skip',
         showlegend=False,
     ))
-    # Main portfolio trace with vertical gradient fill
+    # Inner glow trace (tighter halo)
+    fig.add_trace(go.Scatter(
+        x=twr_plot.index,
+        y=twr_plot.values,
+        mode='lines',
+        line=dict(color=_hex_to_rgba(GLOBAL_PALETTE[0], 0.22), width=8, shape='spline'),
+        hoverinfo='skip',
+        showlegend=False,
+    ))
+    # Main portfolio trace with vertical gradient fill (visual anchor)
     fig.add_trace(go.Scatter(
         x=twr_plot.index,
         y=twr_plot.values,
         mode='lines',
         fill='tozeroy',
         name='Portfolio',
-        line=dict(color=GLOBAL_PALETTE[0], width=3, shape='spline'),
+        line=dict(color=GLOBAL_PALETTE[0], width=3.5, shape='spline'),
         fillgradient=dict(
             type="vertical",
             colorscale=[
                 [0.0, "rgba(0,0,0,0)"],
-                [1.0, _hex_to_rgba(GLOBAL_PALETTE[0], 0.25)],
+                [0.6, _hex_to_rgba(GLOBAL_PALETTE[0], 0.10)],
+                [1.0, _hex_to_rgba(GLOBAL_PALETTE[0], 0.30)],
             ],
         ),
         hovertemplate="<b>Portfolio</b>: %{y:.2f}%<extra></extra>"
@@ -1601,12 +1717,15 @@ def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, t
 
                 ser_norm = (ser_aligned / base_price - 1.0) * 100.0
                 
+                # Benchmark: thinner, dashed, de-emphasized
+                bm_color = colors[i % len(colors)]
                 fig.add_trace(go.Scatter(
                     x=ser_norm.index,
                     y=ser_norm.values,
                     mode='lines',
                     name=name,
-                    line=dict(color=colors[i % len(colors)], width=1.5, shape='spline'),
+                    line=dict(color=bm_color, width=1.3, dash='dot', shape='spline'),
+                    opacity=0.72,
                     hovertemplate=f"<b>{name}</b>: %{{y:.2f}}%<extra></extra>"
                 ))
             except:
@@ -1616,11 +1735,13 @@ def get_cumulative_return_chart(data, start_date=None, benchmark_tickers=None, t
         
         yaxis_title="Return (%)",
         template="plotly_dark",
-        margin=dict(l=40, r=20, t=60, b=40),
+        margin=dict(l=40, r=20, t=70, b=40),
         hovermode="x unified",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         height=450
     )
+    _apply_range_selector(fig)
+    _apply_crosshairs(fig)
     return fig
 
 def get_asset_allocation_charts(data, theme="light"):
@@ -2421,11 +2542,13 @@ def get_drawdown_chart(data, theme="light"):
     fig.update_layout(
         yaxis_title="Drawdown (%)",
         template="plotly_dark",
-        margin=dict(l=40, r=40, t=40, b=40),
+        margin=dict(l=40, r=40, t=55, b=40),
         hovermode="x unified",
         height=450,
         yaxis=dict(autorange="reversed") # Invert axis so 0 is at top
     )
+    _apply_range_selector(fig)
+    _apply_crosshairs(fig)
     return fig
 
 def get_projections_chart(data, theme="light", rate_pct=None, monthly_contrib=None):
@@ -2578,6 +2701,186 @@ def get_flows_chart(data, theme="light", start_date=None, end_date=None):
     )
     return fig
 
+
+# ==============================================================
+# CASH FLOW SANKEY DIAGRAM
+# ==============================================================
+
+def get_sankey_chart(data, theme="dark"):
+    """
+    Build a Plotly Sankey diagram showing the flow of funds:
+      Sources  →  Available Cash  →  Deployments
+
+    Uses build_sankey_data() from portfolio_engine for auditable mapping.
+    """
+    sd = build_sankey_data(data)
+
+    # Guard: nothing to show
+    if not sd["values"]:
+        fig = go.Figure()
+        fig.update_layout(
+            template="plotly_dark",
+            annotations=[dict(text="No cash-flow data available", x=0.5, y=0.5,
+                              showarrow=False, font=dict(size=16, color="#aaa"))],
+        )
+        return fig
+
+    fig = go.Figure(go.Sankey(
+        arrangement="snap",
+        node=dict(
+            pad=20,
+            thickness=22,
+            line=dict(color="rgba(255,255,255,0.15)", width=1),
+            label=sd["labels"],
+            color=sd["node_colors"],
+            hovertemplate="%{label}<br>$%{value:,.2f}<extra></extra>",
+        ),
+        link=dict(
+            source=sd["sources"],
+            target=sd["targets"],
+            value=sd["values"],
+            color=sd["link_colors"],
+            hovertemplate="%{source.label} → %{target.label}<br>$%{value:,.2f}<extra></extra>",
+        ),
+    ))
+
+    fig.update_layout(
+        template="plotly_dark",
+        height=500,
+        margin=dict(l=10, r=10, t=30, b=10),
+        font=dict(size=12, color="#e0e0e0"),
+    )
+    return fig
+
+
+# ==============================================================
+# FORWARD-LOOKING 12-MONTH DIVIDEND HEATMAP
+# ==============================================================
+
+def get_dividend_heatmap(data, theme="dark"):
+    """
+    Build a ticker-by-month heatmap projecting expected dividend cash
+    flow for the next 12 months based on each holding's historical
+    payout pattern.
+
+    Uses data_loader.fetch_dividend_calendar() for FMP data with
+    caching, fallback, and frequency inference.
+    """
+    from data_loader import fetch_dividend_calendar  # deferred to avoid circular at module level
+
+    holdings = data.get("holdings", pd.DataFrame())
+    if holdings.empty:
+        return go.Figure()
+
+    # Only include tickers with positive shares (active holdings), exclude CASH
+    active = holdings[(holdings["shares"] > 0) & (holdings["ticker"] != "CASH")].copy()
+    if active.empty:
+        fig = go.Figure()
+        fig.update_layout(
+            template="plotly_dark",
+            annotations=[dict(text="No active holdings for dividend projection",
+                              x=0.5, y=0.5, showarrow=False,
+                              font=dict(size=16, color="#aaa"))],
+        )
+        return fig
+
+    today = pd.Timestamp.now().normalize()
+    months = pd.date_range(today, periods=12, freq="MS")
+    month_labels = [m.strftime("%b %Y") for m in months]
+
+    tickers = sorted(active["ticker"].unique())
+    shares_map = active.set_index("ticker")["shares"].to_dict()
+
+    heatmap_data = []   # rows of monthly projections
+    hover_data = []     # parallel rows of tooltip strings
+    valid_tickers = []  # tickers that have projection data
+
+    for ticker in tickers:
+        cal = fetch_dividend_calendar(ticker)
+        if cal is None or cal.get("projected") is None:
+            continue
+
+        projected = cal["projected"]  # list of (date, amount_per_share)
+        freq_label = cal.get("frequency", "Unknown")
+        shares = shares_map.get(ticker, 0)
+
+        row = []
+        tip_row = []
+        for m_start in months:
+            m_end = (m_start + pd.offsets.MonthEnd(0)).normalize()
+            month_total = 0.0
+            for pay_date, div_per_share in projected:
+                if m_start <= pay_date <= m_end:
+                    month_total += div_per_share * shares
+            row.append(round(month_total, 2))
+            tip = f"<b>{ticker}</b><br>{m_start.strftime('%b %Y')}<br>"
+            if month_total > 0:
+                tip += f"Est. ${month_total:,.2f}<br>({shares:.1f} sh × ${div_per_share:.4f})<br>Freq: {freq_label}"
+            else:
+                tip += "No payout expected"
+            tip_row.append(tip)
+
+        heatmap_data.append(row)
+        hover_data.append(tip_row)
+        valid_tickers.append(ticker)
+
+    if not valid_tickers:
+        fig = go.Figure()
+        fig.update_layout(
+            template="plotly_dark",
+            annotations=[dict(text="Dividend data unavailable for current holdings",
+                              x=0.5, y=0.5, showarrow=False,
+                              font=dict(size=16, color="#aaa"))],
+        )
+        return fig
+
+    z = np.array(heatmap_data)
+
+    fig = go.Figure(go.Heatmap(
+        z=z,
+        x=month_labels,
+        y=valid_tickers,
+        colorscale=[
+            [0.0, "rgba(0,0,0,0)"],
+            [0.01, "#1a3a2a"],
+            [0.25, "#22c55e"],
+            [0.5, "#86efac"],
+            [1.0, "#bbf7d0"],
+        ],
+        hovertext=hover_data,
+        hovertemplate="%{hovertext}<extra></extra>",
+        colorbar=dict(
+            title="Est. $",
+            tickprefix="$",
+            tickformat=",.0f",
+            len=0.6,
+        ),
+        xgap=2,
+        ygap=2,
+    ))
+
+    # Add dollar annotations inside cells for non-zero values
+    for i, ticker in enumerate(valid_tickers):
+        for j, val in enumerate(heatmap_data[i]):
+            if val > 0:
+                fig.add_annotation(
+                    x=month_labels[j], y=ticker,
+                    text=f"${val:,.0f}" if val >= 1 else f"${val:.2f}",
+                    showarrow=False,
+                    font=dict(size=10, color="#111"),
+                )
+
+    fig.update_layout(
+        template="plotly_dark",
+        height=max(350, 45 * len(valid_tickers) + 100),
+        margin=dict(l=10, r=10, t=30, b=60),
+        xaxis=dict(side="bottom", tickangle=-45),
+        yaxis=dict(autorange="reversed"),
+        font=dict(size=12, color="#e0e0e0"),
+    )
+    return fig
+
+
 def get_excess_return_chart(data, benchmark_tickers, theme="light"):
     """Generates Excess Return Bar Chart."""
     twr_df = data["twr_df"]
@@ -2717,6 +3020,7 @@ def get_excess_return_chart(data, benchmark_tickers, theme="light"):
         height=450,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
+    _apply_crosshairs(fig, show_x=False, show_y=True)
     return fig
 
 def get_ticker_allocation_charts(data, theme="light"):
@@ -3355,7 +3659,7 @@ def get_growth_of_capital_chart(data, filter_value="Total", theme="light", end_d
         
         yaxis_title="Value ($)",
         template="plotly_dark",
-        margin=dict(l=40, r=20, t=60, b=40),
+        margin=dict(l=40, r=20, t=70, b=40),
         hovermode="x unified",
         height=450,
         legend=dict(
@@ -3370,6 +3674,8 @@ def get_growth_of_capital_chart(data, filter_value="Total", theme="light", end_d
             borderwidth=1
         )
     )
+    _apply_range_selector(fig)
+    _apply_crosshairs(fig)
     
     return fig
 

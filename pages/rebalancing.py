@@ -97,7 +97,7 @@ layout = html.Div([
             dbc.CardBody([
                 dcc.Graph(id="drift-chart", config={"displayModeBar": False})
             ])
-        ], className="h-100"), width=12, lg=7, className="mb-4"),
+        ]), width=12, lg=7, className="mb-4"),
 
         # Tax Impact Summary
         dbc.Col(dbc.Card([
@@ -108,7 +108,7 @@ layout = html.Div([
             dbc.CardBody([
                 dcc.Loading(html.Div(id="tax-impact-container"))
             ])
-        ], className="h-100"), width=12, lg=5, className="mb-4"),
+        ]), width=12, lg=5, className="mb-4"),
     ]),
 
     # --- CLIFF WATCH ---
@@ -393,13 +393,11 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
     column_defs = [
         {"field": "Ticker", "headerName": "Ticker", "pinned": "left", "width": 140, "suppressSizeToFit": True, "lockPinned": True, "cellClass": "lock-pinned", "checkboxSelection": True, "headerCheckboxSelection": True},
         {"field": "Asset_Class", "headerName": "Asset Class", "minWidth": 185},
-        {"field": "Current_Pct", "headerName": "Current %", "minWidth": 120, "comparator": {"function": "MoneyComparator"}},
+        {"field": "Current_Pct", "headerName": "Current %", "minWidth": 130, "comparator": {"function": "MoneyComparator"},
+         "cellRenderer": "DataBarRenderer", "cellRendererParams": {"maxVal": 50, "field": "meta_current_weight", "colorMode": "accent"}},
         {"field": "Target_Pct", "headerName": "Target %", "minWidth": 120, "comparator": {"function": "MoneyComparator"}},
-        {"field": "Drift", "headerName": "Drift", "minWidth": 120, "comparator": {"function": "MoneyComparator"},
-         "cellStyle": {"styleConditions": [
-             {"condition": "params.value.includes('-')", "style": {"color": "#ef4444", "backgroundColor": "rgba(239,68,68,0.08)"}}, # Negative drift
-             {"condition": "!params.value.includes('-')", "style": {"color": "#ffc107"}}
-         ]}},
+        {"field": "Drift", "headerName": "Drift", "minWidth": 130, "comparator": {"function": "MoneyComparator"},
+         "cellRenderer": "DataBarRenderer", "cellRendererParams": {"maxVal": 10, "field": "meta_drift"}},
         {"field": "Action", "headerName": "Action", "minWidth": 120,
          "cellStyle": {"styleConditions": [
              {"condition": "params.value == 'Buy'", "style": {"color": "#22c55e", "fontWeight": "bold"}},
@@ -412,7 +410,8 @@ def update_deployment(cash_to_deploy, allow_sales, signal, tax_strategy):
          ]}},
         {"field": "Shares", "headerName": "Shares", "minWidth": 120, "comparator": {"function": "MoneyComparator"}},
         {"field": "Tax_Impact", "headerName": "Est. Tax", "minWidth": 140, "comparator": {"function": "MoneyComparator"}},
-        {"field": "ProForma_Pct", "headerName": "Pro-Forma %", "minWidth": 140, "comparator": {"function": "MoneyComparator"}},
+        {"field": "ProForma_Pct", "headerName": "Pro-Forma %", "minWidth": 140, "comparator": {"function": "MoneyComparator"},
+         "cellRenderer": "DataBarRenderer", "cellRendererParams": {"maxVal": 50, "colorMode": "accent"}},
         
         # Hidden Meta Columns
         {"field": "meta_price", "hide": True},
@@ -563,14 +562,15 @@ def build_drift_chart(target_df, theme):
     
     template = "plotly_dark"
     
+    chart_h = min(750, max(300, len(plot_df) * 40))  # Cap at 750px
     fig.update_layout(
-        title="Weight Comparison: Current → Pro-Forma",
+        title="Weight Comparison: Current \u2192 Pro-Forma",
         xaxis_title="Weight %",
         yaxis_title="",
         barmode="group",
         template=template,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        height=max(300, len(plot_df) * 40),
+        height=chart_h,
         margin=dict(l=100, r=20, t=60, b=40)
     )
     

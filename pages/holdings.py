@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import dash_wrappers as dw
 import pandas as pd
+import json
 from data_loader import fetch_etf_sectors
 from report_formatting import fmt_pct_clean, fmt_dollar_clean, fmt_number_clean
 from components.page_header import page_header
@@ -31,13 +32,22 @@ layout = html.Div([
             html.H5("Ticker Allocation vs Target", className="card-title section-header p-2"),
             dcc.Graph(id={'type': 'filter-chart', 'index': 'ticker-bar-chart'})
         ]), width=6, className="mb-4"),
-    ])
+    ]),
+
+    # Forward-Looking 12-Month Dividend Heatmap
+    dbc.Row([
+        dbc.Col(dbc.Card([
+            html.H5("12-Month Dividend Projection", className="card-title section-header p-2"),
+            dcc.Loading(dcc.Graph(id='dividend-heatmap'))
+        ]), width=12, className="mb-4"),
+    ]),
 ], className="holdings-page")
 
 @callback(
     [Output('holdings-table-container', 'children'),
      Output({'type': 'filter-chart', 'index': 'ticker-pie-chart'}, 'figure'),
-     Output({'type': 'filter-chart', 'index': 'ticker-bar-chart'}, 'figure')],
+     Output({'type': 'filter-chart', 'index': 'ticker-bar-chart'}, 'figure'),
+     Output('dividend-heatmap', 'figure')],
     [Input('data-signal', 'data'),
      Input('filter-store', 'data'),
      Input('chatbot-command', 'data'),
@@ -46,7 +56,7 @@ layout = html.Div([
 )
 def update_holdings(signal, filters, chat_cmd, include_exited, dates):
     data = dw.get_data()
-    if not data: return "Loading...", {}, {}
+    if not data: return "Loading...", {}, {}, {}
 
     ctx = dash.callback_context
     if ctx.triggered_id == "filter-store" and not filters:
@@ -81,6 +91,14 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
         # Insert price before shares
         shares_idx = cols.index('shares')
         cols.insert(shares_idx, 'price')
+        df = df[cols]
+    
+    # Move trend column right after market_value for visibility
+    if 'trend' in df.columns and 'market_value' in df.columns:
+        cols = df.columns.tolist()
+        cols.remove('trend')
+        mv_idx = cols.index('market_value')
+        cols.insert(mv_idx + 1, 'trend')
         df = df[cols]
     
     # Remove days_held column if it exists
@@ -138,6 +156,14 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
     
     # Calculate global annualization status
     is_port_annualized = dw.is_annualized(data["inception_date"], data.get("effective_as_of"))
+
+    # Fetch sparkline cache (precomputed, no API calls)
+    sparkline_cache = dw.get_sparkline_cache(data)
+
+    # Add sparkline trend data as JSON-encoded column
+    df['trend'] = df['ticker'].map(
+        lambda t: json.dumps(sparkline_cache.get(t, []))
+    )
 
     # Prepare column definitions for AG Grid
     return_cols = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "SI"]
@@ -215,6 +241,17 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
                 ]
             }
         
+        # Sparkline Trend column — use SparklineRenderer component
+        if col == "trend":
+            col_def["headerName"] = "Trend"
+            col_def["cellRenderer"] = "SparklineRenderer"
+            col_def["minWidth"] = 120
+            col_def["maxWidth"] = 140
+            col_def["sortable"] = False
+            col_def["filter"] = False
+            col_def["resizable"] = False
+            col_def["suppressSizeToFit"] = True
+
         column_defs.append(col_def)
     
     # Format data
@@ -247,4 +284,7 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
     # Charts
     pie_fig, bar_fig = dw.get_ticker_allocation_charts(data, "dark")
     
-    return table, pie_fig, bar_fig
+    # Dividend Heatmap
+    div_heatmap = dw.get_dividend_heatmap(data, "dark")
+    
+    return table, pie_fig, bar_fig, div_heatmap
