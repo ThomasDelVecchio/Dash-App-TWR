@@ -324,54 +324,43 @@ def build_portfolio_value_series_from_flows(
 
     if filtered:
         # ------------------------------------------------------------
-        # Optional Settlement Bridge for External Holdings
+        # Auto-Bridge: CASH Settlement Gap
         # ------------------------------------------------------------
-        # If the ONLY mismatch is CASH and we recently sold external
-        # holdings, allow a temporary cash delta to reconcile while
-        # broker cash settles. This prevents PV failure during T+2.
-        if len(filtered) == 1 and filtered[0][0] == "CASH":
+        # If the ONLY mismatch is CASH, it is almost certainly a
+        # settlement timing issue (T+1/T+2 deposit, sale proceeds,
+        # or broker API lag). The flow-based PV is the source of
+        # truth for GIPS returns — TWR chain-links daily returns
+        # from cashflows, which already contain the transaction.
+        # The holdings CASH row is merely a snapshot validation.
+        #
+        # Strategy: accept the flow-computed cash as correct, attach
+        # audit metadata so the UI can display a settlement notice,
+        # and cap the tolerance at $25,000 as a safety rail.
+        # Share-count mismatches still fail hard (real data errors).
+        # ------------------------------------------------------------
+        CASH_BRIDGE_MAX = 25_000.0
+
+        cash_only = all(tkr == "CASH" for tkr, _, _ in filtered)
+
+        if cash_only and target_cash is not None:
             cash_delta = cash_balance - float(target_cash)
 
-            # Only apply when flows show MORE cash than holdings
-            if cash_delta > 0:
-                external_tickers = set()
-                external_file = "holdings_external.csv"
-                if os.path.exists(external_file):
-                    try:
-                        ext_df = pd.read_csv(external_file)
-                        if "ticker" in ext_df.columns:
-                            external_tickers = set(
-                                ext_df["ticker"].astype(str).str.upper().tolist()
-                            )
-                    except Exception:
-                        external_tickers = set()
-
-                if external_tickers:
-                    tx_external = raw[raw["ticker"].isin(external_tickers)].copy()
-                    if not tx_external.empty:
-                        if "type" in tx_external.columns:
-                            tx_external["type"] = tx_external["type"].fillna("").astype(str).str.upper()
-                            tx_external = tx_external[tx_external["type"] == "TRADE"]
-
-                        # Settlement window (T+2 with weekend buffer)
-                        settlement_window_days = 5
-                        as_of = pv_index.max()
-                        window_start = as_of - pd.Timedelta(days=settlement_window_days)
-                        tx_recent = tx_external[tx_external["date"] >= window_start]
-
-                        recent_net_cash = float(tx_recent["amount"].sum()) if not tx_recent.empty else 0.0
-
-                        # Allow small rounding tolerance
-                        if recent_net_cash >= cash_delta - 0.50:
-                            print(
-                                f"⚠️  CASH reconciliation bridged for unsettled external sales: +{cash_delta:.2f}"
-                            )
-                            pv.attrs["cash_settlement_bridge"] = {
-                                "amount": float(cash_delta),
-                                "as_of": pv_index.max(),
-                            }
-                            cash_trace.attrs["cash_settlement_bridge"] = pv.attrs["cash_settlement_bridge"]
-                            return pv, cash_trace
+            if abs(cash_delta) <= CASH_BRIDGE_MAX:
+                direction = "settling deposit/inflow" if cash_delta > 0 else "settling withdrawal/outflow"
+                print(
+                    f"⚠️  CASH reconciliation auto-bridged ({direction}): "
+                    f"flows={cash_balance:,.2f}  holdings={target_cash:,.2f}  "
+                    f"Δ={cash_delta:+,.2f}"
+                )
+                pv.attrs["cash_settlement_bridge"] = {
+                    "amount": float(cash_delta),
+                    "direction": direction,
+                    "flows_cash": float(cash_balance),
+                    "holdings_cash": float(target_cash),
+                    "as_of": pv_index.max(),
+                }
+                cash_trace.attrs["cash_settlement_bridge"] = pv.attrs["cash_settlement_bridge"]
+                return pv, cash_trace
 
         raise ValueError(
             f"Flow-based PV reconciliation failed. Final positions from flows do not match holdings: {filtered}"

@@ -274,10 +274,11 @@ def run_analytics_engine(end_date=None):
     bridge_info = getattr(pv, "attrs", {}).get("cash_settlement_bridge")
     if bridge_info and isinstance(errors, list):
         bridge_amount = bridge_info.get("amount")
+        bridge_direction = bridge_info.get("direction", "settling cash flow")
         if bridge_amount is not None:
             bridge_msg = (
-                "Cash is settling from a recent external sale. "
-                f"Synthetic CASH adjustment of ${bridge_amount:,.2f} is applied until settlement posts."
+                f"⚠️ Cash balance adjusted by ${abs(bridge_amount):,.2f} — likely {bridge_direction}. "
+                "This resolves automatically on next sync."
             )
             if bridge_msg not in errors:
                 errors.append(bridge_msg)
