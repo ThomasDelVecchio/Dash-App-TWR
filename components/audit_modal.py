@@ -5,6 +5,10 @@ import numpy as np
 from report_formatting import fmt_dollar_clean, fmt_pct_clean, fmt_number_clean
 from config import RISK_FREE_RATE, TAX_RATE_ST, TAX_RATE_LT
 
+def _fmt_num(n):
+    """Format a number with commas and 2 decimal places."""
+    return f"{n:,.2f}"
+
 def get_audit_modal_content(request_data):
     """
     Generates the Modal Content for the Audit Trail.
@@ -348,7 +352,7 @@ def get_audit_modal_content(request_data):
         content = []
         content.append(html.H4(f"Audit: {ticker} ({col_id}) (Annualized)", className="mb-3"))
         
-        def fmt_num(n): return f"{n:,.2f}"
+        fmt_num = _fmt_num
 
         if "Sharpe" in str(col_id):
             # Use generic backend keys to avoid suffix mismatches (e.g. "Sharpe (SI)")
@@ -500,7 +504,7 @@ def get_audit_modal_content(request_data):
         content = []
         content.append(html.H4(f"Audit: {ticker} ({col_id})", className="mb-3"))
         
-        def fmt_num(n): return f"{n:,.2f}"
+        fmt_num = _fmt_num
 
         if col_id == "Cost Basis":
             formula_tex = r"""
@@ -657,7 +661,7 @@ def get_audit_modal_content(request_data):
         content.append(html.H4(f"Audit: {ticker} ({col_id.replace('_', ' ')})", className="mb-3"))
         
         def safe_float(k): return float(row_data.get(k, 0.0))
-        def fmt_num(n): return f"{n:,.2f}"
+        fmt_num = _fmt_num
         
         # Meta Data Extraction
         proforma_total = safe_float("meta_proforma_total")
@@ -895,7 +899,7 @@ def get_audit_modal_content(request_data):
             content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '400px'}))
 
         elif col_id == "Monthly Contrib":
-            def fmt_num(n): return f"{n:,.2f}"
+            fmt_num = _fmt_num
             
             formula_tex = r"""
         $$
@@ -927,7 +931,7 @@ def get_audit_modal_content(request_data):
             content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm", className="mt-3", style={'maxWidth': '400px'}))
 
         elif col_id == "Share of Monthly":
-            def fmt_num(n): return f"{n:,.2f}"
+            fmt_num = _fmt_num
             
             formula_tex = r"""
         $$
@@ -1132,7 +1136,7 @@ def get_audit_modal_content(request_data):
     if date_str:
         content.append(html.Div(date_str, className="text-muted small mb-3"))
     
-    def fmt_num(n): return f"{n:,.2f}"
+    fmt_num = _fmt_num
     
     if is_return:
         # Modified Dietz Formula (Cumulative)

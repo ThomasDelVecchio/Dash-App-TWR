@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from config import BENCHMARK_PRESETS, GLOBAL_PALETTE, RISK_FREE_RATE, TARGET_WEIGHT_PRESET_NAME
 from data_loader import fetch_price_history, load_holdings
 from portfolio_engine import compute_drawdown_series
-from components.monte_carlo import ASSET_CLASS_BENCHMARKS
+from components.monte_carlo import ASSET_CLASS_BENCHMARKS, TICKER_PROXY_BASKETS, _normalize_weights
 
 # ============================================================
 # STRATEGY BACKTESTING ENGINE (SSOT for Backtesting Logic)
@@ -27,15 +27,7 @@ TICKER_PROXY_OVERRIDES = {
     "XMHQ": "MDY",   # S&P MidCap Quality → S&P MidCap 400 (1995)
 }
 
-# Multi-asset proxy baskets for allocation ETFs.
-# Used when a ticker lacks full lookback history; weights are normalized by available
-# component data each day so partial history can still be spliced consistently.
-TICKER_PROXY_BASKETS = {
-    "AOA": {"VTI": 0.80, "BND": 0.20},
-    "AOR": {"VTI": 0.60, "BND": 0.40},
-    "AOM": {"VTI": 0.40, "BND": 0.60},
-    "AOK": {"VTI": 0.30, "BND": 0.70},
-}
+# TICKER_PROXY_BASKETS — imported from monte_carlo (SSOT)
 
 # Known benchmark classifications (fallback when ticker not in holdings)
 KNOWN_BENCHMARK_CLASSES = {
@@ -183,25 +175,7 @@ KNOWN_BENCHMARK_CLASSES = {
 }
 
 
-def _normalize_weights(raw_weights: dict) -> dict:
-    cleaned = {}
-    for k, v in (raw_weights or {}).items():
-        if k is None:
-            continue
-        t = str(k).strip().upper()
-        try:
-            w = float(v)
-        except Exception:
-            continue
-        if not t or w <= 0:
-            continue
-        cleaned[t] = w
-
-    total = sum(cleaned.values())
-    if total <= 0:
-        return {}
-
-    return {t: w / total for t, w in cleaned.items()}
+# _normalize_weights — imported from monte_carlo (SSOT)
 
 
 def _get_portfolio_weights(data) -> dict:

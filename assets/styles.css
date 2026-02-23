@@ -1757,10 +1757,6 @@ mjx-container > svg {
 
 /* Ultra Wide (1400px+) */
 @media (min-width: 1400px) {
-    .content {
-        padding: 2rem 3rem;
-    }
-    
     .content.sidebar-collapsed {
         margin-left: var(--sidebar-collapsed-width);
     }
@@ -1813,14 +1809,7 @@ mjx-container > svg {
    SKELETON LOADERS
    ============================================================ */
 
-@keyframes shimmer {
-    0% {
-        background-position: -200% 0;
-    }
-    100% {
-        background-position: 200% 0;
-    }
-}
+/* @keyframes shimmer — removed: overridden by shimmerPremium (Phase 2) */
 
 .skeleton {
     background: linear-gradient(
@@ -2034,24 +2023,7 @@ mjx-container > svg {
     background-color: #2a2a2a !important;
 }
 
-/* ============================================================
-   IMPROVED MODAL ANIMATIONS
-   ============================================================ */
-
-.modal.show .modal-dialog {
-    animation: modalSlideIn 0.25s ease-out;
-}
-
-@keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-20px) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
+/* modalSlideIn + early .modal.show rule — removed: overridden by Phase 2 modalEntryPhase2 */
 
 .modal-content {
     border: 1px solid rgba(255,255,255,0.1);

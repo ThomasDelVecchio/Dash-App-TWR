@@ -7,7 +7,7 @@ import dash_wrappers as dw
 from report_formatting import fmt_dollar_clean, fmt_pct_clean, fmt_number_clean
 from tax_engine import build_tax_lots, simulate_sell, normalize_ticker
 from components.page_header import page_header
-from pages.overview import create_kpi_card
+from components.kpi_card import create_kpi_card
 
 # ============================================================
 # LAYOUT

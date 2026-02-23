@@ -231,15 +231,6 @@ def _get_flows_summary_period(data, start_date=None, end_date=None):
     ]
     return pd.DataFrame(rows), period_label
 
-# ============================================================
-# HELPER: Apply Light Theme to Figure
-# ============================================================
-def apply_print_theme(fig):
-    """
-    Deprecated. Returns figure as-is.
-    """
-    return fig
-
 
 # ============================================================
 # LAYOUT
@@ -771,8 +762,6 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
         # 2. Performance Chart
         elif section_key == "performance_chart":
             fig = dw.get_pv_mountain_chart(data, theme)
-            if print_preview:
-                fig = apply_print_theme(fig)
             
             # Zoom if period selected
             if start_date:
@@ -850,11 +839,6 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             pie_fig, bar_fig = dw.get_asset_allocation_charts(data, theme)
             hist_fig = dw.get_allocation_history_chart(data, theme)
             
-            if print_preview:
-                pie_fig = apply_print_theme(pie_fig)
-                bar_fig = apply_print_theme(bar_fig)
-                hist_fig = apply_print_theme(hist_fig)
-            
             if start_date:
                 hist_fig.update_xaxes(range=[start_date, end_date])
 
@@ -885,8 +869,6 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
         # 5. Sector Breakdown
         elif section_key == "sector":
             sector_fig = dw.get_sector_allocation_chart(data, theme)
-            if print_preview:
-                sector_fig = apply_print_theme(sector_fig)
             sector_fig.update_layout(height=500, margin=dict(l=0, r=0, t=40, b=40), autosize=True)
             
             sector_section = html.Div([
@@ -1004,8 +986,6 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             
             # Pass dates to chart for period-aware filtering
             flows_fig = dw.get_flows_chart(data, theme, start_date=start_date, end_date=end_date)
-            if print_preview:
-                flows_fig = apply_print_theme(flows_fig)
             flows_fig.update_layout(height=400, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
             
             flows_section = html.Div([
@@ -1108,10 +1088,6 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             open_lots, realized_events = build_tax_lots(strategy="FIFO", as_of_date=as_of_dt)
             
             tax_fig = dw.get_tax_liability_sunburst(open_lots, realized_events, theme)
-            
-            if print_preview:
-                tax_fig = apply_print_theme(tax_fig)
-                
             tax_fig.update_layout(height=500, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
             
             sunburst_section = html.Div([
@@ -1130,11 +1106,6 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             risk_fig = dw.get_risk_return_chart(data, theme)
             corr_fig = dw.get_correlation_heatmap(data, theme)
             dd_fig = dw.get_drawdown_chart(data, theme)
-            
-            if print_preview:
-                risk_fig = apply_print_theme(risk_fig)
-                corr_fig = apply_print_theme(corr_fig)
-                dd_fig = apply_print_theme(dd_fig)
             
             if start_date:
                 dd_fig.update_xaxes(range=[start_date, end_date])
@@ -1175,10 +1146,6 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
             cum_fig = dw.get_cumulative_return_chart(data, start_date, bm_map, theme)
             growth_fig = dw.get_growth_of_capital_chart(data, "Total", theme)
             
-            if print_preview:
-                cum_fig = apply_print_theme(cum_fig)
-                growth_fig = apply_print_theme(growth_fig)
-            
             if start_date:
                 growth_fig.update_xaxes(range=[start_date, end_date])
                 
@@ -1202,9 +1169,6 @@ def update_report(n_clicks, signal, order_list, selected_list, title, period, in
         elif section_key == "attribution":
             # Pass user-selected dates to ensure proper data aggregation (Daily vs Weekly vs Monthly)
             attr_fig = dw.get_smart_attribution_chart(data, start_date, end_date, theme)
-            if print_preview:
-                attr_fig = apply_print_theme(attr_fig)
-
             attr_fig.update_layout(height=600, margin=dict(l=0, r=0, t=30, b=30), autosize=True)
                 
             attr_section = html.Div([

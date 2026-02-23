@@ -96,6 +96,18 @@ TAX_RATE_LT = 0.15  # Long-Term Capital Gains Rate (15%)
 RISK_FREE_RATE = 0.04  # 4% annual risk-free rate for Sharpe/Sortino ratios
 
 # ============================================================
+# SEMANTIC COLOR TOKENS (single source for Python + AG Grid)
+# These mirror the CSS custom properties in assets/styles.css.
+# ============================================================
+CLR_POSITIVE = "#22c55e"
+CLR_NEGATIVE = "#ef4444"
+CLR_ACCENT   = "#00d4ff"
+CLR_NEUTRAL  = "#94a3b8"
+CLR_CAUTION  = "#f59e0b"
+CLR_POSITIVE_MUTED = "rgba(34,197,94,0.14)"
+CLR_NEGATIVE_MUTED = "rgba(239,68,68,0.14)"
+
+# ============================================================
 # GLOBAL COLOR PALETTE
 # ============================================================
 GLOBAL_PALETTE = [
