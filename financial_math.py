@@ -323,45 +323,6 @@ def build_portfolio_value_series_from_flows(
         filtered.append((tkr, flows_val, hold_val))
 
     if filtered:
-        # ------------------------------------------------------------
-        # Auto-Bridge: CASH Settlement Gap
-        # ------------------------------------------------------------
-        # If the ONLY mismatch is CASH, it is almost certainly a
-        # settlement timing issue (T+1/T+2 deposit, sale proceeds,
-        # or broker API lag). The flow-based PV is the source of
-        # truth for GIPS returns — TWR chain-links daily returns
-        # from cashflows, which already contain the transaction.
-        # The holdings CASH row is merely a snapshot validation.
-        #
-        # Strategy: accept the flow-computed cash as correct, attach
-        # audit metadata so the UI can display a settlement notice,
-        # and cap the tolerance at $25,000 as a safety rail.
-        # Share-count mismatches still fail hard (real data errors).
-        # ------------------------------------------------------------
-        CASH_BRIDGE_MAX = 25_000.0
-
-        cash_only = all(tkr == "CASH" for tkr, _, _ in filtered)
-
-        if cash_only and target_cash is not None:
-            cash_delta = cash_balance - float(target_cash)
-
-            if abs(cash_delta) <= CASH_BRIDGE_MAX:
-                direction = "settling deposit/inflow" if cash_delta > 0 else "settling withdrawal/outflow"
-                print(
-                    f"⚠️  CASH reconciliation auto-bridged ({direction}): "
-                    f"flows={cash_balance:,.2f}  holdings={target_cash:,.2f}  "
-                    f"Δ={cash_delta:+,.2f}"
-                )
-                pv.attrs["cash_settlement_bridge"] = {
-                    "amount": float(cash_delta),
-                    "direction": direction,
-                    "flows_cash": float(cash_balance),
-                    "holdings_cash": float(target_cash),
-                    "as_of": pv_index.max(),
-                }
-                cash_trace.attrs["cash_settlement_bridge"] = pv.attrs["cash_settlement_bridge"]
-                return pv, cash_trace
-
         raise ValueError(
             f"Flow-based PV reconciliation failed. Final positions from flows do not match holdings: {filtered}"
         )

@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import os
+import json
+import re
 from datetime import datetime, timedelta
 
 from data_loader import (
@@ -159,7 +161,12 @@ def run_engine(end_date=None):
                 if rows_to_add:
                     holdings = pd.concat([holdings, pd.DataFrame(rows_to_add)], ignore_index=True)
 
-        pv, cash_trace = build_portfolio_value_series_from_flows(holdings, prices)
+        try:
+            pv, cash_trace = build_portfolio_value_series_from_flows(holdings, prices)
+        except ValueError as e:
+            pv, cash_trace = _handle_cash_settlement_bridge(
+                e, holdings, prices, CASHFLOWS_FILE
+            )
 
     # Preserve any bridge metadata from flow-based PV build
     bridge_info = getattr(pv, "attrs", {}).get("cash_settlement_bridge")
@@ -620,6 +627,155 @@ def run_engine(end_date=None):
     # REMOVED: Annualization is now handled by universal gate inside computation functions.
 
     return twr_df, sec_table, class_df, pv, twr_since_inception, twr_since_inception_annualized, pl_since_inception
+
+
+# ============================================================
+# CASH Settlement Bridge
+# ============================================================
+# When PV recon fails because CASH is the only mismatch
+# (settlement timing), inject a temporary FLOW row into
+# cashflows.csv and retry. Tracked in settlement_bridges.json
+# for auto-cleanup when E*TRADE API catches up.
+# ============================================================
+
+SETTLEMENT_BRIDGE_FILE = "settlement_bridges.json"
+CASH_BRIDGE_MAX = 25_000.0
+
+
+def _parse_cash_delta_from_error(error: ValueError):
+    """
+    Extract CASH mismatch details from a PV recon ValueError.
+    Returns (cash_delta, flows_cash, holdings_cash) or None if
+    the error contains non-CASH mismatches.
+    """
+    msg = str(error)
+    if "Flow-based PV reconciliation failed" not in msg:
+        return None
+
+    # Parse the mismatch tuples from the error message
+    # Format: [('CASH', flows_val, holdings_val), ...]
+    # Check for any non-CASH mismatch — those are real errors
+    bracket_match = re.search(r"\[(.+)\]", msg)
+    if not bracket_match:
+        return None
+
+    inner = bracket_match.group(1)
+    # Quick check: should only contain 'CASH'
+    # Handle optional np.float64(...) wrappers in error message
+    NUM = r"(?:np\.float64\()?([\d.e+-]+)\)?"
+    tuples = re.findall(rf"\('(\w+)',\s*{NUM},\s*{NUM}\)", inner)
+    if not tuples:
+        return None
+
+    for tkr, _, _ in tuples:
+        if tkr != "CASH":
+            return None  # Non-CASH mismatch — real error, don't bridge
+
+    # Single CASH mismatch
+    _, flows_str, holdings_str = tuples[0]
+    flows_cash = float(flows_str)
+    holdings_cash = float(holdings_str)
+    cash_delta = holdings_cash - flows_cash  # positive = need to ADD a flow
+
+    return cash_delta, flows_cash, holdings_cash
+
+
+def _load_settlement_bridges():
+    """Load the settlement bridges tracking file."""
+    if not os.path.exists(SETTLEMENT_BRIDGE_FILE):
+        return {"bridges": []}
+    try:
+        with open(SETTLEMENT_BRIDGE_FILE, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {"bridges": []}
+
+
+def _save_settlement_bridges(data):
+    """Save the settlement bridges tracking file."""
+    with open(SETTLEMENT_BRIDGE_FILE, "w") as f:
+        json.dump(data, f, indent=2, default=str)
+
+
+def _handle_cash_settlement_bridge(error, holdings, prices, cashflows_path):
+    """
+    Handle a CASH-only PV recon failure by injecting a FLOW row.
+
+    1. Parse the error to confirm CASH is the only mismatch
+    2. Append a balancing FLOW row to cashflows.csv
+    3. Log to settlement_bridges.json for audit/cleanup
+    4. Retry PV build
+    5. Attach metadata to pv.attrs for UI notification
+
+    Raises the original error if:
+    - Non-CASH mismatches exist
+    - Delta exceeds $25,000 safety cap
+    - Retry still fails
+    """
+    parsed = _parse_cash_delta_from_error(error)
+    if parsed is None:
+        raise error  # Non-CASH mismatch — re-raise
+
+    cash_delta, flows_cash, holdings_cash = parsed
+
+    if abs(cash_delta) > CASH_BRIDGE_MAX:
+        print(
+            f"❌ CASH delta of ${cash_delta:,.2f} exceeds safety cap of "
+            f"${CASH_BRIDGE_MAX:,.2f} — not bridging."
+        )
+        raise error
+
+    # Determine direction
+    direction = "settling deposit/inflow" if cash_delta > 0 else "settling withdrawal/outflow"
+    today_str = datetime.now().strftime("%m/%d/%Y")
+
+    print(
+        f"⚠️  CASH recon failed — auto-injecting settlement bridge FLOW:\n"
+        f"    Direction: {direction}\n"
+        f"    Amount:    ${cash_delta:+,.2f}\n"
+        f"    Flows had: ${flows_cash:,.2f}  |  Holdings expect: ${holdings_cash:,.2f}"
+    )
+
+    # Append FLOW row to cashflows.csv
+    bridge_row = f"{today_str},CASH,0.0,{cash_delta},FLOW\n"
+    with open(cashflows_path, "a") as f:
+        f.write(bridge_row)
+
+    # Track in settlement_bridges.json
+    bridge_data = _load_settlement_bridges()
+    bridge_entry = {
+        "date": today_str,
+        "amount": float(cash_delta),
+        "direction": direction,
+        "flows_cash": float(flows_cash),
+        "holdings_cash": float(holdings_cash),
+        "created_at": datetime.now().isoformat(),
+        "status": "active",
+    }
+    bridge_data["bridges"].append(bridge_entry)
+    _save_settlement_bridges(bridge_data)
+
+    # Retry PV build (should now pass with the new FLOW row)
+    try:
+        pv, cash_trace = build_portfolio_value_series_from_flows(
+            holdings, prices, cashflows_path=cashflows_path
+        )
+    except ValueError:
+        print("❌ PV build still failed after bridge injection — re-raising original error.")
+        raise error
+
+    # Attach metadata for UI notification
+    pv.attrs["cash_settlement_bridge"] = {
+        "amount": float(cash_delta),
+        "direction": direction,
+        "flows_cash": float(flows_cash),
+        "holdings_cash": float(holdings_cash),
+        "as_of": pv.index.max(),
+    }
+    cash_trace.attrs["cash_settlement_bridge"] = pv.attrs["cash_settlement_bridge"]
+
+    print(f"✅ PV build succeeded after settlement bridge injection.")
+    return pv, cash_trace
 
 
 # ============================================================

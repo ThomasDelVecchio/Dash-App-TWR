@@ -914,6 +914,109 @@ def fetch_cash_balance(session, account_id_key: str) -> float:
 
 
 # ============================================================
+# SETTLEMENT BRIDGE CLEANUP
+# ============================================================
+
+SETTLEMENT_BRIDGE_FILE = "settlement_bridges.json"
+
+
+def _cleanup_settlement_bridges() -> int:
+    """
+    Remove settlement bridge FLOW rows from cashflows.csv when the
+    real transaction has been synced from E*TRADE.
+
+    Logic:
+    - For each active bridge entry in settlement_bridges.json:
+      1. Search cashflows.csv for a REAL matching row (same amount ±$1,
+         same date ±5 days, type=FLOW) that is NOT the bridge row itself.
+      2. If found: the API caught up → remove the bridge FLOW row from
+         cashflows.csv and mark the bridge entry as "retired".
+      3. If bridge is >10 days old with no match: log a warning.
+
+    Returns count of bridges cleaned up.
+    """
+    if not os.path.exists(SETTLEMENT_BRIDGE_FILE):
+        return 0
+
+    try:
+        with open(SETTLEMENT_BRIDGE_FILE, "r") as f:
+            bridge_data = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return 0
+
+    active = [b for b in bridge_data.get("bridges", []) if b.get("status") == "active"]
+    if not active:
+        return 0
+
+    if not os.path.exists(CASHFLOWS_FILE):
+        return 0
+
+    df = pd.read_csv(CASHFLOWS_FILE)
+    df.columns = [c.lower() for c in df.columns]
+    df["date"] = pd.to_datetime(df["date"])
+    df["amount"] = df["amount"].astype(float)
+    if "type" in df.columns:
+        df["type"] = df["type"].fillna("").astype(str).str.upper()
+
+    cleaned = 0
+    now = datetime.now()
+
+    for bridge in active:
+        b_date = pd.to_datetime(bridge["date"])
+        b_amount = float(bridge["amount"])
+        b_created = datetime.fromisoformat(bridge.get("created_at", now.isoformat()))
+        age_days = (now - b_created).days
+
+        # Find the bridge's own row in cashflows (to remove it)
+        bridge_mask = (
+            (df["type"] == "FLOW") &
+            (df["ticker"].astype(str).str.upper() == "CASH") &
+            (abs(df["amount"] - b_amount) < 0.01) &
+            (abs((df["date"] - b_date).dt.days) <= 1)
+        )
+
+        # Now check if there's ALSO a real matching row with different index
+        # A "real" row would have been synced by the API — same amount ±$1
+        # but we look for ANY FLOW matching in a 5-day window
+        real_match_mask = (
+            (df["type"] == "FLOW") &
+            (df["ticker"].astype(str).str.upper() == "CASH") &
+            (abs(df["amount"] - b_amount) <= 1.00) &
+            (abs((df["date"] - b_date).dt.days) <= 5)
+        )
+
+        # Count: if there are 2+ matching rows, the real one is here
+        bridge_indices = df[bridge_mask].index.tolist()
+        real_indices = df[real_match_mask].index.tolist()
+
+        # The API has synced a matching row if we find more matches
+        # than just the bridge itself
+        if len(real_indices) > len(bridge_indices) and bridge_indices:
+            # Remove the bridge row (keep the API-synced one)
+            df = df.drop(index=bridge_indices)
+            bridge["status"] = "retired"
+            bridge["retired_at"] = now.isoformat()
+            bridge["retired_reason"] = "Matched synced transaction from E*TRADE"
+            cleaned += 1
+            print(f"🔄 Settlement bridge retired: ${b_amount:,.2f} on {bridge['date']} — API caught up")
+
+        elif age_days > 10:
+            print(
+                f"⚠️  Settlement bridge is {age_days} days old with no API match: "
+                f"${b_amount:,.2f} on {bridge['date']}. Check E*TRADE manually."
+            )
+
+    if cleaned > 0:
+        # Write cleaned cashflows back
+        df.to_csv(CASHFLOWS_FILE, index=False)
+        # Save updated bridge statuses
+        with open(SETTLEMENT_BRIDGE_FILE, "w") as f:
+            json.dump(bridge_data, f, indent=2, default=str)
+
+    return cleaned
+
+
+# ============================================================
 # MAIN SYNC FUNCTION
 # ============================================================
 
@@ -973,6 +1076,11 @@ def sync_all(sync_holdings_flag: bool = True) -> Dict:
         else:
             messages.append(f"✓ {holdings_msg}")
     
+    # Clean up settlement bridges that the API now covers
+    bridge_cleaned = _cleanup_settlement_bridges()
+    if bridge_cleaned > 0:
+        messages.append(f"✓ Retired {bridge_cleaned} settlement bridge(s)")
+
     # Set final status
     if has_error:
         if result["transactions_added"] > 0 or result["holdings_updated"]:

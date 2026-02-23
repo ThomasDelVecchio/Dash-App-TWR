@@ -272,13 +272,29 @@ def run_analytics_engine(end_date=None):
 
     # Surface cash settlement bridge notice in the UI (if applied)
     bridge_info = getattr(pv, "attrs", {}).get("cash_settlement_bridge")
+
+    # Also check settlement_bridges.json for active bridges (persists across runs)
+    if not bridge_info:
+        try:
+            import json as _json
+            _bridge_file = os.path.join(os.path.dirname(__file__), "settlement_bridges.json")
+            if os.path.exists(_bridge_file):
+                with open(_bridge_file, "r") as _bf:
+                    _bridge_data = _json.load(_bf)
+                active_bridges = [b for b in _bridge_data.get("bridges", []) if b.get("status") == "active"]
+                if active_bridges:
+                    bridge_info = active_bridges[-1]  # Most recent active bridge
+        except Exception:
+            pass
+
     if bridge_info and isinstance(errors, list):
         bridge_amount = bridge_info.get("amount")
         bridge_direction = bridge_info.get("direction", "settling cash flow")
         if bridge_amount is not None:
             bridge_msg = (
-                f"⚠️ Cash balance adjusted by ${abs(bridge_amount):,.2f} — likely {bridge_direction}. "
-                "This resolves automatically on next sync."
+                f"⚠️ Pending {bridge_direction} of ${abs(bridge_amount):,.2f} "
+                "— temporary cashflow added until E*TRADE settles. "
+                "Removes automatically on next sync."
             )
             if bridge_msg not in errors:
                 errors.append(bridge_msg)

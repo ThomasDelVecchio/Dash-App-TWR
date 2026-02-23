@@ -23,9 +23,6 @@ layout = html.Div([
         subtitle="Portfolio summary and daily highlights"
     ),
 
-    # Cash Settlement Alert (shown when CASH recon is auto-bridged)
-    html.Div(id='settlement-alert-container'),
-
     # Data Status Note
     html.Div(id='data-status-container', style={'position': 'fixed', 'top': '15px', 'right': '20px', 'zIndex': 2000, 'maxWidth': '90vw'}),
     
@@ -85,8 +82,7 @@ def update_ai_brief(signal):
 
 # Main Dashboard Callback
 @callback(
-    [Output('settlement-alert-container', 'children'),
-     Output('data-status-container', 'children'),
+    [Output('data-status-container', 'children'),
      Output('price-source-badge-container', 'children'),
      Output('kpi-val-card', 'children'),
      Output('kpi-twr-card', 'children'),
@@ -104,28 +100,8 @@ def update_ai_brief(signal):
 def update_overview(signal, chat_cmd, _filters):
     data = dw.get_data()
     if not data:
-        return None, None, None, "...", "...", "...", None, "...", {}, "Loading...", "Loading...", None
+        return None, None, "...", "...", "...", None, "...", {}, "Loading...", "Loading...", None
     
-    # Cash Settlement Alert
-    settlement_alert = None
-    pv_series = data.get("pv")
-    if pv_series is not None:
-        bridge = getattr(pv_series, "attrs", {}).get("cash_settlement_bridge")
-        if bridge:
-            delta = bridge.get("amount", 0)
-            direction = bridge.get("direction", "settling cash flow")
-            settlement_alert = dbc.Alert(
-                [
-                    html.I(className="bi bi-clock-history me-2"),
-                    html.Strong("Cash Settlement Notice: "),
-                    f"Cash balance adjusted by ${abs(delta):,.2f} — likely {direction}. ",
-                    "This resolves automatically on next E*TRADE sync.",
-                ],
-                color="warning",
-                dismissable=True,
-                className="mb-3",
-            )
-
     # Price Source Badge
     price_source_meta = dw.get_price_source_summary(data)
     price_badge = create_price_source_badge(price_source_meta, "overview-price-badge") if price_source_meta else None
@@ -249,4 +225,4 @@ def update_overview(signal, chat_cmd, _filters):
         cash_pos = False  # red glow — high cash drag
     alpha_card_cash = create_kpi_card("Cash Drag", cash_str, subtext="% of portfolio in cash", is_positive=cash_pos)
 
-    return settlement_alert, status_note, price_badge, val_card, twr_card, pl_card, alpha_card, mtd_card, fig, snap_table, story_cards, alpha_card_cash
+    return status_note, price_badge, val_card, twr_card, pl_card, alpha_card, mtd_card, fig, snap_table, story_cards, alpha_card_cash
