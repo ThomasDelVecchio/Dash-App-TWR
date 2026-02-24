@@ -1079,18 +1079,26 @@ def fetch_dividend_calendar(ticker: str) -> dict | None:
     end_horizon = today + pd.DateOffset(months=12)
     last_pay = dates[-1]
 
+    # Use calendar-aware offsets to avoid day-count drift
+    _freq_offset = {30: pd.DateOffset(months=1), 91: pd.DateOffset(months=3),
+                    182: pd.DateOffset(months=6), 365: pd.DateOffset(years=1)}
+    step = _freq_offset.get(freq_days, pd.DateOffset(days=freq_days))
+
     projected = []
-    next_pay = last_pay + pd.Timedelta(days=freq_days)
+    n = 1
+    next_pay = last_pay + n * step
     # Walk forward from last known payment
     while next_pay <= end_horizon:
         if next_pay >= today:
             projected.append((next_pay, last_div))
-        next_pay += pd.Timedelta(days=freq_days)
+        n += 1
+        next_pay = last_pay + n * step
 
     # Edge case: if no projections landed in the window, add one at next expected date
     if not projected and last_div > 0:
         while next_pay < today:
-            next_pay += pd.Timedelta(days=freq_days)
+            n += 1
+            next_pay = last_pay + n * step
         if next_pay <= end_horizon:
             projected.append((next_pay, last_div))
 

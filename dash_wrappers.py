@@ -2836,7 +2836,8 @@ def get_dividend_heatmap(data, theme="dark"):
         return fig
 
     today = pd.Timestamp.now().normalize()
-    months = pd.date_range(today, periods=12, freq="MS")
+    month_start = today.replace(day=1)            # include the full current month
+    months = pd.date_range(month_start, periods=12, freq="MS")
     month_labels = [m.strftime("%b %Y") for m in months]
 
     tickers = sorted(active["ticker"].unique())
@@ -2860,13 +2861,15 @@ def get_dividend_heatmap(data, theme="dark"):
         for m_start in months:
             m_end = (m_start + pd.offsets.MonthEnd(0)).normalize()
             month_total = 0.0
-            for pay_date, div_per_share in projected:
+            month_dps = 0.0          # per-share amount for this month's tooltip
+            for pay_date, dps in projected:
                 if m_start <= pay_date <= m_end:
-                    month_total += div_per_share * shares
+                    month_total += dps * shares
+                    month_dps = dps
             row.append(round(month_total, 2))
             tip = f"<b>{ticker}</b><br>{m_start.strftime('%b %Y')}<br>"
             if month_total > 0:
-                tip += f"Est. ${month_total:,.2f}<br>({shares:.1f} sh × ${div_per_share:.4f})<br>Freq: {freq_label}"
+                tip += f"Est. ${month_total:,.2f}<br>({shares:.1f} sh × ${month_dps:.4f})<br>Freq: {freq_label}"
             else:
                 tip += "No payout expected"
             tip_row.append(tip)
