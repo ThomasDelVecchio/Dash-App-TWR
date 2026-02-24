@@ -42,8 +42,7 @@ layout = html.Div([
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5("Cash Flow Plumbing (Sankey)", className="card-title section-header p-2"),
-            dcc.Loading(dcc.Graph(id='sankey-chart')),
-            html.Div(id='sankey-click-info', className="p-2")
+            dcc.Loading(dcc.Graph(id='sankey-chart'))
         ]), width=12, className="mb-4"),
     ]),
 ], className="flows-page")
@@ -243,27 +242,3 @@ def update_flows(signal, chat_cmd, _filters, include_exited):
     sankey_fig = dw.get_sankey_chart(data, "dark")
     
     return ext_table, int_table, fig, sankey_fig
-
-
-@callback(
-    Output('sankey-click-info', 'children'),
-    Input('sankey-chart', 'clickData'),
-    prevent_initial_call=True
-)
-def show_sankey_detail(click_data):
-    """Show node/link info on tap so mobile users can read tooltips."""
-    if not click_data or not click_data.get("points"):
-        return ""
-    pt = click_data["points"][0]
-    # Link click – has 'source' and 'target' keys
-    if "source" in pt and "target" in pt:
-        src = pt["source"].get("label", "")
-        tgt = pt["target"].get("label", "")
-        val = pt.get("value", 0)
-        text = f"{src} \u2192 {tgt}:  ${val:,.2f}"
-    else:
-        # Node click
-        label = pt.get("label", "Unknown")
-        val = pt.get("value", 0)
-        text = f"{label}:  ${val:,.2f}"
-    return dbc.Alert(text, color="info", className="mb-0 mt-2 py-2", dismissable=True)
