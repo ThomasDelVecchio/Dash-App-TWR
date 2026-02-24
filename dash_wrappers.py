@@ -1319,6 +1319,31 @@ def get_correlation_heatmap(data, theme="light"):
     )
     return fig
 
+def _filter_exited_asset_classes(df, threshold=0.005):
+    """
+    Remove asset classes that had zero presence during the period.
+    An asset class is considered "exited" if it has:
+      - No market value at start or end of period
+      - No flows (buys/sells) during the period
+      - No income (dividends) during the period
+      - No material Effect ($)
+    Always preserves 'Recon/Residual' rows.
+    """
+    if df.empty:
+        return df
+
+    # Columns to check vary between daily (meta_ac_*) and Frongello outputs
+    check_cols = ["Effect"]
+    for col in ["meta_ac_start", "meta_ac_end", "meta_ac_flow", "meta_ac_inc"]:
+        if col in df.columns:
+            check_cols.append(col)
+
+    # Keep rows where ANY metric exceeds the threshold, or the row is Recon/Residual
+    is_special = df["Asset Class"].isin(["Recon/Residual"])
+    has_activity = df[check_cols].abs().gt(threshold).any(axis=1)
+    return df[is_special | has_activity].reset_index(drop=True)
+
+
 def get_daily_attribution_breakdown(data, date_str):
     """
     Decomposes a specific day's Market Effect into Asset Class components.
@@ -1488,6 +1513,9 @@ def get_daily_attribution_breakdown(data, date_str):
         }])], ignore_index=True)
 
     df = df.sort_values("Effect", ascending=False)
+    
+    # Filter out asset classes fully exited before this period
+    df = _filter_exited_asset_classes(df)
     
     return df
 
@@ -2180,6 +2208,9 @@ def get_monthly_attribution_breakdown(data, year_month_str):
             "meta_frongello_avg_denom": 0
         }])], ignore_index=True)
 
+    # Filter out asset classes fully exited before this period
+    df = _filter_exited_asset_classes(df)
+
     return df.sort_values("Contribution (%)", ascending=False)
 
 
@@ -2239,6 +2270,9 @@ def get_weekly_attribution_breakdown(data, date_str):
             "meta_frongello_sum_factors": 0,
             "meta_frongello_avg_denom": 0
         }])], ignore_index=True)
+    
+    # Filter out asset classes fully exited before this period
+    df = _filter_exited_asset_classes(df)
     
     return df.sort_values("Contribution (%)", ascending=False)
 
