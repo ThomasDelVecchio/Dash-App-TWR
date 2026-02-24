@@ -4400,7 +4400,7 @@ def fetch_audit_details(request_data):
             return request_data
         
         # Re-calculate Daily TWR Series using TRUSTED financial_math logic
-        twr_val, daily_breakdown = compute_period_twr(pv, cf_ext, start, end, return_breakdown=True)
+        twr_val, daily_breakdown = compute_period_twr(pv, cf_ext, start, end, return_breakdown=True, inception_date=inception_date)
         
         if not daily_breakdown: 
             request_data["twr_monthly_breakdown"] = []
@@ -4492,7 +4492,7 @@ def _calculate_residual_return(data, df_explained, start_date=None, end_date=Non
              twr_start = pv.index.min()
              
         # Compute Cumulative TWR (no annualization)
-        twr_cum = compute_period_twr(pv, cf_ext, twr_start, calc_end)
+        twr_cum = compute_period_twr(pv, cf_ext, twr_start, calc_end, inception_date=inception)
     else:
         twr_cum = 0.0
         

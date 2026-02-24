@@ -55,7 +55,7 @@ def test_twr_synthetic():
 
     # ---------------------------------------------------------
     # Test Case B: Day 1 Funding
-    twr_b = compute_period_twr(pd.Series([105.0], index=[d0]), pd.DataFrame([{"date": d0, "amount": 100.0}]), d0, d0)
+    twr_b = compute_period_twr(pd.Series([105.0], index=[d0]), pd.DataFrame([{"date": d0, "amount": 100.0}]), d0, d0, inception_date=d0)
     if abs(twr_b - 0.05) < 1e-6:
         log_success(f"Day 1 Funding TWR: {twr_b:.6f} == 0.050000")
     else:

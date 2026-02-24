@@ -341,6 +341,7 @@ def compute_period_twr(
     start_date: pd.Timestamp,
     end_date: pd.Timestamp,
     return_breakdown: bool = False,
+    inception_date: pd.Timestamp = None,
 ) -> float:
     """
     True TWR over [start_date, end_date].
@@ -350,6 +351,9 @@ def compute_period_twr(
       - cf: external cashflows (date, amount)
       - flows with date D are applied at START-of-day D
       - flows on the start_date are part of opening capital (not adjusted again)
+      - inception_date: when provided, Day 0 inception return is ONLY computed
+        when start_date == inception_date. This prevents deposits on
+        non-inception dates from being treated as initial funding.
     """
     # 1) Restrict PV to horizon
     pv_window = pv[(pv.index >= start_date) & (pv.index <= end_date)].sort_index()
@@ -410,12 +414,21 @@ def compute_period_twr(
     # The base for the first day is the sum of flows that occurred ON start_date.
     
     base_0 = 0.0
-    flows_on_start = cf[(cf["date"] == start_date)].copy()
-    if not flows_on_start.empty:
-        base_0 = flows_on_start["amount"].sum()
+    # Day 0 inception logic: ONLY check for funding flows on start_date
+    # when start_date IS the inception date. Otherwise a deposit on any
+    # mid-life date (e.g. the start of a 1D window) would be treated as
+    # initial funding, producing wildly wrong returns.
+    is_inception_start = (
+        inception_date is not None and
+        pd.Timestamp(start_date) == pd.Timestamp(inception_date)
+    )
+    if is_inception_start:
+        flows_on_start = cf[(cf["date"] == start_date)].copy()
+        if not flows_on_start.empty:
+            base_0 = flows_on_start["amount"].sum()
 
     # GIPS COMPLIANCE FIX: Capture Day 1 (Inception) Return.
-    # If funding (base_0) happened on start_date, calculate the return: (EndVal - Funding) / Funding.
+    # If funding (base_0) happened on inception start_date, calculate the return: (EndVal - Funding) / Funding.
     if base_0 > 1e-6 and not pv_window.empty:
         pv_0 = float(pv_window.iloc[0])
         r_0 = (pv_0 - base_0) / base_0
@@ -550,7 +563,7 @@ def compute_horizon_twr(
     if start >= calc_end:
         return np.nan
 
-    r_cum = compute_period_twr(pv, cf, start, calc_end)
+    r_cum = compute_period_twr(pv, cf, start, calc_end, inception_date=inception_date)
     return annualize_return(r_cum, start, calc_end)
 
 

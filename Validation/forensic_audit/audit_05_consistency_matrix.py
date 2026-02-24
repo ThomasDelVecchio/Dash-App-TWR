@@ -41,7 +41,8 @@ def test_consistency_matrix():
         data["pv"], 
         data["cf_ext"], 
         data["inception_date"], 
-        data["pv"].index.max()
+        data["pv"].index.max(),
+        inception_date=data["inception_date"]
     )
     
     # Chart
