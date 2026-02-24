@@ -2892,7 +2892,7 @@ def get_dividend_heatmap(data, theme="dark"):
         x=month_labels,
         y=valid_tickers,
         colorscale=[
-            [0.0, "rgba(0,0,0,0)"],
+            [0.0, "#1a1a2e"],
             [0.01, "#1a3a2a"],
             [0.25, "#22c55e"],
             [0.5, "#86efac"],

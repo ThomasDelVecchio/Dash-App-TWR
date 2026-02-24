@@ -38,7 +38,7 @@ layout = html.Div([
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5("12-Month Dividend Projection", className="card-title section-header p-2"),
-            dcc.Loading(dcc.Graph(id='dividend-heatmap'))
+            dcc.Loading(dcc.Graph(id='dividend-heatmap', config={'responsive': True}))
         ]), width=12, className="mb-4"),
     ]),
 ], className="holdings-page")
