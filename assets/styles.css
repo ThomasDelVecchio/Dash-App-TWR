@@ -4500,7 +4500,7 @@ small.text-muted,
 /* ── Desktop asymmetric layout ───────────────────────────────── */
 .story-card-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--sp-4, 1rem);
     margin-bottom: var(--sp-4, 1rem);
     align-items: stretch;
@@ -4508,17 +4508,23 @@ small.text-muted,
 
 .story-card-row > * {
     display: flex;
+    min-height: 0;
 }
 
 .story-card-row .story-card {
     display: flex;
     flex-direction: column;
     width: 100%;
+    flex: 1;
 }
 
 .story-card-row .story-card .story-chips {
     margin-top: auto;
     padding-top: var(--sp-3, 0.75rem);
+}
+
+.story-card-row .story-card .story-narrative-block {
+    margin-top: auto;
 }
 
 /* ── Mobile: stacked cards with collapsible details ──────────── */
@@ -4675,6 +4681,8 @@ small.text-muted,
     color: inherit !important;
     display: flex;
     width: 100%;
+    height: 100%;
+    min-height: 0;
 }
 
 .story-card-link:hover {

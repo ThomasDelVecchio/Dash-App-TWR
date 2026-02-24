@@ -631,10 +631,11 @@ def build_risk_story_card(data, metrics, fmt_pct, fmt_dollar):
 
 def build_flows_story_card(data, fmt_dollar):
     """
-    Builds an Internal Activity storytelling card (buys/sells).
+    Builds a Cash Flow Activity storytelling card (internal trades + external flows).
     Includes: delta badge (this month vs last month), threshold alerts, drill link.
     """
     tx = data.get("tx_raw", pd.DataFrame())
+    cf_ext = data.get("cf_ext", pd.DataFrame())
     pv = data.get("pv")
 
     now = pd.Timestamp.now()
@@ -651,6 +652,26 @@ def build_flows_story_card(data, fmt_dollar):
     trend_fig = None
     trend_label = None
 
+    # ── External Flows (Since Inception) ──
+    has_ext = not cf_ext.empty and "date" in cf_ext.columns and "amount" in cf_ext.columns
+    if has_ext:
+        deposits_si = cf_ext.loc[cf_ext["amount"] > 0, "amount"].sum()
+        withdrawals_si = cf_ext.loc[cf_ext["amount"] < 0, "amount"].sum()
+        net_ext_si = cf_ext["amount"].sum()
+
+        extra.append({"label": "Deposits (SI)", "value": fmt_dollar(deposits_si), "raw": deposits_si})
+        extra.append({"label": "Withdrawals (SI)", "value": fmt_dollar(withdrawals_si), "raw": withdrawals_si})
+        extra.append({"label": "Net External Flow", "value": fmt_dollar(net_ext_si), "raw": net_ext_si})
+
+        flow_count = len(cf_ext)
+        chips.append((f"{flow_count} external flow{'s' if flow_count != 1 else ''}", "accent"))
+
+        if net_ext_si > 0:
+            narrative_parts.append(f"Net {fmt_dollar(net_ext_si)} deposited since inception.")
+        elif net_ext_si < 0:
+            narrative_parts.append(f"Net {fmt_dollar(abs(net_ext_si))} withdrawn since inception.")
+
+    # ── Internal Trading (YTD) ──
     if not tx.empty and "date" in tx.columns and "amount" in tx.columns:
         ytd = tx[tx["date"] >= year_start]
         buys = ytd[ytd["amount"] < 0]
@@ -658,13 +679,15 @@ def build_flows_story_card(data, fmt_dollar):
         total_bought = buys["amount"].abs().sum() if not buys.empty else 0
         total_sold = sells["amount"].sum() if not sells.empty else 0
         net = total_sold - total_bought
+
+        # Hero: net trading activity YTD
         hero_val = fmt_dollar(net)
         hero_raw = net
 
         buy_count = len(buys)
         sell_count = len(sells)
-        extra.append({"label": "Total Bought (YTD)", "value": fmt_dollar(total_bought), "raw": None})
-        extra.append({"label": "Total Sold (YTD)", "value": fmt_dollar(total_sold), "raw": total_sold})
+        extra.append({"label": "Bought (YTD)", "value": fmt_dollar(total_bought), "raw": None})
+        extra.append({"label": "Sold (YTD)", "value": fmt_dollar(total_sold), "raw": total_sold})
 
         total_trades = buy_count + sell_count
         chips.append((f"{total_trades} trades YTD", "accent"))
@@ -708,7 +731,7 @@ def build_flows_story_card(data, fmt_dollar):
 
     return storytelling_card(
         card_id="story-flows",
-        title="Internal Activity",
+        title="Cash Flow Activity",
         lead_value=hero_val,
         lead_raw=hero_raw,
         subtitle="Net Trading Activity (YTD)",
