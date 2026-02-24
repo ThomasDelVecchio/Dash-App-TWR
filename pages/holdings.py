@@ -38,7 +38,22 @@ layout = html.Div([
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H5("12-Month Dividend Projection", className="card-title section-header p-2"),
-            dcc.Loading(dcc.Graph(id='dividend-heatmap', config={'responsive': True}))
+            dcc.Loading(dcc.Graph(
+                id='dividend-heatmap',
+                config={'responsive': True},
+                style={'minHeight': '350px'},
+                figure={
+                    'data': [],
+                    'layout': {
+                        'template': 'plotly_dark',
+                        'paper_bgcolor': '#0a0a0a',
+                        'plot_bgcolor': '#0a0a0a',
+                        'height': 350,
+                        'xaxis': {'visible': False},
+                        'yaxis': {'visible': False},
+                    }
+                }
+            ))
         ]), width=12, className="mb-4"),
     ]),
 ], className="holdings-page")

@@ -298,7 +298,11 @@ def run_analytics_engine(end_date=None):
             )
             if bridge_msg not in errors:
                 errors.append(bridge_msg)
-    if errors: print(f"DEBUG: dash_wrappers found errors: {errors}")
+    if errors:
+        try:
+            print(f"DEBUG: dash_wrappers found errors: {errors}")
+        except UnicodeEncodeError:
+            print(f"DEBUG: dash_wrappers found {len(errors)} error(s) (emoji suppressed for encoding)")
 
     # Dynamic Risk Profile (Vol, Return, Correlation)
     dynamic_risk_return, dynamic_corr_matrix = _calculate_dynamic_risk_profile(
@@ -2829,6 +2833,8 @@ def get_dividend_heatmap(data, theme="dark"):
         fig = go.Figure()
         fig.update_layout(
             template="plotly_dark",
+            paper_bgcolor="#0a0a0a",
+            plot_bgcolor="#0a0a0a",
             annotations=[dict(text="No active holdings for dividend projection",
                               x=0.5, y=0.5, showarrow=False,
                               font=dict(size=16, color="#aaa"))],
@@ -2882,6 +2888,8 @@ def get_dividend_heatmap(data, theme="dark"):
         fig = go.Figure()
         fig.update_layout(
             template="plotly_dark",
+            paper_bgcolor="#0a0a0a",
+            plot_bgcolor="#0a0a0a",
             annotations=[dict(text="Dividend data unavailable for current holdings",
                               x=0.5, y=0.5, showarrow=False,
                               font=dict(size=16, color="#aaa"))],
@@ -2926,10 +2934,15 @@ def get_dividend_heatmap(data, theme="dark"):
 
     fig.update_layout(
         template="plotly_dark",
+        paper_bgcolor="#0a0a0a",
+        plot_bgcolor="#0a0a0a",
         height=max(350, 45 * len(valid_tickers) + 100),
+        autosize=True,
         margin=dict(l=10, r=10, t=30, b=60),
-        xaxis=dict(side="bottom", tickangle=-45),
-        yaxis=dict(autorange="reversed"),
+        xaxis=dict(type="category", categoryorder="array", categoryarray=month_labels,
+                   side="bottom", tickangle=-45),
+        yaxis=dict(type="category", categoryorder="array", categoryarray=valid_tickers,
+                   autorange="reversed"),
         font=dict(size=12, color="#e0e0e0"),
     )
     return fig

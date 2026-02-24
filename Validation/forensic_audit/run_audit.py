@@ -407,12 +407,15 @@ def run_audits():
         
         try:
             # Run script and capture output
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'
             result = subprocess.run(
                 [sys.executable, script_path],
                 capture_output=True,
                 text=True,
                 encoding='utf-8',
-                check=False 
+                check=False,
+                env=env
             )
             
             passed = (result.returncode == 0)
