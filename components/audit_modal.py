@@ -339,6 +339,321 @@ def get_audit_modal_content(request_data):
         return dbc.ModalBody(content)
 
     # ----------------------------------------------------
+    # TYPE 2.65: Strategy Scorecard (Backtesting Page)
+    # ----------------------------------------------------
+    if str(grid_id) == "strategy-scorecard":
+        strategy = row_data.get("Strategy", "Unknown")
+
+        # --- Shared meta helpers ---
+        def _sf(k, default=0.0):
+            v = row_data.get(k)
+            if v is None:
+                return default
+            try:
+                return float(v)
+            except Exception:
+                return default
+
+        cagr_val   = _sf("CAGR")
+        vol_val    = _sf("Volatility")
+        sharpe_val = _sf("Sharpe")
+        sortino_val = _sf("Sortino")
+        dd_val     = _sf("Max Drawdown")
+        score_val  = _sf("Overall Score")
+
+        rf_pct     = _sf("meta_Sharpe_rf", RISK_FREE_RATE * 100.0)
+        ann_ret    = _sf("meta_Sharpe_ret")
+        ann_vol    = _sf("meta_Sharpe_vol")
+        sort_down  = _sf("meta_Sortino_down")
+
+        cagr_start = _sf("meta_CAGR_start")
+        cagr_end   = _sf("meta_CAGR_end")
+        cagr_days  = _sf("meta_CAGR_days")
+        cagr_years = cagr_days / 365.25 if cagr_days > 0 else 0
+
+        dd_peak_val   = _sf("meta_Drawdown_peak_value")
+        dd_trough_val = _sf("meta_Drawdown_trough_value")
+
+        start_dt = row_data.get("meta_CAGR_start_date")
+        end_dt   = row_data.get("meta_CAGR_end_date")
+        period_str = ""
+        if start_dt and end_dt:
+            try:
+                s = pd.Timestamp(start_dt).strftime("%b %d, %Y")
+                e = pd.Timestamp(end_dt).strftime("%b %d, %Y")
+                period_str = f"{s}  →  {e}"
+            except Exception:
+                pass
+
+        content = []
+
+        # --- Title ---
+        col_label = col_id.replace("_", " ")
+        content.append(html.H4(f"Audit: {strategy} — {col_label}", className="mb-2"))
+        if period_str:
+            content.append(html.Div(period_str, className="text-muted small mb-3"))
+
+        # ===== OVERALL SCORE =====
+        if col_id == "Overall Score":
+            formula_tex = r"""
+            $$
+            \text{Score} = \text{mean}\!\left(\text{Rank}_{\text{CAGR}},\;\text{Rank}_{\text{Sharpe}},\;\text{Rank}_{\text{Sortino}},\;1-\text{Rank}_{\text{Vol}},\;1-\text{Rank}_{\text{DD}}\right)
+            $$
+            """
+            explanation = (
+                "Each metric is converted to a **percentile rank** across all tested strategies. "
+                "For Volatility and Max Drawdown, the rank is inverted (lower is better). "
+                "The Overall Score is the simple average of these five percentile ranks (0–1 scale)."
+            )
+
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(dcc.Markdown(explanation, mathjax=True, className="text-muted small mb-3"))
+
+            rows = [
+                html.Tr([html.Td("CAGR"), html.Td(f"{cagr_val:.2%}", className="text-end")]),
+                html.Tr([html.Td("Sharpe Ratio"), html.Td(f"{sharpe_val:.2f}", className="text-end")]),
+                html.Tr([html.Td("Sortino Ratio"), html.Td(f"{sortino_val:.2f}", className="text-end")]),
+                html.Tr([html.Td("Volatility"), html.Td(f"{vol_val:.2%}", className="text-end")]),
+                html.Tr([html.Td("Max Drawdown"), html.Td(f"{dd_val:.2%}", className="text-end")]),
+                html.Tr([
+                    html.Td("Overall Score", className="fw-bold"),
+                    html.Td(f"{score_val:.2f}", className="text-end fw-bold",
+                             style={"borderTop": "1px solid white"})
+                ]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm",
+                                     className="mt-3", style={"maxWidth": "400px"}))
+
+        # ===== CAGR =====
+        elif col_id == "CAGR":
+            growth_factor = cagr_end / cagr_start if cagr_start else 0
+
+            formula_tex = r"""
+            $$
+            \text{CAGR} = \left(\frac{V_{\text{end}}}{V_{\text{start}}}\right)^{\!\frac{1}{Y}} - 1
+            $$
+            """
+            sub_tex = fr"""
+            $$
+            \text{{CAGR}} = \left(\frac{{{fmt_dollar_clean(cagr_end).replace('$', r'\$')}}}{{{fmt_dollar_clean(cagr_start).replace('$', r'\$')}}}\right)^{{\!\frac{{1}}{{{cagr_years:.2f}}}}} - 1
+            $$
+            """
+            res_tex = fr"""
+            $$
+            = \mathbf{{{cagr_val:.2%}}}
+            $$
+            """
+
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+            content.append(dcc.Markdown(res_tex, mathjax=True, className="text-body"))
+            content.append(html.P(
+                "Assumes quarterly rebalancing. CAGR is the annualized geometric growth rate of the hypothetical investment.",
+                className="text-muted small"
+            ))
+
+            rows = [
+                html.Tr([html.Td("Initial Investment"), html.Td(fmt_dollar_clean(cagr_start), className="text-end")]),
+                html.Tr([html.Td("Final Value"), html.Td(fmt_dollar_clean(cagr_end), className="text-end")]),
+                html.Tr([html.Td("Growth Factor"), html.Td(f"{growth_factor:.4f}", className="text-end")]),
+                html.Tr([html.Td("Period"), html.Td(f"{int(cagr_days)} days ({cagr_years:.2f} yrs)", className="text-end")]),
+                html.Tr([
+                    html.Td("CAGR", className="fw-bold"),
+                    html.Td(f"{cagr_val:.2%}", className="text-end fw-bold",
+                             style={"borderTop": "1px solid white"})
+                ]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm",
+                                     className="mt-3", style={"maxWidth": "400px"}))
+
+        # ===== VOLATILITY =====
+        elif col_id == "Volatility":
+            formula_tex = r"""
+            $$
+            \sigma_{\text{ann}} = \sigma_{\text{daily}} \times \sqrt{252}
+            $$
+            """
+            sub_tex = fr"""
+            $$
+            \sigma_{{\text{{ann}}}} = \mathbf{{{ann_vol:.2f}\%}}
+            $$
+            """
+            explanation = (
+                r"Annualized Standard Deviation of daily portfolio returns. "
+                r"Represents the total variability of the strategy's simulated price path."
+            )
+
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+            content.append(dcc.Markdown(explanation, className="text-muted small"))
+
+            rows = [
+                html.Tr([html.Td("Annualized Volatility (σ)"), html.Td(f"{ann_vol:.2f}%", className="text-end fw-bold")]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm",
+                                     className="mt-3", style={"maxWidth": "350px"}))
+
+        # ===== SHARPE =====
+        elif col_id == "Sharpe":
+            formula_tex = r"""
+            $$
+            \text{Sharpe} = \frac{R_p - R_f}{\sigma_p}
+            $$
+            """
+            sub_tex = fr"""
+            $$
+            \text{{Sharpe}} = \frac{{{ann_ret:.2f}\% - {rf_pct:.1f}\%}}{{{ann_vol:.2f}\%}} = \mathbf{{{sharpe_val:.2f}}}
+            $$
+            """
+            explanation = (
+                fr"Calculated using the annualized Return ($R_p$) and Volatility ($\sigma_p$). "
+                f"Assumes a Risk-Free Rate ($R_f$) of **{rf_pct/100:.1%}**. "
+                "Higher is better (more return per unit of total risk)."
+            )
+
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+            content.append(dcc.Markdown(explanation, mathjax=True, className="text-muted small"))
+
+            rows = [
+                html.Tr([html.Td("Annualized Return (Rp)"), html.Td(f"{ann_ret:.2f}%", className="text-end")]),
+                html.Tr([html.Td("Risk-Free Rate (Rf)"), html.Td(f"{rf_pct:.1f}%", className="text-end")]),
+                html.Tr([html.Td("Volatility (σp)"), html.Td(f"{ann_vol:.2f}%", className="text-end")]),
+                html.Tr([
+                    html.Td("Sharpe Ratio", className="fw-bold"),
+                    html.Td(f"{sharpe_val:.2f}", className="text-end fw-bold",
+                             style={"borderTop": "1px solid white"})
+                ]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm",
+                                     className="mt-3", style={"maxWidth": "350px"}))
+
+        # ===== SORTINO =====
+        elif col_id == "Sortino":
+            formula_tex = r"""
+            $$
+            \text{Sortino} = \frac{R_p - R_f}{\sigma_{\text{down}}}
+            $$
+            """
+            sub_tex = fr"""
+            $$
+            \text{{Sortino}} = \frac{{{ann_ret:.2f}\% - {rf_pct:.1f}\%}}{{{sort_down:.2f}\%}} = \mathbf{{{sortino_val:.2f}}}
+            $$
+            """
+            explanation = (
+                fr"Similar to Sharpe, but divides excess return by **Downside Deviation** ($\sigma_{{\text{{down}}}}$) only. "
+                f"This penalizes only harmful volatility (negative returns). "
+                f"Assumes a Risk-Free Rate ($R_f$) of **{rf_pct/100:.1%}**."
+            )
+
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+            content.append(dcc.Markdown(explanation, mathjax=True, className="text-muted small"))
+
+            rows = [
+                html.Tr([html.Td("Annualized Return (Rp)"), html.Td(f"{ann_ret:.2f}%", className="text-end")]),
+                html.Tr([html.Td("Risk-Free Rate (Rf)"), html.Td(f"{rf_pct:.1f}%", className="text-end")]),
+                html.Tr([html.Td("Downside Deviation (σ↓)"), html.Td(f"{sort_down:.2f}%", className="text-end")]),
+                html.Tr([
+                    html.Td("Sortino Ratio", className="fw-bold"),
+                    html.Td(f"{sortino_val:.2f}", className="text-end fw-bold",
+                             style={"borderTop": "1px solid white"})
+                ]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm",
+                                     className="mt-3", style={"maxWidth": "350px"}))
+
+        # ===== MAX DRAWDOWN =====
+        elif col_id == "Max Drawdown":
+            formula_tex = r"""
+            $$
+            \text{Max Drawdown} = \min_t\!\left(\frac{V_t - \text{HWM}_t}{\text{HWM}_t}\right)
+            $$
+            """
+
+            has_peak_trough = not (np.isnan(dd_peak_val) or np.isnan(dd_trough_val))
+
+            rows = []
+            if has_peak_trough:
+                sub_tex = fr"""
+                $$
+                \text{{Max DD}} = \frac{{{fmt_dollar_clean(dd_trough_val).replace('$', r'\$')} - {fmt_dollar_clean(dd_peak_val).replace('$', r'\$')}}}{{{fmt_dollar_clean(dd_peak_val).replace('$', r'\$')}}} = \mathbf{{{dd_val:.2%}}}
+                $$
+                """
+                rows = [
+                    html.Tr([html.Td("Peak Value (HWM)"), html.Td(fmt_dollar_clean(dd_peak_val), className="text-end")]),
+                    html.Tr([html.Td("Trough Value"), html.Td(fmt_dollar_clean(dd_trough_val), className="text-end")]),
+                    html.Tr([
+                        html.Td("Max Drawdown", className="fw-bold"),
+                        html.Td(f"{dd_val:.2%}", className="text-end fw-bold",
+                                 style={"borderTop": "1px solid white"})
+                    ]),
+                ]
+            else:
+                sub_tex = fr"""
+                $$
+                \text{{Max DD}} = \mathbf{{{dd_val:.2%}}}
+                $$
+                """
+                rows = [
+                    html.Tr([
+                        html.Td("Max Drawdown", className="fw-bold"),
+                        html.Td(f"{dd_val:.2%}", className="text-end fw-bold",
+                                 style={"borderTop": "1px solid white"})
+                    ]),
+                ]
+
+            explanation = (
+                "Max Drawdown is the largest peak-to-trough decline from "
+                "the strategy's high-water mark over the backtest window."
+            )
+
+            content.append(dcc.Markdown(formula_tex, mathjax=True, className="text-body"))
+            content.append(html.Hr())
+            content.append(html.H6("Applied Calculation", className="text-muted"))
+            content.append(dcc.Markdown(sub_tex, mathjax=True, className="text-body"))
+            content.append(html.P(explanation, className="text-muted small"))
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm",
+                                     className="mt-3", style={"maxWidth": "400px"}))
+
+        # ===== STRATEGY NAME (column click) =====
+        else:
+            # Generic summary when clicking Strategy name or any unrecognised column
+            content = [html.H4(f"Strategy Summary: {strategy}", className="mb-2")]
+            if period_str:
+                content.append(html.Div(period_str, className="text-muted small mb-3"))
+
+            rows = [
+                html.Tr([html.Td("CAGR"), html.Td(f"{cagr_val:.2%}", className="text-end")]),
+                html.Tr([html.Td("Volatility"), html.Td(f"{vol_val:.2%}", className="text-end")]),
+                html.Tr([html.Td("Sharpe Ratio"), html.Td(f"{sharpe_val:.2f}", className="text-end")]),
+                html.Tr([html.Td("Sortino Ratio"), html.Td(f"{sortino_val:.2f}", className="text-end")]),
+                html.Tr([html.Td("Max Drawdown"), html.Td(f"{dd_val:.2%}", className="text-end")]),
+                html.Tr([
+                    html.Td("Overall Score", className="fw-bold"),
+                    html.Td(f"{score_val:.2f}", className="text-end fw-bold",
+                             style={"borderTop": "1px solid white"})
+                ]),
+            ]
+            content.append(dbc.Table(html.Tbody(rows), bordered=False, size="sm",
+                                     className="mt-3", style={"maxWidth": "400px"}))
+            content.append(html.P(
+                "Right-click any numeric column for a detailed formula breakdown.",
+                className="text-muted small mt-2"
+            ))
+
+        return dbc.ModalBody(content)
+
+    # ----------------------------------------------------
     # TYPE 2.7: Risk Metrics (Sharpe/Vol)
     # ----------------------------------------------------
     if "Sharpe" in str(col_id) or "Vol" in str(col_id) or "Sortino" in str(col_id):
