@@ -2909,6 +2909,55 @@ mjx-container > svg {
     padding: 0.35rem;
 }
 
+/* --- Strategy Backtesting: dropdown overflow fix (mobile) --- */
+/* The top controls card must not clip the dropdown menu           */
+.strategy-backtesting-page > .card:first-of-type,
+.strategy-backtesting-page > .card:first-of-type > .card-body {
+    overflow: visible !important;
+}
+
+/* Ensure the preset dropdown menu floats above everything */
+.strategy-backtesting-page #strategy-preset-checklist .Select-menu-outer,
+[data-theme="dark"] .strategy-backtesting-page #strategy-preset-checklist .Select-menu-outer {
+    z-index: 10000 !important;
+    position: absolute !important;
+    overflow: visible !important;
+}
+
+/* --- Strategy Multi-select: checked vs unchecked distinction --- */
+/* Selected options get a prominent accent bg + checkmark prefix   */
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-option.is-selected,
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .VirtualizedSelectSelectedOption,
+.strategy-backtesting-page .dark-dropdown .Select-option.is-selected,
+.strategy-backtesting-page .dark-dropdown .VirtualizedSelectSelectedOption {
+    background-color: rgba(0, 212, 255, 0.22) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-left: 3px solid #00d4ff !important;
+    padding-left: 9px !important;
+}
+
+/* Unselected options – subtle dimmer look */
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-option:not(.is-selected):not(.is-focused),
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .VirtualizedSelectOption:not(.VirtualizedSelectSelectedOption):not(.VirtualizedSelectFocusedOption),
+.strategy-backtesting-page .dark-dropdown .Select-option:not(.is-selected):not(.is-focused),
+.strategy-backtesting-page .dark-dropdown .VirtualizedSelectOption:not(.VirtualizedSelectSelectedOption):not(.VirtualizedSelectFocusedOption) {
+    background-color: #151c24 !important;
+    color: rgba(244, 248, 255, 0.7) !important;
+    -webkit-text-fill-color: rgba(244, 248, 255, 0.7) !important;
+    border-left: 3px solid transparent !important;
+    padding-left: 9px !important;
+}
+
+/* Hovered option */
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-option.is-focused,
+[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .VirtualizedSelectFocusedOption,
+.strategy-backtesting-page .dark-dropdown .Select-option.is-focused,
+.strategy-backtesting-page .dark-dropdown .VirtualizedSelectFocusedOption {
+    background-color: #253345 !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
 
 [data-theme="dark"] .strategy-backtesting-page .footnote {
     line-height: 1.45;
@@ -2941,6 +2990,23 @@ mjx-container > svg {
     [data-theme="dark"] .strategy-backtesting-page .strategy-scorecard-full {
         padding-left: 0.3rem;
         padding-right: 0.3rem;
+    }
+
+    /* Mobile: force the controls card to not clip the preset dropdown */
+    .strategy-backtesting-page > .card:first-of-type,
+    .strategy-backtesting-page > .card:first-of-type > .card-body,
+    .strategy-backtesting-page > .mb-4:first-of-type,
+    .strategy-backtesting-page > .mb-4:first-of-type > .card-body {
+        overflow: visible !important;
+        position: relative;
+        z-index: 100;
+    }
+
+    /* The dropdown menu itself needs extreme z-index on mobile */
+    .strategy-backtesting-page #strategy-preset-checklist .Select-menu-outer {
+        z-index: 10001 !important;
+        max-height: 260px !important;
+        overflow-y: auto !important;
     }
 }
 
