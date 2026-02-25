@@ -19,6 +19,7 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
+from datetime import datetime
 from portfolio_engine import compute_drawdown_series
 
 
@@ -29,6 +30,9 @@ _ACCENT = "#00d4ff"
 _NEUTRAL = "#94a3b8"
 _WARNING = "#f59e0b"
 _MUTED_BG = "rgba(255,255,255,0.03)"
+_TEAL = "#14b8a6"
+_VIOLET = "#a78bfa"
+_AMBER = "#f59e0b"
 
 
 def _polarity_color(value):
@@ -203,6 +207,9 @@ def context_chip(label: str, accent: str = "neutral"):
         "accent": _ACCENT,
         "neutral": _NEUTRAL,
         "warning": _WARNING,
+        "teal": _TEAL,
+        "violet": _VIOLET,
+        "amber": _AMBER,
     }
     clr = color_map.get(accent, _NEUTRAL)
     return html.Span(
@@ -302,7 +309,8 @@ def storytelling_card(
     """
     polarity = accent or ("positive" if (lead_raw is not None and lead_raw >= 0) else
                           "negative" if (lead_raw is not None and lead_raw < 0) else "neutral")
-    clr = {"positive": _GREEN, "negative": _RED, "accent": _ACCENT}.get(polarity, _NEUTRAL)
+    clr = {"positive": _GREEN, "negative": _RED, "accent": _ACCENT,
+           "teal": _TEAL, "violet": _VIOLET, "amber": _AMBER}.get(polarity, _NEUTRAL)
 
     # ── Header row ──
     header_children = []
@@ -775,4 +783,485 @@ def build_flows_story_card(data, fmt_dollar):
         extra_rows=extra,
         delta=delta,
         drill_href="/flows",
+    )
+
+
+# ── Card 4: Tax Efficiency ──────────────────────────────────────
+
+def build_tax_efficiency_story_card(data, fmt_dollar):
+    """
+    Builds a Tax Efficiency storytelling card using FIFO lot-building.
+    Hero: total unrealized gain/loss. Sparkline: unrealized P/L by top holdings.
+    """
+    try:
+        from tax_engine import build_tax_lots
+
+        # Build open lots via FIFO (uses cached data)
+        open_lots, _ = build_tax_lots(strategy="FIFO")
+
+        if open_lots is None or open_lots.empty or "Unrealized P/L" not in open_lots.columns:
+            return _tax_fallback_card()
+
+        # ── Aggregate metrics ──
+        total_unrealized = open_lots["Unrealized P/L"].sum()
+
+        # Term classification
+        has_term = "Term" in open_lots.columns
+        if has_term:
+            st_lots = open_lots[open_lots["Term"] == "Short-Term"]
+            lt_lots = open_lots[open_lots["Term"] == "Long-Term"]
+            n_st = len(st_lots)
+            n_lt = len(lt_lots)
+            st_unrealized = st_lots["Unrealized P/L"].sum()
+            lt_unrealized = lt_lots["Unrealized P/L"].sum()
+        else:
+            n_st, n_lt = 0, 0
+            st_unrealized, lt_unrealized = 0.0, 0.0
+
+        # Hero
+        hero_val = fmt_dollar(total_unrealized)
+        hero_raw = total_unrealized
+
+        # Subtitle
+        subtitle = f"{n_st} short-term lot{'s' if n_st != 1 else ''}, {n_lt} long-term lot{'s' if n_lt != 1 else ''}"
+
+        # ── Narrative ──
+        narrative_parts = []
+        if total_unrealized >= 0:
+            if lt_unrealized > st_unrealized and lt_unrealized > 0:
+                narrative_parts.append(
+                    "Most of your unrealized gains are long-term, which means lower tax rates if you sell."
+                )
+            elif st_unrealized > lt_unrealized and st_unrealized > 0:
+                narrative_parts.append(
+                    "Heads up — the majority of your unrealized gains are short-term. "
+                    "Selling now would trigger higher ordinary-income tax rates."
+                )
+            else:
+                narrative_parts.append(
+                    "Unrealized gains are balanced between short- and long-term lots."
+                )
+        else:
+            narrative_parts.append(
+                "Your portfolio is sitting on net unrealized losses — "
+                "consider tax-loss harvesting to offset gains elsewhere."
+            )
+
+        # Add dollar context
+        if has_term:
+            narrative_parts.append(
+                f"Long-term: {fmt_dollar(lt_unrealized)}.  Short-term: {fmt_dollar(st_unrealized)}."
+            )
+
+        narrative = " ".join(narrative_parts)
+
+        # ── Sparkline: unrealized P/L by ticker (top holdings) ──
+        ticker_pl = open_lots.groupby("Ticker")["Unrealized P/L"].sum().sort_values()
+        # Cap at 10 for readability
+        if len(ticker_pl) > 10:
+            ticker_pl = pd.concat([ticker_pl.head(5), ticker_pl.tail(5)])
+        bar_labels = ticker_pl.index.tolist()
+        bar_values = [round(v, 2) for v in ticker_pl.values]
+        # Convert to % of cost basis for better chart readability
+        ticker_cost = open_lots.groupby("Ticker")["Cost Basis"].sum()
+        bar_pct_values = []
+        for t, upl in zip(bar_labels, bar_values):
+            cb = ticker_cost.get(t, 1)
+            pct = (upl / cb * 100) if abs(cb) > 0.01 else 0
+            bar_pct_values.append(round(pct, 1))
+
+        bar_height = max(56, len(bar_labels) * 20)
+        trend_fig = _mini_bar_chart(bar_labels, bar_pct_values, height=bar_height)
+        trend_label = "Unrealized P/L % by Position"
+
+        # ── Extra rows ──
+        extra = []
+        extra.append({"label": "LT Unrealized", "value": fmt_dollar(lt_unrealized), "raw": lt_unrealized})
+        extra.append({"label": "ST Unrealized", "value": fmt_dollar(st_unrealized), "raw": st_unrealized})
+
+        # Estimated tax liability if all gains sold
+        if "Est Tax Liability" in open_lots.columns:
+            est_tax = open_lots["Est Tax Liability"].sum()
+            extra.append({"label": "Est Tax if Sold", "value": fmt_dollar(est_tax), "raw": -est_tax})
+
+        # Near-cliff lots
+        if "Is Near Cliff" in open_lots.columns:
+            cliff_count = open_lots["Is Near Cliff"].sum()
+            if cliff_count > 0:
+                extra.append({"label": "Near LT Cliff", "value": f"{int(cliff_count)} lot{'s' if cliff_count != 1 else ''}", "raw": None})
+
+        # ── Chips ──
+        chips = []
+        if n_st > 0:
+            st_color = "negative" if st_unrealized > 0 else "teal"
+            chips.append((f"{n_st} short-term", st_color))
+        if n_lt > 0:
+            lt_color = "positive" if lt_unrealized >= 0 else "negative"
+            chips.append((f"{n_lt} long-term", lt_color))
+
+        # Near-cliff warning
+        if "Is Near Cliff" in open_lots.columns:
+            cliff_count = int(open_lots["Is Near Cliff"].sum())
+            if cliff_count > 0:
+                chips.append((f"{cliff_count} lot{'s' if cliff_count != 1 else ''} near LT cliff", "warning", "warning"))
+
+        # Wash sale flag
+        if "Is Wash Sale" in open_lots.columns and open_lots.get("Is Wash Sale", pd.Series()).any():
+            chips.append(("Wash sale adjustments applied", "warning", "warning"))
+
+        return storytelling_card(
+            card_id="story-tax-efficiency",
+            title="Tax Efficiency",
+            lead_value=hero_val,
+            lead_raw=hero_raw,
+            subtitle=subtitle,
+            narrative=narrative,
+            trend_figure=trend_fig,
+            trend_label=trend_label,
+            chips=chips,
+            icon="bi-receipt",
+            accent="teal",
+            extra_rows=extra,
+            drill_href="/taxes",
+        )
+
+    except Exception:
+        return _tax_fallback_card()
+
+
+def _tax_fallback_card():
+    """Graceful fallback when tax lot data is unavailable."""
+    return storytelling_card(
+        card_id="story-tax-efficiency",
+        title="Tax Efficiency",
+        lead_value="N/A",
+        subtitle="Tax lot data unavailable",
+        narrative="Unable to build tax lots — check that transaction history is loaded.",
+        icon="bi-receipt",
+        accent="teal",
+        drill_href="/taxes",
+    )
+
+
+# ── Card 5: Momentum & Trend ────────────────────────────────────
+
+def build_momentum_story_card(data):
+    """
+    Builds a Momentum & Trend storytelling card.
+    Hero: % of holdings above 200-day MA.
+    Sparkline: distance from 200-day MA by ticker.
+    """
+    try:
+        prices = data.get("prices", pd.DataFrame())
+        sec = data.get("sec_table_current", pd.DataFrame())
+
+        if prices is None or prices.empty or sec is None or sec.empty:
+            return _momentum_fallback_card()
+
+        # Only non-cash equity tickers
+        tickers = sec[sec["ticker"] != "CASH"]["ticker"].unique().tolist()
+        if not tickers:
+            return _momentum_fallback_card()
+
+        ma_distances = {}  # ticker -> % distance from 200-day MA
+        above_count = 0
+        total_count = 0
+
+        for t in tickers:
+            if t not in prices.columns:
+                continue
+            series = prices[t].dropna()
+            if len(series) < 50:
+                # Need reasonable history; skip if too short
+                continue
+            total_count += 1
+
+            # Calculate 200-day MA (or use all available if < 200 days)
+            ma_window = min(200, len(series))
+            ma_200 = series.iloc[-ma_window:].mean()
+
+            if ma_200 == 0 or pd.isna(ma_200):
+                continue
+
+            current_price = series.iloc[-1]
+            pct_distance = ((current_price - ma_200) / ma_200) * 100
+            ma_distances[t] = round(pct_distance, 1)
+
+            if current_price > ma_200:
+                above_count += 1
+
+        if total_count == 0:
+            return _momentum_fallback_card()
+
+        pct_above = (above_count / total_count) * 100
+        below_count = total_count - above_count
+
+        # Hero
+        hero_val = f"{pct_above:.0f}%"
+        hero_raw = pct_above / 100  # normalize for polarity
+
+        # Subtitle
+        subtitle = f"{above_count} of {total_count} holdings above 200-day MA"
+
+        # ── Narrative ──
+        if pct_above >= 75:
+            narrative = (
+                "Strong bullish momentum — the vast majority of your holdings are trading "
+                "above their 200-day moving averages. Trend conditions favor staying invested."
+            )
+        elif pct_above >= 50:
+            narrative = (
+                "Mixed signals — roughly half your portfolio is in an uptrend. "
+                "Monitor the laggards for potential weakness, but the overall picture is constructive."
+            )
+        elif pct_above >= 25:
+            narrative = (
+                "Caution warranted — most holdings have slipped below their 200-day moving averages. "
+                "Broad downtrend conditions suggest reviewing risk exposure."
+            )
+        else:
+            narrative = (
+                "Bearish momentum across the board — very few holdings are above their long-term trend line. "
+                "Consider defensive positioning or tightening stop-losses."
+            )
+
+        # ── Sparkline: MA distance by ticker (sorted) ──
+        if ma_distances:
+            sorted_ma = dict(sorted(ma_distances.items(), key=lambda x: x[1]))
+            # Cap at 10
+            items = list(sorted_ma.items())
+            if len(items) > 10:
+                items = items[:5] + items[-5:]
+            bar_labels = [t for t, _ in items]
+            bar_values = [v for _, v in items]
+            bar_height = max(56, len(bar_labels) * 20)
+            trend_fig = _mini_bar_chart(bar_labels, bar_values, height=bar_height)
+            trend_label = "Distance from 200-Day MA (%)"
+        else:
+            trend_fig = None
+            trend_label = None
+
+        # ── Extra rows ──
+        extra = []
+        if ma_distances:
+            strongest = max(ma_distances, key=ma_distances.get)
+            weakest = min(ma_distances, key=ma_distances.get)
+            extra.append({"label": "Strongest", "value": f"{strongest}  {ma_distances[strongest]:+.1f}%", "raw": ma_distances[strongest]})
+            extra.append({"label": "Weakest", "value": f"{weakest}  {ma_distances[weakest]:+.1f}%", "raw": ma_distances[weakest]})
+
+        # ── Chips ──
+        chips = []
+        chips.append((f"{above_count} above MA", "positive" if above_count > below_count else "neutral"))
+        chips.append((f"{below_count} below MA", "negative" if below_count >= above_count else "neutral"))
+
+        # Highlight strongest and weakest by MA distance
+        if ma_distances:
+            strongest = max(ma_distances, key=ma_distances.get)
+            weakest = min(ma_distances, key=ma_distances.get)
+            chips.append((f"{strongest} {ma_distances[strongest]:+.0f}%", "violet"))
+            chips.append((f"{weakest} {ma_distances[weakest]:+.0f}%", "negative"))
+
+        # Choose accent by overall sentiment
+        if pct_above >= 60:
+            accent = "positive"
+        elif pct_above <= 40:
+            accent = "negative"
+        else:
+            accent = "violet"
+
+        return storytelling_card(
+            card_id="story-momentum",
+            title="Momentum & Trend",
+            lead_value=hero_val,
+            lead_raw=hero_raw,
+            subtitle=subtitle,
+            narrative=narrative,
+            trend_figure=trend_fig,
+            trend_label=trend_label,
+            chips=chips,
+            icon="bi-arrow-up-right",
+            accent=accent,
+            extra_rows=extra,
+            drill_href="/risk",
+        )
+
+    except Exception:
+        return _momentum_fallback_card()
+
+
+def _momentum_fallback_card():
+    """Graceful fallback when momentum data is unavailable."""
+    return storytelling_card(
+        card_id="story-momentum",
+        title="Momentum & Trend",
+        lead_value="N/A",
+        subtitle="Insufficient price history",
+        narrative="Unable to calculate moving averages — need at least 50 days of price data.",
+        icon="bi-arrow-up-right",
+        accent="violet",
+        drill_href="/risk",
+    )
+
+
+# ── Card 6: Rebalancing Health ──────────────────────────────────
+
+def build_rebalancing_story_card(data, fmt_dollar):
+    """
+    Builds a Rebalancing Health storytelling card.
+    Hero: total absolute drift. Sparkline: drift per holding.
+    """
+    try:
+        sec = data.get("sec_table_current", pd.DataFrame())
+        holdings = data.get("holdings", pd.DataFrame())
+
+        if sec is None or sec.empty:
+            return _rebalancing_fallback_card()
+
+        invested = sec[sec["ticker"] != "CASH"].copy()
+        if invested.empty:
+            return _rebalancing_fallback_card()
+
+        # Ensure weight and target_pct columns exist
+        if "weight" not in invested.columns or "target_pct" not in invested.columns:
+            # Try to merge from holdings
+            if not holdings.empty and "target_pct" in holdings.columns:
+                invested = invested.merge(
+                    holdings[["ticker", "target_pct"]], on="ticker", how="left", suffixes=("", "_h")
+                )
+                if "target_pct_h" in invested.columns:
+                    invested["target_pct"] = invested["target_pct_h"].fillna(invested.get("target_pct", 0))
+                    invested.drop(columns=["target_pct_h"], inplace=True)
+            if "weight" not in invested.columns or "target_pct" not in invested.columns:
+                return _rebalancing_fallback_card()
+
+        invested["target_pct"] = invested["target_pct"].fillna(0.0)
+
+        # Current weight in percentage points (0-100 scale)
+        invested["current_pct"] = invested["weight"] * 100
+
+        # Drift = current weight - target weight (percentage points)
+        invested["drift"] = invested["current_pct"] - invested["target_pct"]
+
+        # Total absolute drift
+        total_abs_drift = invested["drift"].abs().sum()
+
+        # Identify most over- and under-weight
+        most_over_idx = invested["drift"].idxmax()
+        most_under_idx = invested["drift"].idxmin()
+        most_over = invested.loc[most_over_idx]
+        most_under = invested.loc[most_under_idx]
+
+        # Hero
+        hero_val = f"{total_abs_drift:.1f}%"
+        hero_raw = -total_abs_drift  # negative = higher drift = worse
+
+        # Subtitle
+        subtitle = (
+            f"Most over: {most_over['ticker']} ({most_over['drift']:+.1f}pp)  ·  "
+            f"Most under: {most_under['ticker']} ({most_under['drift']:+.1f}pp)"
+        )
+
+        # ── Narrative ──
+        if total_abs_drift < 5:
+            narrative = (
+                "Your portfolio is well-balanced — drift from targets is minimal. "
+                "No rebalancing action needed at this time."
+            )
+        elif total_abs_drift < 15:
+            narrative = (
+                "Moderate drift detected across a few positions. "
+                "Consider a light rebalance on your next deployment of cash to bring weights back in line."
+            )
+        elif total_abs_drift < 30:
+            narrative = (
+                "Several positions have drifted significantly from their targets. "
+                "A rebalancing trade is recommended to restore your intended allocation."
+            )
+        else:
+            narrative = (
+                "Major allocation drift — your portfolio looks quite different from your target model. "
+                "Strongly recommend rebalancing soon to control unintended risk exposures."
+            )
+
+        # ── Sparkline: drift per holding (sorted) ──
+        drift_sorted = invested[["ticker", "drift"]].sort_values("drift")
+        if len(drift_sorted) > 10:
+            drift_sorted = pd.concat([drift_sorted.head(5), drift_sorted.tail(5)])
+        bar_labels = drift_sorted["ticker"].tolist()
+        bar_values = [round(v, 1) for v in drift_sorted["drift"].values]
+        bar_height = max(56, len(bar_labels) * 20)
+        trend_fig = _mini_bar_chart(bar_labels, bar_values, height=bar_height)
+        trend_label = "Weight Drift (Current − Target, pp)"
+
+        # ── Extra rows ──
+        extra = []
+        extra.append({
+            "label": f"{most_over['ticker']} Weight",
+            "value": f"{most_over['current_pct']:.1f}% (target {most_over['target_pct']:.0f}%)",
+            "raw": most_over["drift"],
+        })
+        extra.append({
+            "label": f"{most_under['ticker']} Weight",
+            "value": f"{most_under['current_pct']:.1f}% (target {most_under['target_pct']:.0f}%)",
+            "raw": most_under["drift"],
+        })
+
+        # Positions with 0% target but nonzero weight (unplanned exposure)
+        no_target = invested[(invested["target_pct"] == 0) & (invested["current_pct"] > 0.5)]
+        if not no_target.empty:
+            tickers_str = ", ".join(no_target["ticker"].tolist()[:3])
+            extra.append({"label": "No Target Set", "value": tickers_str, "raw": None})
+
+        # ── Chips ──
+        chips = []
+        # Drift severity chip
+        if total_abs_drift < 5:
+            chips.append(("On Target", "positive"))
+        elif total_abs_drift < 15:
+            chips.append(("Moderate Drift", "amber"))
+        else:
+            chips.append(("High Drift", "warning", "warning"))
+
+        # Individual position chips for biggest offenders
+        top_offenders = invested.reindex(invested["drift"].abs().nlargest(2).index)
+        for _, row in top_offenders.iterrows():
+            direction = "over" if row["drift"] > 0 else "under"
+            color = "negative" if abs(row["drift"]) > 5 else "amber"
+            chips.append((f"{row['ticker']} {row['drift']:+.1f}pp {direction}", color))
+
+        # No-target positions warning
+        if not no_target.empty:
+            chips.append((f"{len(no_target)} position{'s' if len(no_target) != 1 else ''} w/o target", "warning", "warning"))
+
+        return storytelling_card(
+            card_id="story-rebalancing",
+            title="Rebalancing Health",
+            lead_value=hero_val,
+            lead_raw=hero_raw,
+            subtitle=subtitle,
+            narrative=narrative,
+            trend_figure=trend_fig,
+            trend_label=trend_label,
+            chips=chips,
+            icon="bi-sliders",
+            accent="amber",
+            extra_rows=extra,
+            drill_href="/rebalancing",
+        )
+
+    except Exception:
+        return _rebalancing_fallback_card()
+
+
+def _rebalancing_fallback_card():
+    """Graceful fallback when rebalancing data is unavailable."""
+    return storytelling_card(
+        card_id="story-rebalancing",
+        title="Rebalancing Health",
+        lead_value="N/A",
+        subtitle="Target allocation data unavailable",
+        narrative="Set target percentages in your holdings file to enable drift analysis.",
+        icon="bi-sliders",
+        accent="amber",
+        drill_href="/rebalancing",
     )

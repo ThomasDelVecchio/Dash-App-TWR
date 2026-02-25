@@ -12,6 +12,9 @@ from components.storytelling_cards import (
     build_performance_story_card,
     build_risk_story_card,
     build_flows_story_card,
+    build_tax_efficiency_story_card,
+    build_momentum_story_card,
+    build_rebalancing_story_card,
 )
 from components.kpi_card import create_kpi_card
 
@@ -200,7 +203,10 @@ def update_overview(signal, chat_cmd, _filters):
     perf_card = build_performance_story_card(data, metrics, fmt_pct_clean, fmt_dollar_clean)
     risk_card = build_risk_story_card(data, metrics, fmt_pct_clean, fmt_dollar_clean)
     flows_card = build_flows_story_card(data, fmt_dollar_clean)
-    story_cards = [perf_card, risk_card, flows_card]
+    tax_card = build_tax_efficiency_story_card(data, fmt_dollar_clean)
+    momentum_card = build_momentum_story_card(data)
+    rebalancing_card = build_rebalancing_story_card(data, fmt_dollar_clean)
+    story_cards = [perf_card, risk_card, flows_card, tax_card, momentum_card, rebalancing_card]
 
     # Alpha vs S&P 500 (Since Inception)
     import numpy as np
