@@ -2801,8 +2801,8 @@ def get_sankey_chart(data, theme="dark"):
 
     fig.update_layout(
         template="plotly_dark",
-        height=500,
-        margin=dict(l=10, r=10, t=30, b=10),
+        height=520,
+        margin=dict(l=10, r=10, t=30, b=30),
         font=dict(size=12, color="#e0e0e0"),
     )
     return fig
