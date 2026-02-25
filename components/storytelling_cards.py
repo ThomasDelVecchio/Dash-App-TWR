@@ -29,7 +29,6 @@ _RED = "#ef4444"
 _ACCENT = "#00d4ff"
 _NEUTRAL = "#94a3b8"
 _WARNING = "#f59e0b"
-_MUTED_BG = "rgba(255,255,255,0.03)"
 _TEAL = "#14b8a6"
 _VIOLET = "#a78bfa"
 _AMBER = "#f59e0b"
@@ -137,6 +136,170 @@ def _mini_bar_chart(labels, values, height: int = 56):
             automargin=True,
         ),
         bargap=0.30,
+    )
+    return fig
+
+
+def _mini_segmented_bar(segments: list, height: int = 80):
+    """
+    Sleek horizontal stacked progress bar with colour-coded segments.
+    segments: list of {"label": str, "value": float, "color": str}
+    Renders as a single wide bar with a clean legend row underneath.
+    """
+    if not segments or all(abs(s["value"]) < 0.01 for s in segments):
+        return go.Figure().update_layout(
+            height=height, margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        )
+
+    total = sum(abs(s["value"]) for s in segments)
+    fig = go.Figure()
+    for s in segments:
+        pct = abs(s["value"]) / total * 100 if total else 0
+        fig.add_trace(go.Bar(
+            y=["breakdown"],
+            x=[pct],
+            orientation="h",
+            name=s["label"],
+            marker=dict(color=s["color"], line=dict(width=0)),
+            text=f"{s['label']}  {pct:.0f}%" if pct >= 12 else "",
+            textposition="inside",
+            insidetextanchor="middle",
+            textfont=dict(size=11, color="white", family="Arial"),
+            hoverinfo="skip",
+        ))
+
+    fig.update_layout(
+        height=height,
+        barmode="stack",
+        margin=dict(l=0, r=0, t=2, b=30),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(visible=False, range=[0, 100]),
+        yaxis=dict(visible=False),
+        bargap=0,
+        showlegend=True,
+        legend=dict(
+            orientation="h", y=-0.55, x=0.5, xanchor="center",
+            font=dict(size=11, color="rgba(255,255,255,0.85)"),
+            bgcolor="rgba(0,0,0,0)",
+            itemwidth=30,
+        ),
+    )
+    return fig
+
+
+def _mini_gauge_arc(value: float, max_val: float = 100, height: int = 110,
+                    color: str = _ACCENT, label: str = ""):
+    """
+    Semicircle gauge meter — a bold, unmistakable visual for a single
+    percentage metric.  Renders a half-circle arc with coloured fill and
+    a large centred value label.
+    """
+    import math
+    clamped = max(0, min(value, max_val))
+    pct = clamped / max_val if max_val else 0
+
+    # Build arc points  (180° → 0°  i.e. left to right semicircle)
+    n_pts = 60
+    bg_theta = [math.pi - i * math.pi / (n_pts - 1) for i in range(n_pts)]
+    bg_x = [math.cos(t) for t in bg_theta]
+    bg_y = [math.sin(t) for t in bg_theta]
+
+    # Filled arc (portion)
+    n_fill = max(2, int(pct * n_pts))
+    fill_theta = bg_theta[:n_fill]
+    fill_x = [math.cos(t) for t in fill_theta]
+    fill_y = [math.sin(t) for t in fill_theta]
+
+    fig = go.Figure()
+
+    # Background track (dim)
+    fig.add_trace(go.Scatter(
+        x=bg_x, y=bg_y, mode="lines",
+        line=dict(color="rgba(255,255,255,0.08)", width=14),
+        showlegend=False, hoverinfo="skip",
+    ))
+    # Filled track (bright)
+    if n_fill >= 2:
+        fig.add_trace(go.Scatter(
+            x=fill_x, y=fill_y, mode="lines",
+            line=dict(color=color, width=14),
+            showlegend=False, hoverinfo="skip",
+        ))
+
+    # Central value text
+    fig.add_annotation(
+        x=0, y=0.25, text=f"<b>{value:.0f}%</b>",
+        font=dict(size=26, color=color, family="Arial"),
+        showarrow=False,
+    )
+    if label:
+        fig.add_annotation(
+            x=0, y=-0.05, text=label,
+            font=dict(size=10, color="rgba(255,255,255,0.5)"),
+            showarrow=False,
+        )
+
+    fig.update_layout(
+        height=height,
+        margin=dict(l=8, r=8, t=8, b=4),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(visible=False, range=[-1.15, 1.15], scaleanchor="y"),
+        yaxis=dict(visible=False, range=[-0.2, 1.15]),
+    )
+    return fig
+
+
+def _mini_heat_strip(labels, values, height: int = 56):
+    """
+    Colour-coded horizontal tile strip — each holding is a rounded,
+    labelled cell whose background colour maps from green (in-line)
+    through amber (moderate drift) to red (heavy drift).
+    Uses a Plotly heatmap with text annotations — compact and instantly
+    readable at any size.
+    """
+    if not labels or not values:
+        return go.Figure().update_layout(
+            height=height, margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        )
+
+    abs_vals = [abs(v) for v in values]
+    # Custom labels: "TICK\n+2.1pp"
+    cell_text = [[f"{lbl}<br>{v:+.1f}pp" for lbl, v in zip(labels, values)]]
+
+    # Custom colour scale: green (0) → amber (mid) → red (high)
+    colorscale = [
+        [0.0, "rgba(34,197,94,0.55)"],    # green — on target
+        [0.3, "rgba(34,197,94,0.35)"],
+        [0.5, "rgba(245,158,11,0.50)"],    # amber — moderate
+        [0.75, "rgba(239,68,68,0.50)"],    # red — major drift
+        [1.0, "rgba(239,68,68,0.70)"],
+    ]
+
+    max_abs = max(abs_vals) if abs_vals else 1
+    norm_vals = [[a / max_abs for a in abs_vals]] if max_abs else [[0] * len(abs_vals)]
+
+    fig = go.Figure(go.Heatmap(
+        z=norm_vals,
+        text=cell_text,
+        texttemplate="%{text}",
+        textfont=dict(size=10, color="white", family="Arial"),
+        colorscale=colorscale,
+        showscale=False,
+        hoverinfo="skip",
+        xgap=3,
+        ygap=0,
+    ))
+    fig.update_layout(
+        height=height,
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
     )
     return fig
 
@@ -855,24 +1018,31 @@ def build_tax_efficiency_story_card(data, fmt_dollar):
 
         narrative = " ".join(narrative_parts)
 
-        # ── Sparkline: unrealized P/L by ticker (top holdings) ──
-        ticker_pl = open_lots.groupby("Ticker")["Unrealized P/L"].sum().sort_values()
-        # Cap at 10 for readability
-        if len(ticker_pl) > 10:
-            ticker_pl = pd.concat([ticker_pl.head(5), ticker_pl.tail(5)])
-        bar_labels = ticker_pl.index.tolist()
-        bar_values = [round(v, 2) for v in ticker_pl.values]
-        # Convert to % of cost basis for better chart readability
-        ticker_cost = open_lots.groupby("Ticker")["Cost Basis"].sum()
-        bar_pct_values = []
-        for t, upl in zip(bar_labels, bar_values):
-            cb = ticker_cost.get(t, 1)
-            pct = (upl / cb * 100) if abs(cb) > 0.01 else 0
-            bar_pct_values.append(round(pct, 1))
+        # ── Sparkline: Segmented progress bar — LT/ST gain/loss breakdown ──
+        bar_segments = []
+        if has_term:
+            lt_gains = lt_lots[lt_lots["Unrealized P/L"] > 0]["Unrealized P/L"].sum()
+            lt_losses = lt_lots[lt_lots["Unrealized P/L"] < 0]["Unrealized P/L"].sum()
+            st_gains = st_lots[st_lots["Unrealized P/L"] > 0]["Unrealized P/L"].sum()
+            st_losses = st_lots[st_lots["Unrealized P/L"] < 0]["Unrealized P/L"].sum()
+            if lt_gains > 0:
+                bar_segments.append({"label": "LT Gain", "value": lt_gains, "color": "#22c55e"})
+            if st_gains > 0:
+                bar_segments.append({"label": "ST Gain", "value": st_gains, "color": "#f59e0b"})
+            if lt_losses < 0:
+                bar_segments.append({"label": "LT Loss", "value": lt_losses, "color": "#64748b"})
+            if st_losses < 0:
+                bar_segments.append({"label": "ST Loss", "value": st_losses, "color": "#ef4444"})
+        else:
+            gains = open_lots[open_lots["Unrealized P/L"] > 0]["Unrealized P/L"].sum()
+            losses = open_lots[open_lots["Unrealized P/L"] < 0]["Unrealized P/L"].sum()
+            if gains > 0:
+                bar_segments.append({"label": "Gains", "value": gains, "color": "#22c55e"})
+            if losses < 0:
+                bar_segments.append({"label": "Losses", "value": losses, "color": "#ef4444"})
 
-        bar_height = max(56, len(bar_labels) * 20)
-        trend_fig = _mini_bar_chart(bar_labels, bar_pct_values, height=bar_height)
-        trend_label = "Unrealized P/L % by Position"
+        trend_fig = _mini_segmented_bar(bar_segments, height=80) if bar_segments else None
+        trend_label = "Unrealized P/L Breakdown"
 
         # ── Extra rows ──
         extra = []
@@ -1025,24 +1195,19 @@ def build_momentum_story_card(data):
                 "Consider defensive positioning or tightening stop-losses."
             )
 
-        # ── Sparkline: MA distance by ticker (sorted) ──
-        if ma_distances:
-            sorted_ma = dict(sorted(ma_distances.items(), key=lambda x: x[1]))
-            # Cap at 10
-            items = list(sorted_ma.items())
-            if len(items) > 10:
-                items = items[:5] + items[-5:]
-            bar_labels = [t for t, _ in items]
-            bar_values = [v for _, v in items]
-            bar_height = max(56, len(bar_labels) * 20)
-            trend_fig = _mini_bar_chart(bar_labels, bar_values, height=bar_height)
-            trend_label = "Distance from 200-Day MA (%)"
-        else:
-            trend_fig = None
-            trend_label = None
+        # ── Sparkline: Gauge arc — % above 200-day MA ──
+        gauge_color = _GREEN if pct_above >= 60 else (_WARNING if pct_above >= 40 else _RED)
+        trend_fig = _mini_gauge_arc(
+            value=pct_above, max_val=100, height=120,
+            color=gauge_color,
+            label=f"{above_count} of {total_count} above 200d MA",
+        )
+        trend_label = "Trend Health"
 
         # ── Extra rows ──
         extra = []
+        strongest = None
+        weakest = None
         if ma_distances:
             strongest = max(ma_distances, key=ma_distances.get)
             weakest = min(ma_distances, key=ma_distances.get)
@@ -1055,9 +1220,7 @@ def build_momentum_story_card(data):
         chips.append((f"{below_count} below MA", "negative" if below_count >= above_count else "neutral"))
 
         # Highlight strongest and weakest by MA distance
-        if ma_distances:
-            strongest = max(ma_distances, key=ma_distances.get)
-            weakest = min(ma_distances, key=ma_distances.get)
+        if strongest and weakest:
             chips.append((f"{strongest} {ma_distances[strongest]:+.0f}%", "violet"))
             chips.append((f"{weakest} {ma_distances[weakest]:+.0f}%", "negative"))
 
@@ -1183,15 +1346,15 @@ def build_rebalancing_story_card(data, fmt_dollar):
                 "Strongly recommend rebalancing soon to control unintended risk exposures."
             )
 
-        # ── Sparkline: drift per holding (sorted) ──
-        drift_sorted = invested[["ticker", "drift"]].sort_values("drift")
-        if len(drift_sorted) > 10:
-            drift_sorted = pd.concat([drift_sorted.head(5), drift_sorted.tail(5)])
-        bar_labels = drift_sorted["ticker"].tolist()
-        bar_values = [round(v, 1) for v in drift_sorted["drift"].values]
-        bar_height = max(56, len(bar_labels) * 20)
-        trend_fig = _mini_bar_chart(bar_labels, bar_values, height=bar_height)
-        trend_label = "Weight Drift (Current − Target, pp)"
+        # ── Sparkline: Heat strip — colour-coded tiles per holding ──
+        drift_sorted = invested.copy().sort_values("drift", key=abs, ascending=False)
+        if len(drift_sorted) > 8:
+            drift_sorted = drift_sorted.head(8)
+        strip_labels = drift_sorted["ticker"].tolist()
+        strip_values = [round(v, 1) for v in drift_sorted["drift"].values]
+        strip_height = 56 if len(strip_labels) <= 8 else 70
+        trend_fig = _mini_heat_strip(strip_labels, strip_values, height=strip_height)
+        trend_label = "Drift by Position (green = on target, red = off target)"
 
         # ── Extra rows ──
         extra = []
