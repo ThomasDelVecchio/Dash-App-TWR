@@ -78,7 +78,7 @@ layout = html.Div([
         
         # Results Panel
         dbc.Col(dbc.Card([
-            dbc.CardHeader("Simulation Results (10-Year Horizon)", className="section-header"),
+            dbc.CardHeader("Simulation Results (20-Year Horizon)", className="section-header"),
             dbc.CardBody([
                 dcc.Loading([
                     dcc.Graph(id="sim-overlay-chart", style={"height": "400px"}),
@@ -104,7 +104,7 @@ layout = html.Div([
         html.Ul([
             html.Li("Sector Classifications: Sourced from Yahoo Finance / Equity Lookups.", id="trade-sector-source-desc"),
             html.Li("Price Data: Sourced from Yahoo Finance."),
-            html.Li("Simulations: Historical Bootstrapping method uses 10-year realized daily returns. Past performance is not indicative of future results.")
+            html.Li("Simulations: Historical Bootstrapping method uses 20-year realized daily returns. Past performance is not indicative of future results.")
         ], className="small text-muted")
     ], className="mb-4")
 ], className="trade-lab-page")
@@ -308,7 +308,7 @@ def update_trade_lab(n_clicks, ticker, side, amount, swap_target):
     add_sim_traces(sim_new, "Hypothetical", SIM_COLORS[1], dw._hex_to_rgba(SIM_COLORS[1], 0.2))
     
     fig.update_layout(
-        title="Projected Portfolio Value (10 Years)",
+        title="Projected Portfolio Value (20 Years)",
         xaxis_title="Years",
         yaxis_title="Portfolio Value ($)",
         template="plotly_dark",
