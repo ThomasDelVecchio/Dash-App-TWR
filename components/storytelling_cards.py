@@ -492,12 +492,14 @@ def build_performance_story_card(data, metrics, fmt_pct, fmt_dollar):
             trend = _mini_bar_chart(bar_labels, bar_values, height=bar_height)
             trend_label = "1-Month Return by Position"
 
-    # 1D best performer
+    # 1D best & worst performer
     if not perf.empty and "1D" in perf.columns:
         valid_1d = perf.dropna(subset=["1D"])
         if not valid_1d.empty:
             top_1d = valid_1d.loc[valid_1d["1D"].idxmax()]
             extra.append({"label": "Best Today", "value": f"{top_1d['ticker']}  {top_1d['1D']*100:+.2f}%", "raw": top_1d["1D"]})
+            bot_1d = valid_1d.loc[valid_1d["1D"].idxmin()]
+            extra.append({"label": "Worst Today", "value": f"{bot_1d['ticker']}  {bot_1d['1D']*100:+.2f}%", "raw": bot_1d["1D"]})
 
     # Delta badge: MTD vs prior calendar month return (percentage-point diff)
     mtd = metrics.get("mtd_ret")
@@ -546,6 +548,8 @@ def build_risk_story_card(data, metrics, fmt_pct, fmt_dollar):
     Builds a Risk & Diversification storytelling card.
     Includes: drawdown sparkline, threshold alerts, drill link.
     """
+    from dash_wrappers import calculate_efficiency_metrics, calculate_active_metrics, _get_daily_twr_curve
+
     sec = data.get("sec_table_current", pd.DataFrame())
     sec_no_cash = sec[sec["ticker"] != "CASH"] if not sec.empty else pd.DataFrame()
     holdings = data.get("holdings", pd.DataFrame())
@@ -571,6 +575,34 @@ def build_risk_story_card(data, metrics, fmt_pct, fmt_dollar):
     sortino = metrics.get("sortino", "N/A")
     if sortino != "N/A":
         extra.append({"label": "Sortino Ratio", "value": f"{sortino:.2f}" if isinstance(sortino, (int, float)) else str(sortino), "raw": None})
+
+    # Annualized Volatility
+    try:
+        twr_curve = _get_daily_twr_curve(data)
+        eff = calculate_efficiency_metrics(twr_curve)
+        vol = eff.get("vol", 0.0)
+        if isinstance(vol, (int, float)) and vol > 0:
+            extra.append({"label": "Ann. Volatility", "value": f"{vol*100:.1f}%", "raw": None})
+    except Exception:
+        pass
+
+    # Calmar Ratio (Ann. Return / |Max DD|)
+    twr_si = data.get("twr_si_ann")
+    if twr_si is None or (isinstance(twr_si, float) and np.isnan(twr_si)):
+        twr_si = data.get("twr_si")
+    if (twr_si is not None and not (isinstance(twr_si, float) and np.isnan(twr_si))
+            and max_dd is not None and not np.isnan(max_dd) and max_dd < 0):
+        calmar = twr_si / abs(max_dd)
+        extra.append({"label": "Calmar Ratio", "value": f"{calmar:.2f}", "raw": None})
+
+    # Beta vs SPY
+    try:
+        active = calculate_active_metrics(data)
+        beta = active.get("beta", "N/A")
+        if beta != "N/A" and isinstance(beta, (int, float)):
+            extra.append({"label": "Beta (vs SPY)", "value": f"{beta:.2f}", "raw": None})
+    except Exception:
+        pass
 
     # Top-3 concentration
     if not sec_no_cash.empty and "weight" in sec_no_cash.columns:

@@ -749,7 +749,7 @@ def get_strategy_backtest_results(
         scorecard["_rank_sharpe"] = scorecard["Sharpe"].rank(pct=True)
         scorecard["_rank_sortino"] = scorecard["Sortino"].rank(pct=True)
         scorecard["_rank_vol"] = (1.0 - scorecard["Volatility"].rank(pct=True))
-        scorecard["_rank_dd"] = (1.0 - scorecard["Max Drawdown"].rank(pct=True))
+        scorecard["_rank_dd"] = (1.0 - scorecard["Max Drawdown"].abs().rank(pct=True))
 
         scorecard["Overall Score"] = scorecard[[
             "_rank_cagr",
