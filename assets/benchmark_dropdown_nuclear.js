@@ -2,10 +2,14 @@
   'use strict';
 
   const MAX_WIDTH = 1400;
+  var _menuPollTimer = null;
+
+  function isDark() {
+    return !!document.querySelector('[data-theme="dark"]');
+  }
 
   function shouldForce() {
-    const root = document.querySelector('[data-theme="dark"]');
-    return !!root && window.innerWidth <= MAX_WIDTH;
+    return isDark() && window.innerWidth <= MAX_WIDTH;
   }
 
   function paint(el, bg) {
@@ -20,34 +24,142 @@
   }
 
   /* ----------------------------------------------------------------
-     Force parent card of the preset dropdown to allow overflow so
-     the menu is not hidden behind the weights table on mobile.
+     OVERFLOW FIX: walk every ancestor of the strategy-preset dropdown
+     and nuke overflow:hidden / overflow:auto so the menu is visible.
+     Also push z-index on the menu itself.
+     Runs ALWAYS (ungated) so it can never be missed.
      ---------------------------------------------------------------- */
   function forcePresetOverflow() {
     var preset = document.getElementById('strategy-preset-checklist');
     if (!preset) return;
-    var el = preset;
-    // Walk up to the nearest .card and .card-body ancestors, force overflow visible
-    for (var i = 0; i < 12 && el; i++) {
-      el = el.parentElement;
-      if (!el) break;
-      var cls = el.className || '';
-      if (cls.indexOf('card-body') !== -1 || cls.indexOf('card') !== -1) {
+
+    // Walk ALL ancestors up to body and force overflow visible
+    var el = preset.parentElement;
+    while (el && el !== document.body) {
+      var ov = window.getComputedStyle(el).overflow;
+      if (ov === 'hidden' || ov === 'auto' || ov === 'scroll') {
         el.style.setProperty('overflow', 'visible', 'important');
       }
+      // Also check overflow-x / overflow-y
+      var ovx = window.getComputedStyle(el).overflowX;
+      var ovy = window.getComputedStyle(el).overflowY;
+      if (ovx === 'hidden' || ovx === 'auto') {
+        el.style.setProperty('overflow-x', 'visible', 'important');
+      }
+      if (ovy === 'hidden' || ovy === 'auto') {
+        el.style.setProperty('overflow-y', 'visible', 'important');
+      }
+      el = el.parentElement;
     }
-    // Also force the Select-menu-outer z-index when it exists
+
+    // Push z-index on the menu itself
     var menuOuter = preset.querySelector('.Select-menu-outer');
     if (menuOuter) {
       menuOuter.style.setProperty('z-index', '10001', 'important');
       menuOuter.style.setProperty('position', 'absolute', 'important');
+      menuOuter.style.setProperty('overflow', 'visible', 'important');
     }
+  }
+
+  /* ----------------------------------------------------------------
+     NUCLEAR DARK PAINT: find EVERY .Select-menu-outer in the doc
+     (portaled or not) and force-dark the menu, inputs, and options.
+     Only gated on dark theme, NOT on width — iPad/mobile must work.
+     ---------------------------------------------------------------- */
+  function nukeAllOpenMenus() {
+    if (!isDark()) return;
+
+    // Find every open menu in the DOM — react-select can portal these
+    var menus = document.querySelectorAll(
+      '.Select-menu-outer, .Select-menu, [class*="MenuList"], [class*="menu-outer"]'
+    );
+    if (!menus.length) return;
+
+    menus.forEach(function (menu) {
+      // Dark background on the menu container itself
+      paint(menu, '#151c24');
+      menu.style.setProperty('color-scheme', 'dark', 'important');
+      menu.style.setProperty('z-index', '10001', 'important');
+
+      // Dark the inner scroll wrapper
+      menu.querySelectorAll('.Select-menu, [class*="MenuList"]').forEach(function (inner) {
+        paint(inner, '#151c24');
+      });
+
+      // Dark ALL child elements (the truly nuclear approach)
+      menu.querySelectorAll('*').forEach(function (child) {
+        var tag = child.tagName;
+        // For inputs, special treatment
+        if (tag === 'INPUT' || tag === 'TEXTAREA') {
+          child.style.setProperty('background-color', '#1a2332', 'important');
+          child.style.setProperty('color', '#ffffff', 'important');
+          child.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+          child.style.setProperty('border-color', 'rgba(255,255,255,0.2)', 'important');
+          child.style.setProperty('-webkit-appearance', 'none', 'important');
+          child.style.setProperty('caret-color', '#ffffff', 'important');
+        } else {
+          child.style.setProperty('background-color', '#151c24', 'important');
+          child.style.setProperty('color', '#ffffff', 'important');
+          child.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+        }
+      });
+
+      // Now apply the checked vs unchecked distinction on top
+      menu.querySelectorAll(
+        '.Select-option, .VirtualizedSelectOption, [role="option"]'
+      ).forEach(function (opt) {
+        var isSelected =
+          opt.classList.contains('is-selected') ||
+          opt.classList.contains('VirtualizedSelectSelectedOption') ||
+          (opt.getAttribute('aria-selected') === 'true');
+        var isFocused =
+          opt.classList.contains('is-focused') ||
+          opt.classList.contains('VirtualizedSelectFocusedOption');
+
+        if (isSelected) {
+          opt.style.setProperty('background-color', 'rgba(0,212,255,0.22)', 'important');
+          opt.style.setProperty('color', '#ffffff', 'important');
+          opt.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+          opt.style.setProperty('border-left', '3px solid #00d4ff', 'important');
+          opt.style.setProperty('padding-left', '9px', 'important');
+        } else if (isFocused) {
+          opt.style.setProperty('background-color', '#253345', 'important');
+          opt.style.setProperty('color', '#ffffff', 'important');
+          opt.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
+          opt.style.setProperty('border-left', '3px solid transparent', 'important');
+          opt.style.setProperty('padding-left', '9px', 'important');
+        } else {
+          opt.style.setProperty('background-color', '#151c24', 'important');
+          opt.style.setProperty('color', 'rgba(244,248,255,0.7)', 'important');
+          opt.style.setProperty('-webkit-text-fill-color', 'rgba(244,248,255,0.7)', 'important');
+          opt.style.setProperty('border-left', '3px solid transparent', 'important');
+          opt.style.setProperty('padding-left', '9px', 'important');
+        }
+      });
+    });
+  }
+
+  /* ----------------------------------------------------------------
+     Start/stop a rapid 60ms interval while a menu is open to
+     keep re-painting (react-select re-renders on scroll/filter).
+     ---------------------------------------------------------------- */
+  function startMenuPoll() {
+    if (_menuPollTimer) return;
+    _menuPollTimer = setInterval(function () {
+      var open = document.querySelector('.Select-menu-outer, .Select.is-open');
+      if (!open) {
+        clearInterval(_menuPollTimer);
+        _menuPollTimer = null;
+        return;
+      }
+      forcePresetOverflow();
+      nukeAllOpenMenus();
+    }, 60);
   }
 
   function styleBenchmarkRoot() {
     if (!shouldForce()) return;
 
-    // Always force overflow regardless of width check for the dropdown
     forcePresetOverflow();
 
     const roots = [
@@ -88,59 +200,7 @@
       root.style.setProperty('color-scheme', 'dark', 'important');
 
       root.querySelectorAll(selectors.join(',')).forEach((node) => {
-        const bg = node.matches('[role="option"], .Select-option, [class*="option"], [class*="Option"]')
-          ? '#151c24'
-          : '#151c24';
-        paint(node, bg);
-      });
-    });
-  }
-
-  /* ----------------------------------------------------------------
-     Distinguish checked vs unchecked options inside open menus
-     (strategy-preset-checklist specifically, and all dark-dropdowns).
-     Selected items: accent left-border + brighter bg
-     Unselected items: dimmer text, no border accent
-     ---------------------------------------------------------------- */
-  function styleCheckedUnchecked() {
-    if (!shouldForce()) return;
-
-    // Look for open menus inside dark-dropdown containers
-    var menus = document.querySelectorAll(
-      '.dark-dropdown .Select-menu-outer, #strategy-preset-checklist .Select-menu-outer'
-    );
-    menus.forEach(function (menu) {
-      var opts = menu.querySelectorAll(
-        '.Select-option, .VirtualizedSelectOption, [role="option"]'
-      );
-      opts.forEach(function (opt) {
-        var isSelected =
-          opt.classList.contains('is-selected') ||
-          opt.classList.contains('VirtualizedSelectSelectedOption') ||
-          opt.getAttribute('aria-selected') === 'true';
-        var isFocused =
-          opt.classList.contains('is-focused') ||
-          opt.classList.contains('VirtualizedSelectFocusedOption');
-
-        if (isSelected) {
-          opt.style.setProperty('background-color', 'rgba(0,212,255,0.22)', 'important');
-          opt.style.setProperty('color', '#ffffff', 'important');
-          opt.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
-          opt.style.setProperty('border-left', '3px solid #00d4ff', 'important');
-          opt.style.setProperty('padding-left', '9px', 'important');
-        } else if (isFocused) {
-          opt.style.setProperty('background-color', '#253345', 'important');
-          opt.style.setProperty('color', '#ffffff', 'important');
-          opt.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
-          opt.style.setProperty('border-left', '3px solid transparent', 'important');
-          opt.style.setProperty('padding-left', '9px', 'important');
-        } else {
-          opt.style.setProperty('background-color', '#151c24', 'important');
-          opt.style.setProperty('color', 'rgba(244,248,255,0.7)', 'important');
-          opt.style.setProperty('-webkit-text-fill-color', 'rgba(244,248,255,0.7)', 'important');
-          opt.style.setProperty('border-left', '3px solid transparent', 'important');
-          opt.style.setProperty('padding-left', '9px', 'important');
-        }
+        paint(node, '#151c24');
       });
     });
   }
@@ -162,9 +222,6 @@
         txt.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
       });
     });
-
-    // Apply checked/unchecked distinction after painting base colors
-    styleCheckedUnchecked();
   }
 
   function styleProjectionSliders() {
@@ -422,11 +479,18 @@
   function runForcePass() {
     // Always force overflow on the preset dropdown card (not gated by width)
     forcePresetOverflow();
+    // Nuclear: dark-paint any open menu anywhere in the DOM (only needs dark theme, not width)
+    nukeAllOpenMenus();
+    // Width-gated passes for the rest
     styleBenchmarkRoot();
     styleLikelyOpenMenu();
     styleProjectionSliders();
     styleSimulatorSliders();
     styleProjectionChart();
+    // If a menu is open, start rapid polling to keep it painted
+    if (document.querySelector('.Select-menu-outer, .Select.is-open')) {
+      startMenuPoll();
+    }
   }
 
   const observer = new MutationObserver(() => {
@@ -438,8 +502,24 @@
     observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
     window.addEventListener('resize', runForcePass, { passive: true });
     window.addEventListener('orientationchange', runForcePass, { passive: true });
-    document.addEventListener('click', runForcePass, true);
-    document.addEventListener('focusin', runForcePass, true);
+    document.addEventListener('click', function () {
+      runForcePass();
+      // Delayed pass to catch react-select async renders after click
+      setTimeout(runForcePass, 50);
+      setTimeout(runForcePass, 150);
+      setTimeout(runForcePass, 300);
+    }, true);
+    document.addEventListener('focusin', function () {
+      runForcePass();
+      setTimeout(runForcePass, 50);
+      setTimeout(runForcePass, 150);
+    }, true);
+    document.addEventListener('touchend', function () {
+      runForcePass();
+      setTimeout(runForcePass, 80);
+      setTimeout(runForcePass, 200);
+      setTimeout(runForcePass, 400);
+    }, true);
   }
 
   if (document.readyState === 'loading') {
