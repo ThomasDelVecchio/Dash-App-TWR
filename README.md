@@ -168,6 +168,43 @@ FMP_PRICE_LOOKBACK_YEARS=5
 
 For comprehensive documentation, see `Validation/FMP_USAGE_GUIDE.md`.
 
+### Cache & State Files
+
+The application generates several JSON files at runtime for caching and state management. These are **auto-generated** and should not be manually edited.
+
+| File | Purpose |
+|------|---------|
+| `metadata_cache.json` | Cached sector/industry weights per ticker (sourced from FMP or yfinance). Prevents repeated API calls. |
+| `asset_class_cache.json` | Persists user-assigned asset class labels and target allocation percentages per ticker. |
+| `dividend_calendar_cache.json` | Cached dividend history per ticker (frequency, amounts, ex-dates) for income analysis. |
+| `settlement_bridges.json` | Temporary cash reconciliation entries that bridge timing gaps between E\*TRADE sync cycles (auto-retired once confirmed). |
+| `etrade_sync_status.json` | Last sync timestamp, status, and summary message displayed in the sidebar badge. |
+| `etrade_token.json` | Cached E\*TRADE OAuth access token (expires at midnight ET, auto-renewed). |
+| `order_history.json` | Audit log of all placed E\*TRADE orders (ticker, action, quantity, price, environment). |
+| `token.json` | Google OAuth token for Drive export (created by `authorize.py`). |
+| `client_secret.json` | Google OAuth client credentials for Drive integration (user-provided). |
+| `credentials.json` | Google service account credentials for the AI chatbot (Gemini API). |
+
+### Frontend Assets (`assets/`)
+
+Dash automatically serves files in the `assets/` directory. These provide client-side behavior and styling.
+
+#### JavaScript
+
+| File | Purpose |
+|------|---------|
+| `sidebar_behavior.js` | Manual sidebar collapse/expand/hide toggle controller with icon-only mode. |
+| `draggable_chatbot.js` | Makes the floating AI chatbot button draggable via mouse and touch events. |
+| `custom_dash_ag_grid.js` | Custom AG Grid cell renderers — sparkline trends, colored P/L bars, progress bars, and action buttons. |
+| `report_sorting.js` | Enables drag-and-drop reordering of report sections on the Custom Report page (uses SortableJS). |
+| `benchmark_dropdown_nuclear.js` | Forces dark-mode styling on dropdowns and select inputs that resist CSS-only theming (Safari/iOS fixes). |
+
+#### CSS
+
+| File | Purpose |
+|------|---------|
+| `styles.css` | Master stylesheet (~4,800 lines). Covers sidebar responsive layout, glassmorphism KPI cards, AG Grid dark mode, custom report builder, dropdown theming, date picker centering, skeleton loaders, page transitions, scrollbar styling, and full mobile/tablet/iPad breakpoints. Uses CSS custom properties for design tokens. |
+
 
 ## Usage
 
