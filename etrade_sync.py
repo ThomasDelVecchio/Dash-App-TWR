@@ -1000,6 +1000,23 @@ def _cleanup_settlement_bridges() -> int:
             cleaned += 1
             print(f"🔄 Settlement bridge retired: ${b_amount:,.2f} on {bridge['date']} — API caught up")
 
+        elif age_days >= 3 and bridge_indices:
+            # Edge case: dedup prevented a second row because the bridge row
+            # itself looks identical to the real API transaction.  After 3+
+            # days the deposit has settled, so retire the bridge and KEEP the
+            # row (it IS the correct data now).
+            bridge["status"] = "retired"
+            bridge["retired_at"] = now.isoformat()
+            bridge["retired_reason"] = (
+                "Auto-retired after settlement period — bridge row is the "
+                "canonical record (dedup prevented duplicate from API sync)"
+            )
+            cleaned += 1
+            print(
+                f"🔄 Settlement bridge auto-retired (age {age_days}d, dedup): "
+                f"${b_amount:,.2f} on {bridge['date']}"
+            )
+
         elif age_days > 10:
             print(
                 f"⚠️  Settlement bridge is {age_days} days old with no API match: "

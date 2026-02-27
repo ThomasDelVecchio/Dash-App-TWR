@@ -108,14 +108,6 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
         cols.insert(shares_idx, 'price')
         df = df[cols]
     
-    # Move trend column right after market_value for visibility
-    if 'trend' in df.columns and 'market_value' in df.columns:
-        cols = df.columns.tolist()
-        cols.remove('trend')
-        mv_idx = cols.index('market_value')
-        cols.insert(mv_idx + 1, 'trend')
-        df = df[cols]
-    
     # Remove days_held column if it exists
     if 'days_held' in df.columns:
         df = df.drop(columns=['days_held'])
@@ -179,6 +171,14 @@ def update_holdings(signal, filters, chat_cmd, include_exited, dates):
     df['trend'] = df['ticker'].map(
         lambda t: json.dumps(sparkline_cache.get(t, []))
     )
+
+    # Move trend column right after market_value for visibility
+    if 'trend' in df.columns and 'market_value' in df.columns:
+        cols = df.columns.tolist()
+        cols.remove('trend')
+        mv_idx = cols.index('market_value')
+        cols.insert(mv_idx + 1, 'trend')
+        df = df[cols]
 
     # Prepare column definitions for AG Grid
     return_cols = ["1D", "1W", "MTD", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "SI"]
