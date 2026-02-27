@@ -116,16 +116,35 @@ layout = html.Div([
                 ], width=3),
                 dbc.Col([
                     dbc.Label("Benchmark Presets"),
-                    dcc.Dropdown(
-                        id="strategy-preset-checklist",
-                        options=_preset_options(),
-                        value=[TARGET_WEIGHT_PRESET_NAME] + [
-                            p["name"] for p in BENCHMARK_PRESETS
-                            if p.get("name") not in _DEFAULT_PRESET_EXCLUSIONS
-                        ],
-                        multi=True,
-                        className="mb-2 dark-dropdown"
-                    )
+                    html.Div([
+                        dbc.Button(
+                            "Select Presets",
+                            id="btn-preset-picker",
+                            color="outline-light",
+                            size="sm",
+                            className="w-100 text-start preset-picker-btn",
+                        ),
+                        dbc.Offcanvas(
+                            id="offcanvas-preset",
+                            title="Select Benchmark Presets",
+                            is_open=False,
+                            placement="bottom",
+                            close_button=True,
+                            className="preset-offcanvas",
+                            children=[
+                                dbc.Checklist(
+                                    id="strategy-preset-checklist",
+                                    options=_preset_options(),
+                                    value=[TARGET_WEIGHT_PRESET_NAME] + [
+                                        p["name"] for p in BENCHMARK_PRESETS
+                                        if p.get("name") not in _DEFAULT_PRESET_EXCLUSIONS
+                                    ],
+                                    switch=True,
+                                    className="preset-checklist",
+                                ),
+                            ],
+                        ),
+                    ], className="mb-2"),
                 ], width=6)
             ]),
             dbc.Row([
@@ -424,6 +443,26 @@ def apply_custom_benchmark(n_clicks, row_data, name):
         "weights": cleaned
     }
     return payload, "Custom benchmark applied."
+
+
+# Preset picker offcanvas toggle
+@callback(
+    Output("offcanvas-preset", "is_open"),
+    Input("btn-preset-picker", "n_clicks"),
+    State("offcanvas-preset", "is_open"),
+    prevent_initial_call=True
+)
+def toggle_preset_offcanvas(n, is_open):
+    return not is_open
+
+# Update preset picker button text
+@callback(
+    Output("btn-preset-picker", "children"),
+    Input("strategy-preset-checklist", "value")
+)
+def update_preset_btn_label(values):
+    n = len(values) if values else 0
+    return f"{n} Preset{'s' if n != 1 else ''} Selected"
 
 
 @callback(

@@ -2446,49 +2446,7 @@ mjx-container > svg {
         -webkit-text-fill-color: #ffffff !important;
     }
 
-    [data-theme="dark"] #benchmark-dropdown,
-    [data-theme="dark"] #benchmark-dropdown * {
-        color-scheme: dark !important;
-    }
-
-    [data-theme="dark"] #benchmark-dropdown :is(.Select-control, .Select-menu-outer, .Select-option, .VirtualizedSelectOption, .VirtualizedSelectFocusedOption, .VirtualizedSelectSelectedOption, .Select-noresults) {
-        background-color: #151c24 !important;
-        border-color: rgba(255, 255, 255, 0.16) !important;
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        -webkit-appearance: none !important;
-        appearance: none !important;
-    }
-
-    [data-theme="dark"] #benchmark-dropdown :is(.Select-placeholder, .Select-value-label, .Select-value, .Select-input input, .Select-arrow-zone, .Select-clear-zone, .Select-multi-value-wrapper) {
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        -webkit-appearance: none !important;
-        appearance: none !important;
-        background-color: transparent !important;
-    }
-
-    [data-theme="dark"] #benchmark-dropdown .Select--multi .Select-value {
-        background-color: rgba(255, 255, 255, 0.10) !important;
-        border: 1px solid rgba(255, 255, 255, 0.16) !important;
-    }
-
-    [data-theme="dark"] #benchmark-dropdown .Select--multi .Select-value-icon {
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        border-right-color: rgba(255, 255, 255, 0.18) !important;
-        background-color: transparent !important;
-    }
-
-    [data-theme="dark"] .sidebar .sidebar-controls #benchmark-dropdown :is([role="combobox"], [role="listbox"], [role="option"], input[type="search"], input[role="combobox"], [class*="control"], [class*="menu"], [class*="option"], [class*="singleValue"], [class*="multiValue"], [class*="placeholder"], [class*="indicator"], [class*="valueContainer"]) {
-        background-color: #151c24 !important;
-        border-color: rgba(255, 255, 255, 0.16) !important;
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        -webkit-appearance: none !important;
-        appearance: none !important;
-        box-shadow: none !important;
-    }
+    /* (Old React Select rules for #benchmark-dropdown removed — now uses dbc.Checklist) */
 
     [data-theme="dark"] :is([role="listbox"], [class*="menu"], [class*="Menu"]) :is([role="option"], [class*="option"], [class*="Option"]) {
         background-color: #151c24 !important;
@@ -2830,60 +2788,7 @@ mjx-container > svg {
     box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.24) !important;
 }
 
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-control,
-[data-theme="dark"] .strategy-backtesting-page #strategy-preset-checklist .Select-control {
-    background-color: #1f2733 !important;
-    border: 1px solid rgba(255, 255, 255, 0.18) !important;
-    border-radius: 10px !important;
-    min-height: 42px;
-}
-
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-value-label,
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-placeholder,
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-input input,
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-arrow-zone,
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-clear-zone {
-    color: #f4f8ff !important;
-    -webkit-text-fill-color: #f4f8ff !important;
-}
-
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-menu-outer {
-    background-color: #16202c !important;
-    border: 1px solid rgba(255, 255, 255, 0.18) !important;
-    border-radius: 10px !important;
-}
-
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-option,
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .VirtualizedSelectOption {
-    background-color: #16202c !important;
-    color: #f4f8ff !important;
-    -webkit-text-fill-color: #f4f8ff !important;
-    font-size: 0.93rem;
-}
-
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-option.is-focused,
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .VirtualizedSelectFocusedOption {
-    background-color: #253345 !important;
-}
-
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-option.is-selected,
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .VirtualizedSelectSelectedOption {
-    background-color: rgba(0, 212, 255, 0.28) !important;
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-}
-
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select--multi .Select-value {
-    background-color: #2a3a4e !important;
-    border-color: rgba(255, 255, 255, 0.16) !important;
-    border-radius: 7px;
-    color: #f4f8ff !important;
-}
-
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select--multi .Select-value-icon {
-    border-right-color: rgba(255, 255, 255, 0.15) !important;
-    color: rgba(244, 248, 255, 0.85) !important;
-}
+/* (Old React Select rules for .dark-dropdown removed — preset uses dbc.Checklist now) */
 
 [data-theme="dark"] .strategy-backtesting-page #btn-custom-apply {
     box-shadow: 0 8px 20px rgba(13, 110, 253, 0.24);
@@ -2909,55 +2814,8 @@ mjx-container > svg {
     padding: 0.35rem;
 }
 
-/* --- Strategy Backtesting: dropdown overflow fix (mobile) --- */
-/* The top controls card must not clip the dropdown menu           */
-.strategy-backtesting-page > .card:first-of-type,
-.strategy-backtesting-page > .card:first-of-type > .card-body {
-    overflow: visible !important;
-}
-
-/* Ensure the preset dropdown menu floats above everything */
-.strategy-backtesting-page #strategy-preset-checklist .Select-menu-outer,
-[data-theme="dark"] .strategy-backtesting-page #strategy-preset-checklist .Select-menu-outer {
-    z-index: 10000 !important;
-    position: absolute !important;
-    overflow: visible !important;
-}
-
-/* --- Strategy Multi-select: checked vs unchecked distinction --- */
-/* Selected options get a prominent accent bg + checkmark prefix   */
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-option.is-selected,
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .VirtualizedSelectSelectedOption,
-.strategy-backtesting-page .dark-dropdown .Select-option.is-selected,
-.strategy-backtesting-page .dark-dropdown .VirtualizedSelectSelectedOption {
-    background-color: rgba(0, 212, 255, 0.22) !important;
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-    border-left: 3px solid #00d4ff !important;
-    padding-left: 9px !important;
-}
-
-/* Unselected options – subtle dimmer look */
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-option:not(.is-selected):not(.is-focused),
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .VirtualizedSelectOption:not(.VirtualizedSelectSelectedOption):not(.VirtualizedSelectFocusedOption),
-.strategy-backtesting-page .dark-dropdown .Select-option:not(.is-selected):not(.is-focused),
-.strategy-backtesting-page .dark-dropdown .VirtualizedSelectOption:not(.VirtualizedSelectSelectedOption):not(.VirtualizedSelectFocusedOption) {
-    background-color: #151c24 !important;
-    color: rgba(244, 248, 255, 0.7) !important;
-    -webkit-text-fill-color: rgba(244, 248, 255, 0.7) !important;
-    border-left: 3px solid transparent !important;
-    padding-left: 9px !important;
-}
-
-/* Hovered option */
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-option.is-focused,
-[data-theme="dark"] .strategy-backtesting-page .dark-dropdown .VirtualizedSelectFocusedOption,
-.strategy-backtesting-page .dark-dropdown .Select-option.is-focused,
-.strategy-backtesting-page .dark-dropdown .VirtualizedSelectFocusedOption {
-    background-color: #253345 !important;
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-}
+/* --- Strategy Backtesting: overflow fix no longer needed --- */
+/* Preset dropdown is now dbc.Checklist inside dbc.Offcanvas */
 
 [data-theme="dark"] .strategy-backtesting-page .footnote {
     line-height: 1.45;
@@ -2974,9 +2832,7 @@ mjx-container > svg {
     [data-theme="dark"] .strategy-backtesting-page .form-select,
     [data-theme="dark"] .strategy-backtesting-page #strategy-lookback,
     [data-theme="dark"] .strategy-backtesting-page #strategy-initial,
-    [data-theme="dark"] .strategy-backtesting-page #custom-benchmark-name,
-    [data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-control,
-    [data-theme="dark"] .strategy-backtesting-page .dark-dropdown .Select-input input {
+    [data-theme="dark"] .strategy-backtesting-page #custom-benchmark-name {
         min-height: 44px !important;
         font-size: 16px !important;
     }
@@ -2992,21 +2848,12 @@ mjx-container > svg {
         padding-right: 0.3rem;
     }
 
-    /* Mobile: force the controls card to not clip the preset dropdown */
+    /* Mobile: controls card layout */
     .strategy-backtesting-page > .card:first-of-type,
     .strategy-backtesting-page > .card:first-of-type > .card-body,
     .strategy-backtesting-page > .mb-4:first-of-type,
     .strategy-backtesting-page > .mb-4:first-of-type > .card-body {
-        overflow: visible !important;
         position: relative;
-        z-index: 100;
-    }
-
-    /* The dropdown menu itself needs extreme z-index on mobile */
-    .strategy-backtesting-page #strategy-preset-checklist .Select-menu-outer {
-        z-index: 10001 !important;
-        max-height: 260px !important;
-        overflow-y: auto !important;
     }
 }
 
@@ -4785,4 +4632,150 @@ small.text-muted,
     .story-chip--warning {
         animation: none !important;
     }
+}
+
+/* ============================================================
+   BENCHMARK & PRESET PICKER (Button + Offcanvas + Checklist)
+   Replaced the old dcc.Dropdown multi-selects for cross-device
+   consistency. Uses native Bootstrap Offcanvas (bottom sheet).
+   ============================================================ */
+
+/* --- Picker button (sidebar + backtesting page) --- */
+.benchmark-picker-btn,
+.preset-picker-btn {
+    background-color: var(--sidebar-field-bg, #1f2733) !important;
+    border: 1px solid var(--sidebar-field-border, rgba(255,255,255,0.18)) !important;
+    border-radius: 10px !important;
+    color: #f4f8ff !important;
+    font-size: 0.93rem;
+    min-height: 42px;
+    padding: 0.45rem 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.benchmark-picker-btn:hover,
+.preset-picker-btn:hover {
+    border-color: rgba(0, 212, 255, 0.45) !important;
+    background-color: #253345 !important;
+}
+
+.benchmark-picker-btn:focus,
+.preset-picker-btn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.24) !important;
+}
+
+.benchmark-picker-btn::after,
+.preset-picker-btn::after {
+    content: '\F282'; /* Bootstrap Icon chevron-down */
+    font-family: 'bootstrap-icons';
+    font-size: 0.7rem;
+    opacity: 0.6;
+    margin-left: auto;
+    padding-left: 0.5rem;
+}
+
+/* --- Offcanvas (bottom sheet) --- */
+.benchmark-offcanvas,
+.preset-offcanvas {
+    background-color: #151c24 !important;
+    color: #f4f8ff !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 18px 18px 0 0 !important;
+    max-height: 60vh !important;
+}
+
+.benchmark-offcanvas .offcanvas-header,
+.preset-offcanvas .offcanvas-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.9rem 1.25rem;
+}
+
+.benchmark-offcanvas .offcanvas-title,
+.preset-offcanvas .offcanvas-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #f4f8ff !important;
+}
+
+.benchmark-offcanvas .btn-close,
+.preset-offcanvas .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.benchmark-offcanvas .offcanvas-body,
+.preset-offcanvas .offcanvas-body {
+    padding: 0.5rem 0.75rem 1.5rem;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* --- Grab-bar indicator at the top of the offcanvas --- */
+.benchmark-offcanvas::before,
+.preset-offcanvas::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.22);
+    margin: 8px auto 0;
+    flex-shrink: 0;
+}
+
+/* --- Checklist switch rows --- */
+.benchmark-checklist .form-check,
+.preset-checklist .form-check {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem 0.5rem 3rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    margin: 0;
+    transition: background-color 0.12s ease;
+}
+
+.benchmark-checklist .form-check:last-child,
+.preset-checklist .form-check:last-child {
+    border-bottom: none;
+}
+
+.benchmark-checklist .form-check:active,
+.preset-checklist .form-check:active {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.benchmark-checklist .form-check-label,
+.preset-checklist .form-check-label {
+    color: #f4f8ff !important;
+    font-size: 1rem;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    flex: 1;
+    padding: 0.25rem 0;
+}
+
+/* Switch toggle styling */
+.benchmark-checklist .form-check-input,
+.preset-checklist .form-check-input {
+    width: 2.5em;
+    height: 1.35em;
+    background-color: #344055 !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    cursor: pointer;
+    margin-top: 0;
+}
+
+.benchmark-checklist .form-check-input:checked,
+.preset-checklist .form-check-input:checked {
+    background-color: #00d4ff !important;
+    border-color: #00d4ff !important;
+}
+
+.benchmark-checklist .form-check-input:focus,
+.preset-checklist .form-check-input:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.24) !important;
 }

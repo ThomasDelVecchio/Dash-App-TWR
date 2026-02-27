@@ -239,23 +239,42 @@ sidebar = html.Div(
             ),
             
             dbc.Label("Benchmarks"),
-            dcc.Dropdown(
-                id="benchmark-dropdown",
-                options=[
-                    {"label": "S&P 500 (SPY)", "value": "SPY"},
-                    {"label": "Total Stock (VTI)", "value": "VTI"},
-                    {"label": "Growth (VUG)", "value": "VUG"},
-                    {"label": "Aggressive 80/20 (AOA)", "value": "AOA"},
-                    {"label": "Global 60/40 (AOR)", "value": "AOR"},
-                    {"label": "Cons 40/60 (AOK)", "value": "AOK"},
-                    {"label": "Nasdaq 100 (QQQ)", "value": "QQQ"},
-                ],
-                value=["SPY", "VTI", "AOA"],
-                multi=True,
-                className="mb-2 dark-dropdown",
-                persistence=True,
-                persistence_type="local"
-            ),
+            html.Div([
+                dbc.Button(
+                    "3 Selected",
+                    id="btn-benchmark-picker",
+                    color="outline-light",
+                    size="sm",
+                    className="w-100 text-start benchmark-picker-btn",
+                ),
+                dbc.Offcanvas(
+                    id="offcanvas-benchmark",
+                    title="Select Benchmarks",
+                    is_open=False,
+                    placement="bottom",
+                    close_button=True,
+                    className="benchmark-offcanvas",
+                    children=[
+                        dbc.Checklist(
+                            id="benchmark-dropdown",
+                            options=[
+                                {"label": "S&P 500 (SPY)", "value": "SPY"},
+                                {"label": "Total Stock (VTI)", "value": "VTI"},
+                                {"label": "Growth (VUG)", "value": "VUG"},
+                                {"label": "Aggressive 80/20 (AOA)", "value": "AOA"},
+                                {"label": "Global 60/40 (AOR)", "value": "AOR"},
+                                {"label": "Cons 40/60 (AOK)", "value": "AOK"},
+                                {"label": "Nasdaq 100 (QQQ)", "value": "QQQ"},
+                            ],
+                            value=["SPY", "VTI", "AOA"],
+                            switch=True,
+                            className="benchmark-checklist",
+                            persistence=True,
+                            persistence_type="local"
+                        ),
+                    ],
+                ),
+            ], className="mb-2"),
             
             dbc.Label("Include Exited Tickers", className="mt-2"),
             dbc.RadioItems(
@@ -508,6 +527,25 @@ def update_global_state(end_date, benchmarks, include_exited, tax_strategy, curr
     signal = datetime.now().isoformat() if refresh_triggered else current_signal
 
     return theme, theme, dates, bm_map, signal, include_exited, tax_strategy
+
+# 2a-1. Benchmark picker offcanvas toggle
+@app.callback(
+    Output("offcanvas-benchmark", "is_open"),
+    Input("btn-benchmark-picker", "n_clicks"),
+    State("offcanvas-benchmark", "is_open"),
+    prevent_initial_call=True
+)
+def toggle_benchmark_offcanvas(n, is_open):
+    return not is_open
+
+# 2a-2. Update benchmark picker button text
+@app.callback(
+    Output("btn-benchmark-picker", "children"),
+    Input("benchmark-dropdown", "value")
+)
+def update_benchmark_btn_label(values):
+    n = len(values) if values else 0
+    return f"{n} Benchmark{'s' if n != 1 else ''} Selected"
 
 # 2b. Manual Refresh Button (Force Price Re-fetch)
 @app.callback(

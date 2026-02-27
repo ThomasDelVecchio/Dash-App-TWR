@@ -19,40 +19,13 @@
     el.style.setProperty('box-shadow', 'none', 'important');
   }
 
-  /* ----------------------------------------------------------------
-     Force parent card of the preset dropdown to allow overflow so
-     the menu is not hidden behind the weights table on mobile.
-     ---------------------------------------------------------------- */
-  function forcePresetOverflow() {
-    var preset = document.getElementById('strategy-preset-checklist');
-    if (!preset) return;
-    var el = preset;
-    // Walk up to the nearest .card and .card-body ancestors, force overflow visible
-    for (var i = 0; i < 12 && el; i++) {
-      el = el.parentElement;
-      if (!el) break;
-      var cls = el.className || '';
-      if (cls.indexOf('card-body') !== -1 || cls.indexOf('card') !== -1) {
-        el.style.setProperty('overflow', 'visible', 'important');
-      }
-    }
-    // Also force the Select-menu-outer z-index when it exists
-    var menuOuter = preset.querySelector('.Select-menu-outer');
-    if (menuOuter) {
-      menuOuter.style.setProperty('z-index', '10001', 'important');
-      menuOuter.style.setProperty('position', 'absolute', 'important');
-    }
-  }
-
   function styleBenchmarkRoot() {
     if (!shouldForce()) return;
 
-    // Always force overflow regardless of width check for the dropdown
-    forcePresetOverflow();
-
+    // Only growth-asset-class-filter is still a dcc.Dropdown (React Select).
+    // benchmark-dropdown and strategy-preset-checklist were replaced with
+    // dbc.Checklist inside dbc.Offcanvas — no React Select styling needed.
     const roots = [
-      document.getElementById('benchmark-dropdown'),
-      document.getElementById('strategy-preset-checklist'),
       document.getElementById('growth-asset-class-filter')
     ].filter(Boolean);
     if (!roots.length) return;
@@ -96,55 +69,6 @@
     });
   }
 
-  /* ----------------------------------------------------------------
-     Distinguish checked vs unchecked options inside open menus
-     (strategy-preset-checklist specifically, and all dark-dropdowns).
-     Selected items: accent left-border + brighter bg
-     Unselected items: dimmer text, no border accent
-     ---------------------------------------------------------------- */
-  function styleCheckedUnchecked() {
-    if (!shouldForce()) return;
-
-    // Look for open menus inside dark-dropdown containers
-    var menus = document.querySelectorAll(
-      '.dark-dropdown .Select-menu-outer, #strategy-preset-checklist .Select-menu-outer'
-    );
-    menus.forEach(function (menu) {
-      var opts = menu.querySelectorAll(
-        '.Select-option, .VirtualizedSelectOption, [role="option"]'
-      );
-      opts.forEach(function (opt) {
-        var isSelected =
-          opt.classList.contains('is-selected') ||
-          opt.classList.contains('VirtualizedSelectSelectedOption') ||
-          opt.getAttribute('aria-selected') === 'true';
-        var isFocused =
-          opt.classList.contains('is-focused') ||
-          opt.classList.contains('VirtualizedSelectFocusedOption');
-
-        if (isSelected) {
-          opt.style.setProperty('background-color', 'rgba(0,212,255,0.22)', 'important');
-          opt.style.setProperty('color', '#ffffff', 'important');
-          opt.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
-          opt.style.setProperty('border-left', '3px solid #00d4ff', 'important');
-          opt.style.setProperty('padding-left', '9px', 'important');
-        } else if (isFocused) {
-          opt.style.setProperty('background-color', '#253345', 'important');
-          opt.style.setProperty('color', '#ffffff', 'important');
-          opt.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
-          opt.style.setProperty('border-left', '3px solid transparent', 'important');
-          opt.style.setProperty('padding-left', '9px', 'important');
-        } else {
-          opt.style.setProperty('background-color', '#151c24', 'important');
-          opt.style.setProperty('color', 'rgba(244,248,255,0.7)', 'important');
-          opt.style.setProperty('-webkit-text-fill-color', 'rgba(244,248,255,0.7)', 'important');
-          opt.style.setProperty('border-left', '3px solid transparent', 'important');
-          opt.style.setProperty('padding-left', '9px', 'important');
-        }
-      });
-    });
-  }
-
   function styleLikelyOpenMenu() {
     if (!shouldForce()) return;
 
@@ -162,9 +86,6 @@
         txt.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
       });
     });
-
-    // Apply checked/unchecked distinction after painting base colors
-    styleCheckedUnchecked();
   }
 
   function styleProjectionSliders() {
@@ -420,8 +341,6 @@
   }
 
   function runForcePass() {
-    // Always force overflow on the preset dropdown card (not gated by width)
-    forcePresetOverflow();
     styleBenchmarkRoot();
     styleLikelyOpenMenu();
     styleProjectionSliders();
