@@ -17,7 +17,7 @@ from components import chatbot
 from components.audit_modal import get_audit_modal_content
 
 # Import Pages
-from pages import overview, performance, allocations, attribution, flows, holdings, risk, settings, trade_lab, help_index, taxes, rebalancing, custom_report, trade_execution, strategy_backtesting
+from pages import overview, performance, allocations, attribution, flows, holdings, risk, settings, trade_lab, help_index, taxes, rebalancing, custom_report, trade_execution, strategy_backtesting, optimization
 
 # ============================================================
 # E*TRADE SYNC ON STARTUP
@@ -448,6 +448,8 @@ def render_page_content(pathname):
         return performance.layout
     elif pathname == "/strategy-backtesting":
         return strategy_backtesting.layout
+    elif pathname == "/optimization":
+        return optimization.layout
     elif pathname == "/allocations":
         return allocations.layout
     elif pathname == "/attribution":

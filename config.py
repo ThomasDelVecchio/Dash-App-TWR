@@ -153,6 +153,7 @@ NAV_MODULES = [
     {"label": "Risk & Projections", "href": "/risk", "id": "risk", "icon": "bi-shield-exclamation", "can_toggle": True, "group": "ANALYSIS"},
     {"label": "Trade Lab", "href": "/trade-lab", "id": "trade_lab", "icon": "bi-lightning", "can_toggle": True, "group": "TOOLS"},
     {"label": "Strategy Backtesting", "href": "/strategy-backtesting", "id": "strategy_backtesting", "icon": "bi-activity", "can_toggle": True, "group": "TOOLS"},
+    {"label": "Optimization", "href": "/optimization", "id": "optimization", "icon": "bi-bullseye", "can_toggle": True, "group": "TOOLS"},
     {"label": "Tax Authority", "href": "/taxes", "id": "taxes", "icon": "bi-receipt", "can_toggle": True, "group": "TOOLS"},
     {"label": "Rebalancing", "href": "/rebalancing", "id": "rebalancing", "icon": "bi-sliders", "can_toggle": True, "group": "TOOLS"},
     {"label": "Trade Execution", "href": "/trade", "id": "trade", "icon": "bi-cart-check", "can_toggle": True, "group": "TOOLS"},

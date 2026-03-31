@@ -178,6 +178,20 @@ SCRIPTS = [
             "Ensure combined series is continuous and sorted.",
             "Check expected coverage across FMP and yfinance ranges."
         ]
+    },
+    {
+        "file": "audit_16_optimization.py",
+        "name": "Optimization Engine & GIPS Compliance",
+        "objective": "Verify all portfolio optimization math and GIPS-adjacent standards.",
+        "methodology": [
+            "Covariance matrix: symmetric, PSD, diagonal = variance.",
+            "Weight constraints: sum-to-1 (GIPS fully-invested), bounds, per-ticker caps.",
+            "Efficient Frontier monotonicity and Sharpe identity.",
+            "Monte Carlo GBM drift correctness (Ito's lemma), reproducibility (CRN), percentile ordering.",
+            "Backtest growth-of-$1 replication, drawdown HWM methodology.",
+            "Rolling Sharpe annualization factors and window consistency.",
+            "Live data validation against current portfolio holdings."
+        ]
     }
 ]
 

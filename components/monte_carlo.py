@@ -132,6 +132,8 @@ def run_monte_carlo_simulation(
     
     # 2. Try Historical Bootstrapping
     historical_pool = None
+    bootstrap_mu = None
+    bootstrap_sigma = None
     
     if prices_df is not None and not prices_df.empty:
         try:
@@ -202,6 +204,11 @@ def run_monte_carlo_simulation(
                         valid_history = True
                     
                 if valid_history:
+                    clean_daily = port_daily_ret.dropna()
+                    if not clean_daily.empty:
+                        bootstrap_mu = float(clean_daily.mean() * 252)
+                        bootstrap_sigma = float(clean_daily.std() * np.sqrt(252))
+
                     # Create Rolling Monthly Returns (21 days)
                     # Optimization: Use Log Returns for vectorization
                     # log(1+r) -> sum -> exp -> -1
@@ -230,6 +237,12 @@ def run_monte_carlo_simulation(
                 port_mu += w_norm * (risk_return[ac]['return'] / 100.0)
             
     port_sigma = calculate_portfolio_sigma(weights, correlation_matrix, risk_return)
+
+    if historical_pool is not None:
+        if bootstrap_mu is not None and np.isfinite(bootstrap_mu):
+            port_mu = float(bootstrap_mu)
+        if bootstrap_sigma is not None and np.isfinite(bootstrap_sigma):
+            port_sigma = float(bootstrap_sigma)
 
     # 4. Run Simulation Loop
     if historical_pool is not None:
