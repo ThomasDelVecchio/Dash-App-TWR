@@ -2039,6 +2039,8 @@ def get_sector_allocation_chart(data, theme="light"):
         ),
         text=sector_df["Exposure"].apply(lambda x: f"{x:.2f}%"),
         textposition=text_positions,
+        insidetextfont=dict(color='white'),
+        outsidetextfont=dict(color='white'),
         hovertemplate="<b>%{y}</b>: %{x:.2f}%<extra></extra>"
     ))
     

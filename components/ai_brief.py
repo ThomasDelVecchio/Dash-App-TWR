@@ -74,9 +74,13 @@ def generate_ai_summary(data):
     
     # Top Movers (1D)
     sec_current = data["sec_table_current"]
-    if not sec_current.empty and "1D" in sec_current.columns:
-        top_gainers = sec_current.sort_values("1D", ascending=False).head(2)
-        top_losers = sec_current.sort_values("1D", ascending=True).head(2)
+    sec_for_brief = sec_current.copy()
+    if "ticker" in sec_for_brief.columns:
+        sec_for_brief = sec_for_brief[sec_for_brief["ticker"].astype(str).str.strip().str.upper() != "CASH"]
+
+    if not sec_for_brief.empty and "1D" in sec_for_brief.columns:
+        top_gainers = sec_for_brief.sort_values("1D", ascending=False).head(2)
+        top_losers = sec_for_brief.sort_values("1D", ascending=True).head(2)
         
         best_stock = top_gainers.iloc[0]["ticker"]
         best_ret = top_gainers.iloc[0]["1D"]
@@ -87,7 +91,10 @@ def generate_ai_summary(data):
         
     # Asset Allocation Drift (Overweight AND Underweight)
     holdings = data["holdings"]
-    ac_weights = sec_current.groupby("asset_class")["weight"].sum() * 100
+    sec_alloc = sec_current.copy()
+    if "asset_class" in sec_alloc.columns:
+        sec_alloc = sec_alloc[sec_alloc["asset_class"].astype(str).str.strip().str.upper() != "CASH"]
+    ac_weights = sec_alloc.groupby("asset_class")["weight"].sum() * 100
     targets = holdings.groupby("asset_class")["target_pct"].sum()
     
     max_over = 0
@@ -109,7 +116,7 @@ def generate_ai_summary(data):
         if drift < 0 and drift < max_under:
             max_under = drift
             under_ac = ac
-            
+
     # Construct Narrative
     
     # Intro
@@ -144,11 +151,11 @@ def generate_ai_summary(data):
     # Allocation
     # "On the allocation front, you are overweight US Tech (+6%), but significantly underweight International (-4%)."
     alloc_points = []
-    if max_over > 5.0:
+    if max_over > 3.0:
         alloc_points.append(f"overweight **{over_ac}** (+{max_over:.1f}%)")
-    if abs(max_under) > 5.0:
+    if abs(max_under) > 3.0:
         alloc_points.append(f"underallocated in **{under_ac}** ({max_under:.1f}%)")
-        
+
     if alloc_points:
         alloc = "On the allocation front, note that you are " + " and ".join(alloc_points) + "."
     else:
@@ -335,7 +342,8 @@ def generate_ai_summary_period(data, start_date=None, end_date=None):
 
             perf_records = []
             for tik in held_tickers:
-                if tik == 'CASH': continue
+                if str(tik).strip().upper() == 'CASH':
+                    continue
                 tx_t = tx_grouped.get_group(tik) if (isinstance(tx_grouped, pd.core.groupby.DataFrameGroupBy) and tik in tx_grouped.groups) else pd.DataFrame(columns=["date", "shares", "amount"])
                 div_t = div_grouped.get_group(tik) if (isinstance(div_grouped, pd.core.groupby.DataFrameGroupBy) and tik in div_grouped.groups) else pd.DataFrame(columns=["date", "amount"])
                 
@@ -360,7 +368,14 @@ def generate_ai_summary_period(data, start_date=None, end_date=None):
     sec_current, holdings = data.get("sec_table_current", pd.DataFrame()), data.get("holdings", pd.DataFrame())
     max_over, over_ac, max_under, under_ac = 0, "", 0, ""
     if not sec_current.empty and not holdings.empty:
-        ac_weights, targets = sec_current.groupby("asset_class")["weight"].sum() * 100, holdings.groupby("asset_class")["target_pct"].sum()
+        sec_alloc = sec_current.copy()
+        holdings_alloc = holdings.copy()
+        if "asset_class" in sec_alloc.columns:
+            sec_alloc = sec_alloc[sec_alloc["asset_class"].astype(str).str.strip().str.upper() != "CASH"]
+        if "asset_class" in holdings_alloc.columns:
+            holdings_alloc = holdings_alloc[holdings_alloc["asset_class"].astype(str).str.strip().str.upper() != "CASH"]
+
+        ac_weights, targets = sec_alloc.groupby("asset_class")["weight"].sum() * 100, holdings_alloc.groupby("asset_class")["target_pct"].sum()
         for ac, w in ac_weights.items():
             drift = w - targets.get(ac, 0)
             if drift > max_over: max_over, over_ac = drift, ac
@@ -371,8 +386,8 @@ def generate_ai_summary_period(data, start_date=None, end_date=None):
     intro = f"Performance over this period has been **{sentiment}**, with the portfolio returning **{period_ret*100:+.2f}%** (**{pl_str}**){spy_txt}. "
     drivers = f"Leading the charge was **{best_stock}** (**{best_ret*100:+.2f}%**), while **{worst_stock}** (**{worst_ret*100:+.2f}%**) proved to be drag on performance." if best_stock != "N/A" else ""
     alloc_points = []
-    if max_over > 5.0: alloc_points.append(f"overweight **{over_ac}** (+{max_over:.1f}%)")
-    if abs(max_under) > 5.0: alloc_points.append(f"underallocated in **{under_ac}** ({max_under:.1f}%)")
+    if max_over > 3.0: alloc_points.append(f"overweight **{over_ac}** (+{max_over:.1f}%)")
+    if abs(max_under) > 3.0: alloc_points.append(f"underallocated in **{under_ac}** ({max_under:.1f}%)")
     alloc_txt = " Positioning currently shows you are " + ", and ".join(alloc_points) + "." if alloc_points else ""
     
     return intro + drivers + alloc_txt
