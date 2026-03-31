@@ -10,6 +10,7 @@ This is a comprehensive portfolio analytics dashboard built with Plotly Dash. It
 *   **Performance Analysis:** Track your portfolio's performance with metrics like Time-Weighted Return (TWR) and Modified Dietz (GIPS-compliant).
 *   **Risk Intelligence:** Analyze risk with volatility scatters, correlation heatmaps, and Monte Carlo simulations (historical bootstrapping).
 *   **Strategy Backtesting:** Compare quarterly rebalanced strategy benchmarks with growth, drawdowns, and risk/return scorecards.
+*   **Portfolio Optimization:** Compute Efficient Frontier portfolios (Max Sharpe / Min Vol / Target Vol), apply per-ticker bounds, and analyze Monte Carlo fan charts, drawdowns, and rolling Sharpe.
 *   **Attribution Analysis:** Understand the sources of your portfolio's returns with Brinson-Fachler and Frongello linking models.
 *   **Tax Optimization:** Visualize tax lots, identify harvesting opportunities, and simulate trade tax impacts (FIFO/LIFO/HIFO).
 *   **Rebalancing:** Drill-down rebalancing tool with tax-aware trade generation and drift analysis.
@@ -232,6 +233,7 @@ The dashboard consists of the following pages:
 *   **/trade:** E\*TRADE order preview and execution hub with sandbox/live badges and confirmation flow.
 *   **/risk:** Risk analysis, including volatility, drawdowns, and correlation matrices.
 *   **/strategy-backtesting:** Strategy Arena for quarterly rebalanced backtests, drawdowns, and risk/return scorecards.
+*   **/optimization:** Efficient Frontier optimizer with constraint controls, target-volatility portfolio, Monte Carlo projections, underwater analysis, and rolling Sharpe.
 *   **/trade-lab:** A laboratory for simulating trades and analyzing their potential impact via Monte Carlo simulations.
 *   **/taxes:** Tax analysis, including tax-lot accounting, cliffs, and simulated tax-loss harvesting.
 *   **/custom-report:** A customizable report builder to select, reorder, and print specific portfolio modules (PDF-ready).
@@ -262,6 +264,7 @@ You can also run individual audit scripts to verify specific components:
 *   **P/L Attribution (`audit_03_pl_attribution.py`):** Validates that Portfolio P/L matches exactly with `MV_end - MV_start - NetFlows`.
 *   **Risk Intelligence (`audit_04_risk_intelligence.py`):** verifies Sharpe ratios, volatility calculations, and drawdown logic.
 *   **GIPS Scorecard (`audit_06_gips_scorecard.py`):** Checks for key GIPS compliance requirements (start-of-day flows, fair value, etc.).
+*   **Optimization Engine (`audit_16_optimization.py`):** Validates frontier math, constraints, Sharpe identities, Monte Carlo behavior, drawdown logic, and rolling Sharpe consistency.
 
 For more details on the testing methodology, refer to `Validation/SYSTEM_ARCHITECTURE.md`.
 
