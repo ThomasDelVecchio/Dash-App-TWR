@@ -390,9 +390,13 @@ layout = html.Div([
                     dbc.Label(id="opt-min-weight-label", children="Min Weight per Asset: 0%"),
                     dcc.Slider(
                         id="opt-min-weight",
+                        className="opt-constraint-slider",
                         min=0, max=30, step=1, value=0,
-                        marks={0: "0%", 5: "5%", 10: "10%", 20: "20%", 30: "30%"},
-                        tooltip={"placement": "bottom", "always_visible": False},
+                        marks={
+                            i: {"label": f"{i}%", "style": {"color": "#f8fafc"}}
+                            for i in [0, 5, 10, 20, 30]
+                        },
+                        tooltip={"placement": "bottom", "always_visible": True, "template": "{value}%"},
                         persistence=True,
                         persistence_type="session",
                     ),
@@ -402,9 +406,13 @@ layout = html.Div([
                     dbc.Label(id="opt-max-weight-label", children="Max Weight per Asset: 100%"),
                     dcc.Slider(
                         id="opt-max-weight",
+                        className="opt-constraint-slider",
                         min=10, max=100, step=5, value=100,
-                        marks={10: "10%", 25: "25%", 50: "50%", 75: "75%", 100: "100%"},
-                        tooltip={"placement": "bottom", "always_visible": False},
+                        marks={
+                            i: {"label": f"{i}%", "style": {"color": "#f8fafc"}}
+                            for i in [10, 25, 50, 75, 100]
+                        },
+                        tooltip={"placement": "bottom", "always_visible": True, "template": "{value}%"},
                         persistence=True,
                         persistence_type="session",
                     ),
@@ -414,9 +422,13 @@ layout = html.Div([
                     dbc.Label(id="opt-target-vol-label", children="Target Volatility: 15%"),
                     dcc.Slider(
                         id="opt-target-vol",
+                        className="opt-constraint-slider",
                         min=3, max=35, step=1, value=15,
-                        marks={5: "5%", 10: "10%", 15: "15%", 20: "20%", 25: "25%", 35: "35%"},
-                        tooltip={"placement": "bottom", "always_visible": False},
+                        marks={
+                            i: {"label": f"{i}%", "style": {"color": "#f8fafc"}}
+                            for i in [5, 10, 15, 20, 25, 35]
+                        },
+                        tooltip={"placement": "bottom", "always_visible": True, "template": "{value}%"},
                         persistence=True,
                         persistence_type="session",
                     ),
@@ -546,7 +558,7 @@ layout = html.Div([
                     className="footnote small text-muted px-3"
                 ),
             ])
-        ]), md=8, className="mb-4"),
+        ]), md=12, className="mb-4"),
 
         dbc.Col(dbc.Card([
             dbc.CardBody([
@@ -570,7 +582,7 @@ layout = html.Div([
                     rowData=[],
                     defaultColDef={"resizable": True, "sortable": True},
                     dashGridOptions={"domLayout": "autoHeight"},
-                    className="ag-theme-alpine-dark audit-target",
+                    className="ag-theme-alpine-dark",
                     style={"width": "100%"},
                 )),
                 # KPI row beneath weights
@@ -601,7 +613,7 @@ layout = html.Div([
                     )
                 ], id="opt-proxy-log-collapse", is_open=False),
             ])
-        ]), md=4, className="mb-4"),
+        ]), md=12, className="mb-4"),
     ]),
 
     # ── Row 2: Monte Carlo fan chart ───────────────────────────────
@@ -756,21 +768,63 @@ def run_optimization(
     if not n_clicks:
         return blank
 
+    input_warnings = []
+
+    def _coerce_int(name: str, value, default: int, min_value: int, max_value: int) -> int:
+        try:
+            parsed = int(value)
+        except Exception:
+            input_warnings.append(f"{name} was invalid and reset to {default}.")
+            return default
+
+        clamped = max(min_value, min(max_value, parsed))
+        if clamped != parsed:
+            input_warnings.append(
+                f"{name} was outside range and was clamped to {clamped} (allowed {min_value}-{max_value})."
+            )
+        return clamped
+
+    def _coerce_float(name: str, value, default: float, min_value: float, max_value: float) -> float:
+        try:
+            parsed = float(value)
+        except Exception:
+            input_warnings.append(f"{name} was invalid and reset to {default}.")
+            return default
+
+        clamped = max(min_value, min(max_value, parsed))
+        if clamped != parsed:
+            input_warnings.append(
+                f"{name} was outside range and was clamped to {clamped} (allowed {min_value}-{max_value})."
+            )
+        return clamped
+
     # ── Parse inputs ──────────────────────────────────────────────
     try:
         tickers = [t.strip().upper() for t in (raw_tickers or "").split(",") if t.strip()]
         # Remove CASH — can't optimise a cash position
         tickers = [t for t in tickers if t != "CASH"]
+
+        max_tickers = 25
+        if len(tickers) > max_tickers:
+            tickers = tickers[:max_tickers]
+            input_warnings.append(
+                f"Ticker list was trimmed to the first {max_tickers} symbols to keep optimization responsive on mobile browsers."
+            )
+
         if len(tickers) < 2:
             raise ValueError("Provide at least 2 non-CASH tickers.")
 
-        years = int(lookback or 10)
-        min_w = (min_wt or 0) / 100
-        max_w = (max_wt or 100) / 100
-        t_vol = (target_vol or 15) / 100
-        horizon = int(mc_horizon or 10)
-        sims = int(mc_sims or 1000)
-        contrib = float(mc_contribution or 0)
+        years = _coerce_int("Lookback", lookback if lookback is not None else 10, default=10, min_value=1, max_value=15)
+        min_w = _coerce_float("Min weight", min_wt if min_wt is not None else 0, default=0.0, min_value=0.0, max_value=100.0) / 100
+        max_w = _coerce_float("Max weight", max_wt if max_wt is not None else 100, default=100.0, min_value=0.0, max_value=100.0) / 100
+        t_vol = _coerce_float("Target volatility", target_vol if target_vol is not None else 15, default=15.0, min_value=1.0, max_value=35.0) / 100
+        horizon = _coerce_int("MC horizon", mc_horizon if mc_horizon is not None else 10, default=10, min_value=1, max_value=30)
+        sims = _coerce_int("MC simulations", mc_sims if mc_sims is not None else 1000, default=1000, min_value=250, max_value=5000)
+        contrib = _coerce_float("Monthly contribution", mc_contribution if mc_contribution is not None else 0, default=0.0, min_value=0.0, max_value=1_000_000.0)
+
+        if min_w > max_w:
+            min_w, max_w = max_w, min_w
+            input_warnings.append("Min/Max weight inputs were reversed and have been auto-corrected.")
 
         # Per-asset floor/cap bounds from pattern-matching inputs
         ticker_floors = {}
@@ -1095,7 +1149,18 @@ def run_optimization(
     else:
         fig_rs = _empty_fig("No rolling Sharpe data")
 
-    return [fig_frontier, rows, proxy_log_rows, sample_info, kpis, fig_mc, fig_dd, fig_rs, ""]
+    warning_banner = ""
+    if input_warnings:
+        warning_banner = dbc.Alert(
+            [
+                html.Div("Some optimization inputs were adjusted for stability:", className="fw-semibold mb-1"),
+                html.Ul([html.Li(msg) for msg in input_warnings], className="mb-0"),
+            ],
+            color="warning",
+            dismissable=True,
+        )
+
+    return [fig_frontier, rows, proxy_log_rows, sample_info, kpis, fig_mc, fig_dd, fig_rs, warning_banner]
 
 
 # ============================================================

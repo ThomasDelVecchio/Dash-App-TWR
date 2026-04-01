@@ -4799,3 +4799,88 @@ small.text-muted,
 [data-theme="dark"] .optimization-page :is(.form-control::placeholder, input::placeholder) {
     color: #94a3b8 !important;
 }
+
+[data-theme="dark"] .optimization-page .rc-slider {
+    margin-top: 6px;
+}
+
+[data-theme="dark"] .optimization-page .rc-slider-rail {
+    background-color: #364356 !important;
+    height: 7px;
+}
+
+[data-theme="dark"] .optimization-page .rc-slider-track {
+    background: linear-gradient(90deg, #1c9abf 0%, #00d4ff 100%) !important;
+    height: 7px;
+}
+
+[data-theme="dark"] .optimization-page .rc-slider-handle {
+    width: 18px;
+    height: 18px;
+    margin-top: -5px;
+    border: 2px solid #9fefff !important;
+    background: #00d4ff !important;
+    box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.2) !important;
+    opacity: 1 !important;
+}
+
+[data-theme="dark"] .optimization-page .rc-slider-handle:hover,
+[data-theme="dark"] .optimization-page .rc-slider-handle:focus,
+[data-theme="dark"] .optimization-page .rc-slider-handle:active {
+    border-color: #ffffff !important;
+    box-shadow: 0 0 0 5px rgba(0, 212, 255, 0.28) !important;
+}
+
+[data-theme="dark"] .optimization-page .rc-slider-dot {
+    border-color: #4a5a70 !important;
+    background-color: #223043 !important;
+}
+
+[data-theme="dark"] .optimization-page .rc-slider-mark-text {
+    color: rgba(233, 237, 244, 0.85) !important;
+    -webkit-text-fill-color: rgba(233, 237, 244, 0.85) !important;
+    font-size: 0.8rem;
+}
+
+[data-theme="dark"] .optimization-page .opt-constraint-slider .rc-slider-tooltip-inner {
+    background-color: #121923 !important;
+    color: #f5f8ff !important;
+    -webkit-text-fill-color: #f5f8ff !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .optimization-page .opt-constraint-slider .rc-slider-tooltip-placement-top .rc-slider-tooltip-arrow {
+    border-top-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+[data-theme="dark"] .optimization-page .opt-constraint-slider .rc-slider-tooltip-placement-bottom .rc-slider-tooltip-arrow {
+    border-bottom-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+@media (max-width: 991.98px) {
+    [data-theme="dark"] .optimization-page .rc-slider-mark-text {
+        font-size: 0.75rem;
+    }
+
+    [data-theme="dark"] .optimization-page .opt-constraint-slider .rc-slider-tooltip-inner {
+        font-size: 0.82rem;
+        padding: 5px 7px;
+    }
+}
+
+@media (max-width: 767.98px), (hover: none) and (pointer: coarse) {
+    [data-theme="dark"] .optimization-page .rc-slider-handle {
+        width: 20px;
+        height: 20px;
+        margin-top: -6px;
+    }
+
+    [data-theme="dark"] .optimization-page .rc-slider-mark-text,
+    [data-theme="dark"] .optimization-page .rc-slider-mark-text-active {
+        font-size: 0.72rem;
+        transform: translateX(-50%);
+        white-space: nowrap;
+    }
+}
