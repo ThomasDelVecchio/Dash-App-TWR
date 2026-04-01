@@ -396,6 +396,8 @@ def transform_etrade_transaction(tx: Dict) -> Optional[Dict]:
         # Get symbol
         product = brokerage.get("product", {})
         ticker = product.get("symbol", "CASH")
+        if ticker.upper() == "MSBNK":
+            ticker = "CASH"
         
         # Get quantity and amount
         # NOTE: E*TRADE returns 'amount' at TOP LEVEL of transaction, NOT inside brokerage object
@@ -650,7 +652,7 @@ def transform_etrade_position(pos: Dict) -> Optional[Dict]:
         
         quantity = float(pos.get("quantity", 0) or 0)
         
-        if not ticker:
+        if not ticker or ticker == "MSBNK":
             return None
         
         return {
